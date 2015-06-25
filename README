@@ -22,6 +22,13 @@ The Ugly (aka: bugs, misbehaviour)
   This can be theoretically remedied by either Espressif including an os_snprintf in 
   their libs or by using some alternate printf lib, like elm-chans xprintf
 
+SOURCE OF THIS CODE
+The official esphttpd repo lives at http://git.spritesserver.nl/esphttpd.git/ and
+http://git.spritesserver.nl/libesphttpd.git/ . If you're a fan of Github, you can also
+peruse the official mirror at https://github.com/Spritetm/esphttpd and https://github.com/Spritetm/libesphttpd . If
+you want to discuss this code, there is a subforum at esp8266.com: http://www.esp8266.com/viewforum.php?f=34 .
+
+
 ABOUT THE EXAMPLE
 
 When you flash the example into an ESP8266(EX) module, you get a small webserver with a few example
