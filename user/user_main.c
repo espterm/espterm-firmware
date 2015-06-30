@@ -70,9 +70,11 @@ HttpdBuiltInUrl builtInUrls[]={
 	{"/led.tpl", cgiEspFsTemplate, tplLed},
 	{"/index.tpl", cgiEspFsTemplate, tplCounter},
 	{"/led.cgi", cgiLed, NULL},
-#ifdef ESPFS_POS
-	{"/updateweb.cgi", cgiUploadEspfs, &espfsParams},
-#endif
+	{"/flash/download", cgiReadFlash, NULL},
+	{"/flash/next", cgiGetFirmwareNext, NULL},
+	{"/flash/upload", cgiUploadFirmware, NULL},
+	{"/flash/reboot", cgiRebootFirmware, NULL},
+
 	//Routines to make the /wifi URL and everything beneath it work.
 
 //Enable the line below to protect the WiFi configuration with an username/password combo.

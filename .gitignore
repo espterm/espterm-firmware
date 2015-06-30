@@ -7,3 +7,5 @@ espfs/espfstest/*.o
 espfs/espfstest/espfstest
 *.DS_Store
 html_compressed/
+ldscript_memspecific.ld
+eagle.app.sym

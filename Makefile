@@ -1,8 +1,18 @@
-#Position and maximum length of espfs in flash memory. This can be undefined. In this case 
-#the webpages will be linked in into the executable file. If this is defined, please do a 
-#'make htmlflash' to flash the espfs into the ESPs memory.
+#You can build this example in three ways:
+# 'separate' - Separate espfs and binaries, no OTA upgrade
+# 'combined' - Combined firmware blob, no OTA upgrade
+# 'ota' - Combined firmware blob with OTA upgrades.
+OUTPUT_TYPE=ota
+
+#SPI flash size, in K
+ESP_SPI_FLASH_SIZE=1024
+
+ifeq ("$(OUTPUT_TYPE)","separate")
+#Set the pos and length of the ESPFS here. If these are undefined, the rest of the Makefile logic
+#will automatically put the webpages in the binary.
 ESPFS_POS = 0x12000
 ESPFS_SIZE = 0x2E000
+endif
 
 # Output directors to store intermediate compiled files
 # relative to the project directory
@@ -23,6 +33,13 @@ ESPPORT		?= /dev/ttyUSB0
 ESPDELAY	?= 3
 ESPBAUD		?= 460800
 
+#Appgen path and name
+APPGEN		?= $(SDK_BASE)/tools/gen_appbin.py
+
+#0: QIO, 1: QOUT, 2: DIO, 3: DOUT
+ESP_FLASH_MODE		?= 0
+#0: 40MHz, 1: 26MHz, 2: 20MHz, 0xf: 80MHz
+ESP_FLASH_FREQ_DIV	?= 0
 
 # name for the target project
 TARGET		= httpd
@@ -44,8 +61,6 @@ CFLAGS		= -Os -ggdb -std=c99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-
 # linker flags used to generate the main object file
 LDFLAGS		= -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static
 
-# linker script used for the above linkier step
-LD_SCRIPT	= eagle.app.v6.ld
 
 # various paths from the SDK used in this project
 SDK_LIBDIR	= lib
@@ -56,6 +71,10 @@ SDK_INCDIR	= include include/json
 CC		:= $(XTENSA_TOOLS_ROOT)xtensa-lx106-elf-gcc
 AR		:= $(XTENSA_TOOLS_ROOT)xtensa-lx106-elf-ar
 LD		:= $(XTENSA_TOOLS_ROOT)xtensa-lx106-elf-gcc
+OBJCOPY	:= $(XTENSA_TOOLS_ROOT)xtensa-lx106-elf-objcopy
+
+#Additional (maybe generated) ld scripts to link in
+EXTRA_LD_SCRIPTS:=
 
 
 ####
@@ -69,15 +88,8 @@ SDK_INCDIR	:= $(addprefix -I$(SDK_BASE)/,$(SDK_INCDIR))
 
 SRC		:= $(foreach sdir,$(SRC_DIR),$(wildcard $(sdir)/*.c))
 OBJ		:= $(patsubst %.c,$(BUILD_BASE)/%.o,$(SRC))
-LIBS		:= $(addprefix -l,$(LIBS))
 APP_AR		:= $(addprefix $(BUILD_BASE)/,$(TARGET)_app.a)
-TARGET_OUT	:= $(addprefix $(BUILD_BASE)/,$(TARGET).out)
 
-LD_SCRIPT	:= $(addprefix -T$(SDK_BASE)/$(SDK_LDDIR)/,$(LD_SCRIPT))
-
-INCDIR	:= $(addprefix -I,$(SRC_DIR))
-EXTRA_INCDIR	:= $(addprefix -I,$(EXTRA_INCDIR))
-MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
 
 V ?= $(VERBOSE)
 ifeq ("$(V)","1")
@@ -98,11 +110,30 @@ endif
 
 ifeq ("$(ESPFS_POS)","")
 #No hardcoded espfs position: link it in with the binaries.
-LIBS += -lwebpages-espfs
+LIBS += webpages-espfs
 else
 #Hardcoded espfs location: Pass espfs position to rest of code
 CFLAGS += -DESPFS_POS=$(ESPFS_POS) -DESPFS_SIZE=$(ESPFS_SIZE)
 endif
+
+#Define default target. If not defined here the one in the included Makefile is used as the default one.
+default-tgt: all
+
+#Include options and target specific to the OUTPUT_TYPE
+include Makefile.$(OUTPUT_TYPE)
+
+#Add all prefixes to paths
+LIBS		:= $(addprefix -l,$(LIBS))
+ifeq ("$(LD_SCRIPT_USR1)", "")
+LD_SCRIPT	:= $(addprefix -T$(SDK_BASE)/$(SDK_LDDIR)/,$(LD_SCRIPT))
+else
+LD_SCRIPT_USR1	:= $(addprefix -T$(SDK_BASE)/$(SDK_LDDIR)/,$(LD_SCRIPT_USR1))
+LD_SCRIPT_USR2	:= $(addprefix -T$(SDK_BASE)/$(SDK_LDDIR)/,$(LD_SCRIPT_USR2))
+endif
+INCDIR	:= $(addprefix -I,$(SRC_DIR))
+EXTRA_INCDIR	:= $(addprefix -I,$(EXTRA_INCDIR))
+MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
+
 
 vpath %.c $(SRC_DIR)
 
@@ -112,7 +143,7 @@ $1/%.o: %.c
 	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
 endef
 
-.PHONY: all checkdirs clean libesphttpd
+.PHONY: all checkdirs clean libesphttpd default-tgt
 
 all: checkdirs $(TARGET_OUT) $(FW_BASE)
 
@@ -124,16 +155,7 @@ libesphttpd/Makefile:
 libesphttpd: libesphttpd/Makefile
 	$(Q) make -C libesphttpd
 
-$(TARGET_OUT): $(APP_AR)
-	$(vecho) "LD $@"
-	$(Q) $(LD) -Llibesphttpd -L$(SDK_LIBDIR) $(LD_SCRIPT) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
-
-$(FW_BASE): $(TARGET_OUT)
-	$(vecho) "FW $@"
-	$(Q) mkdir -p $@
-	$(Q) $(ESPTOOL) elf2image $(TARGET_OUT) --output $@/
-
-$(APP_AR):  libesphttpd $(OBJ)
+$(APP_AR): libesphttpd $(OBJ)
 	$(vecho) "AR $@"
 	$(Q) $(AR) cru $@ $(OBJ)
 
@@ -142,22 +164,12 @@ checkdirs: $(BUILD_DIR)
 $(BUILD_DIR):
 	$(Q) mkdir -p $@
 
-
-flash: $(TARGET_OUT) $(FW_BASE)
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash 0x00000 $(FW_BASE)/0x00000.bin 0x40000 $(FW_BASE)/0x40000.bin
-
-blankflash:
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash 0x7E000 $(SDK_BASE)/bin/blank.bin
-
-htmlflash: libesphttpd
-	$(Q) if [ $$(stat -c '%s' libesphttpd/webpages.espfs) -gt $$(( $(ESPFS_SIZE) )) ]; then echo "webpages.espfs too big!"; false; fi
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash $(ESPFS_POS) libesphttpd/webpages.espfs
-
 clean:
 	$(Q) make -C libesphttpd clean
 	$(Q) rm -f $(APP_AR)
 	$(Q) rm -f $(TARGET_OUT)
 	$(Q) find $(BUILD_BASE) -type f | xargs rm -f
 	$(Q) rm -rf $(FW_BASE)
+	
 
 $(foreach bdir,$(BUILD_DIR),$(eval $(call compile-objects,$(bdir))))
