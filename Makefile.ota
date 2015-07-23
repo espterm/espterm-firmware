@@ -72,13 +72,13 @@ $(FW_BASE): $(TARGET_BIN)
 
 
 
-
 flash: $(TARGET_OUT) $(FW_BASE)
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash 0x00000 $(FW_BASE)/0x00000.bin 0x40000 $(FW_BASE)/0x40000.bin
+	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x00000 "$(SDK_BASE)/bin/boot_v1.4(b1).bin" 0x1000 $(TARGET_BIN_USR1)
+#	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x00000 $(FW_BASE)/0x00000.bin 0x40000 $(FW_BASE)/0x40000.bin
 
 blankflash:
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash 0x7E000 $(SDK_BASE)/bin/blank.bin
+	$(Q) $(ESPTOOL)  $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x7E000 $(SDK_BASE)/bin/blank.bin
 
 htmlflash: libesphttpd
 	$(Q) if [ $$(stat -c '%s' libesphttpd/webpages.espfs) -gt $$(( $(ESPFS_SIZE) )) ]; then echo "webpages.espfs too big!"; false; fi
-	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash $(ESPFS_POS) libesphttpd/webpages.espfs
+	$(Q) $(ESPTOOL)  $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) $(ESPFS_POS) libesphttpd/webpages.espfs
