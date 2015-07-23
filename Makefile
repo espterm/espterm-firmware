@@ -2,12 +2,12 @@
 # 'separate' - Separate espfs and binaries, no OTA upgrade
 # 'combined' - Combined firmware blob, no OTA upgrade
 # 'ota' - Combined firmware blob with OTA upgrades.
-OUTPUT_TYPE=combined
+#OUTPUT_TYPE=combined
 #OUTPUT_TYPE=separate
-#OUTPUT_TYPE=ota
+OUTPUT_TYPE=ota
 
 #SPI flash size, in K
-ESP_SPI_FLASH_SIZE=1024
+ESP_SPI_FLASH_SIZE_K=1024
 #0: QIO, 1: QOUT, 2: DIO, 3: DOUT
 ESP_FLASH_MODE=2
 #0: 40MHz, 1: 26MHz, 2: 20MHz, 0xf: 80MHz
@@ -15,8 +15,7 @@ ESP_FLASH_FREQ_DIV=0
 
 
 ifeq ("$(OUTPUT_TYPE)","separate")
-#Set the pos and length of the ESPFS here. If these are undefined, the rest of the Makefile logic
-#will automatically put the webpages in the binary.
+#In case of separate ESPFS and binaries, set the pos and length of the ESPFS here. 
 ESPFS_POS = 0x12000
 ESPFS_SIZE = 0x2E000
 endif
@@ -118,6 +117,11 @@ else
 CFLAGS += -DESPFS_POS=$(ESPFS_POS) -DESPFS_SIZE=$(ESPFS_SIZE)
 endif
 
+ifeq ("$(OUTPUT_TYPE)","ota")
+CFLAGS += -DOTA_FLASH_SIZE_K=$(ESP_SPI_FLASH_SIZE_K)
+endif
+
+
 #Define default target. If not defined here the one in the included Makefile is used as the default one.
 default-tgt: all
 
@@ -140,10 +144,10 @@ define maplookup
 $(patsubst $(strip $(1)):%,%,$(filter $(strip $(1)):%,$(2)))
 endef
 
-ESP_FLASH_SIZE_IX=$(call maplookup,$(ESP_SPI_FLASH_SIZE),512:0 1024:2 2048:5 4096:6)
+ESP_FLASH_SIZE_IX=$(call maplookup,$(ESP_SPI_FLASH_SIZE_K),512:0 1024:2 2048:5 4096:6)
 ESPTOOL_FREQ=$(call maplookup,$(ESP_FLASH_FREQ_DIV),0:40m 1:26m, 2:20m 0xf:80m)
 ESPTOOL_MODE=$(call maplookup,$(ESP_FLASH_MODE),0:qio 1:qout 2:dio 3:dout)
-ESPTOOL_SIZE=$(call maplookup,$(ESP_SPI_FLASH_SIZE),512:4m 256:2m 1024:8m 2048:16m 4096:32m)
+ESPTOOL_SIZE=$(call maplookup,$(ESP_SPI_FLASH_SIZE_K),512:4m 256:2m 1024:8m 2048:16m 4096:32m)
 
 ESPTOOL_OPTS=--port $(ESPPORT) --baud $(ESPBAUD)
 ESPTOOL_FLASHDEF=--flash_freq $(ESPTOOL_FREQ) --flash_mode $(ESPTOOL_MODE) --flash_size $(ESPTOOL_SIZE)

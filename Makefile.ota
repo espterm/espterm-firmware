@@ -2,8 +2,8 @@
 #the espfs combined into the flash binary.
 
 # linker script used for the linker step
-LD_SCRIPT_USR1	:= eagle.app.v6.new.$(ESP_SPI_FLASH_SIZE).app1.ld
-LD_SCRIPT_USR2	:= eagle.app.v6.new.$(ESP_SPI_FLASH_SIZE).app2.ld
+LD_SCRIPT_USR1	:= eagle.app.v6.new.$(ESP_SPI_FLASH_SIZE_K).app1.ld
+LD_SCRIPT_USR2	:= eagle.app.v6.new.$(ESP_SPI_FLASH_SIZE_K).app2.ld
 
 TARGET_OUT_USR1 := $(addprefix $(BUILD_BASE)/,$(TARGET).user1.out)
 TARGET_OUT_USR2 := $(addprefix $(BUILD_BASE)/,$(TARGET).user2.out)
@@ -15,7 +15,7 @@ TARGET_BIN	:=  $(TARGET_BIN_USR1) $(TARGET_BIN_USR2)
 
 #Convert SPI size into arg for appgen. Format: no=size
 FLASH_MAP_CONV:=0:512 2:1024 5:2048 6:4096
-ESP_FLASH_SIZE_IX:=$(patsubst %:$(ESP_SPI_FLASH_SIZE),%,$(filter %:$(ESP_SPI_FLASH_SIZE),$(FLASH_MAP_CONV)))
+ESP_FLASH_SIZE_IX:=$(patsubst %:$(ESP_SPI_FLASH_SIZE_K),%,$(filter %:$(ESP_SPI_FLASH_SIZE_K),$(FLASH_MAP_CONV)))
 
 define genappbin
 $(1): $$(APP_AR)
@@ -41,7 +41,7 @@ $(eval $(call genappbin,$(TARGET_OUT_USR2),$$(LD_SCRIPT_USR2),$$(TARGET_BIN_USR2
 
 ldscript_memspecific.ld:
 	$(vecho) "GEN $@"
-	$(Q) echo "MEMORY { irom0_0_seg : org = 0x40240000, len = "$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE)-0x4000)))" }"> ldscript_memspecific.ld
+	$(Q) echo "MEMORY { irom0_0_seg : org = 0x40240000, len = "$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE_K)*1024-0x4000)))" }"> ldscript_memspecific.ld
 
 
 #define makeuser
