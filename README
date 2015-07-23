@@ -1,7 +1,9 @@
 esp-httpd README
 
-This is a small but powerful webserver for ESP8266(EX) chips. Included is an example of how
-to make a module that can have the AP it connects to configured over a webbrowser.
+This is the demonstration project for the small but powerful libesphttpd webserver 
+for ESP8266(EX) chips. It is an example of how to make a module that can have 
+the AP it connects to configured over a webbrowser. It also illustrates multiple 
+flash layouts and some OTA update functionality.
 
 ABOUT THE WEBSERVER
 
@@ -48,7 +50,7 @@ To manage the paths to all this, you can source a small shell fragment into your
 example, I source a file with these contents:
 export PATH=${PWD}/esp-open-sdk/xtensa-lx106-elf/bin:$PATH
 export SDK_BASE=${PWD}/esp-open-sdk/sdk
-export ESPTOOL=${PWD}/esptool/esptool
+export ESPTOOL=${PWD}/esptool/esptool.py
 export ESPPORT=/dev/ttyUSB0
 export ESPBAUD=460800
 
@@ -67,8 +69,7 @@ Now, build the code:
 make
 
 Flash the code happens in 2 steps. First the code itself gets flashed. Reset the module into bootloader
-mode and enter 'make flash'. You may want to reset and re-enter the bootloader halfway (at 'sleep 3') for
-the 2nd part of this flash to work.
+mode and enter 'make flash'.
 
 The 2nd step is to pack the static files the webserver will serve and flash that. Reset the module into
 bootloader mode again and enter 'make htmlflash'.
