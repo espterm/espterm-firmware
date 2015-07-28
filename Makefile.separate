@@ -8,6 +8,12 @@ EXTRA_LD_SCRIPTS = ldscript_memspecific.ld
 
 TARGET_OUT	:= $(addprefix $(BUILD_BASE)/,$(TARGET).out)
 
+.PHONY: ldscript_memspecific.ld
+
+ldscript_memspecific.ld:
+	$(vecho) "GEN $@"
+	$(Q) echo "MEMORY { irom0_0_seg : org = 0x40240000, len = "$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE)-0x4000)))" }"> ldscript_memspecific.ld
+
 $(TARGET_OUT): $(APP_AR) $(EXTRA_LD_SCRIPTS)
 	$(vecho) "LD $@"
 	$(Q) $(LD) -Llibesphttpd -L$(SDK_LIBDIR) $(LD_SCRIPT) $(EXTRA_LD_SCRIPTS) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@ 
