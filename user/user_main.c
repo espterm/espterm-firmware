@@ -25,6 +25,7 @@ some pictures of cats.
 #include "espfs.h"
 #include "captdns.h"
 #include "webpages-espfs.h"
+#include "cgiwebsocket.h"
 
 //The example can print out the heap use every 3 seconds. You can use this to catch memory leaks.
 //#define SHOW_HEAP_USE
@@ -45,6 +46,19 @@ int myPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pas
 	}
 	return 0;
 }
+
+void myWebsocketRecv(Websock *ws, char *data, int len, int flags) {
+	int i;
+	os_printf("Websocket: Received data: ");
+	for (i=0; i<len; i++) os_printf("%c", data[i]);
+	os_printf("\n");
+}
+
+void myWebsocketConnect(Websock *ws) {
+	ws->recvCb=myWebsocketRecv;
+	cgiWebsocketSend(ws, "Hi, Websocket!", 14, WEBSOCK_FLAG_NONE);
+}
+
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -101,6 +115,8 @@ HttpdBuiltInUrl builtInUrls[]={
 	{"/wifi/connect.cgi", cgiWiFiConnect, NULL},
 	{"/wifi/connstatus.cgi", cgiWiFiConnStatus, NULL},
 	{"/wifi/setmode.cgi", cgiWiFiSetMode, NULL},
+
+	{"/websocket/ws.cgi", cgiWebsocket, myWebsocketConnect},
 
 	{"*", cgiEspFsHook, NULL}, //Catch-all cgi function for the filesystem
 	{NULL, NULL, NULL}
