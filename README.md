@@ -12,6 +12,8 @@ The Good (aka: what's awesome)
  - Static files stored in flash, in an (optionally compressed) RO filesystem
  - Pluggable using external cgi routines
  - Simple template engine for mixed c and html things
+ - Usable as an embedded library - should be easy to drop into your existing projects
+ - Includes websocket support
 
 The Bad (aka: what can be improved)
  - Not built for speediness, although it's reasonable fast.
