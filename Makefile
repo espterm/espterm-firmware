@@ -17,8 +17,8 @@ ESP_FLASH_FREQ_DIV=0
 
 ifeq ("$(OUTPUT_TYPE)","separate")
 #In case of separate ESPFS and binaries, set the pos and length of the ESPFS here. 
-ESPFS_POS = 0x12000
-ESPFS_SIZE = 0x2E000
+ESPFS_POS = 0x18000
+ESPFS_SIZE = 0x28000
 endif
 
 # Output directors to store intermediate compiled files
@@ -56,7 +56,7 @@ LIBS		= c gcc hal phy pp net80211 wpa main lwip
 LIBS += esphttpd
 
 # compiler flags using during compilation of source files
-CFLAGS		= -Os -ggdb -std=c99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
+CFLAGS		= -Os -ggdb -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH -D_STDINT_H \
 		-Wno-address
 
@@ -89,7 +89,9 @@ SDK_LIBDIR	:= $(addprefix $(SDK_BASE)/,$(SDK_LIBDIR))
 SDK_INCDIR	:= $(addprefix -I$(SDK_BASE)/,$(SDK_INCDIR))
 
 SRC		:= $(foreach sdir,$(SRC_DIR),$(wildcard $(sdir)/*.c))
-OBJ		:= $(patsubst %.c,$(BUILD_BASE)/%.o,$(SRC))
+ASMSRC		= $(foreach sdir,$(SRC_DIR),$(wildcard $(sdir)/*.S))
+OBJ		= $(patsubst %.c,$(BUILD_BASE)/%.o,$(SRC))
+OBJ		+= $(patsubst %.S,$(BUILD_BASE)/%.o,$(ASMSRC))
 APP_AR		:= $(addprefix $(BUILD_BASE)/,$(TARGET)_app.a)
 
 
@@ -154,9 +156,14 @@ ESPTOOL_OPTS=--port $(ESPPORT) --baud $(ESPBAUD)
 ESPTOOL_FLASHDEF=--flash_freq $(ESPTOOL_FREQ) --flash_mode $(ESPTOOL_MODE) --flash_size $(ESPTOOL_SIZE)
 
 vpath %.c $(SRC_DIR)
+vpath %.S $(SRC_DIR)
 
 define compile-objects
 $1/%.o: %.c
+	$(vecho) "CC $$<"
+	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
+
+$1/%.o: %.S
 	$(vecho) "CC $$<"
 	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
 endef
