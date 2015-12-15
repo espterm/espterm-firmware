@@ -33,6 +33,10 @@ XTENSA_TOOLS_ROOT ?=
 # base directory of the ESP8266 SDK package, absolute
 SDK_BASE	?= /opt/Espressif/ESP8266_SDK
 
+# Opensdk patches stdint.h when compiled with an internal SDK. If you run into compile problems pertaining to
+# redefinition of int types, try setting this to 'yes'.
+USE_OPENSDK?=no
+
 #Esptool.py path and port
 ESPTOOL		?= esptool.py
 ESPPORT		?= /dev/ttyUSB0
@@ -57,7 +61,7 @@ LIBS += esphttpd
 
 # compiler flags using during compilation of source files
 CFLAGS		= -Os -ggdb -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
-		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH -D_STDINT_H \
+		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
 		-Wno-address
 
 # linker flags used to generate the main object file
@@ -102,6 +106,12 @@ vecho := @true
 else
 Q := @
 vecho := @echo
+endif
+
+ifeq ($(USE_OPENSDK),"yes")
+CFLAGS		+= -DUSE_OPENSDK
+else
+CFLAGS		+= -D_STDINT_H
 endif
 
 ifeq ("$(GZIP_COMPRESSION)","yes")
