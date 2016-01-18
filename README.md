@@ -73,7 +73,15 @@ Now, build the code:
 
 	make
 
-Flash the code happens in 2 steps. First the code itself gets flashed. Reset the module into bootloader
+Depending on the way you built it, esp-open-sdk sometimes patches Espressifs SDK, needing a slightly different
+compiling process. If this is needed, you will get errors during compiling complaining about uint8_t being
+undeclared. If this happens, try building like this:
+
+	make USE_OPENSDK=yes
+
+You can also edit the Makefile to change this more permanently.
+
+After the compile process, flash the code happens in 2 steps. First the code itself gets flashed. Reset the module into bootloader
 mode and enter 'make flash'.
 
 The 2nd step is to pack the static files the webserver will serve and flash that. Reset the module into
