@@ -10,9 +10,11 @@ TARGET_OUT	:= $(addprefix $(BUILD_BASE)/,$(TARGET).out)
 
 .PHONY: ldscript_memspecific.ld
 
+
 ldscript_memspecific.ld:
 	$(vecho) "GEN $@"
-	$(Q) echo "MEMORY { irom0_0_seg : org = 0x40240000, len = "$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE)-0x4000)))" }"> ldscript_memspecific.ld
+	$(Q) echo "MEMORY { irom0_0_seg : org = 0x40240000, len = "$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE_K)*1024-0x4000)))" }"> ldscript_memspecific.ld
+
 
 $(TARGET_OUT): $(APP_AR) $(EXTRA_LD_SCRIPTS)
 	$(vecho) "LD $@"
@@ -28,5 +30,5 @@ flash: $(TARGET_OUT) $(FW_BASE)
 	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x00000 $(FW_BASE)/0x00000.bin 0x40000 $(FW_BASE)/0x40000.bin
 
 blankflash:
-	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x7E000 $(SDK_BASE)/bin/blank.bin  $(SDK_BASE)/bin/esp_init_data_default.bin
+	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x7E000 $(SDK_BASE)/bin/blank.bin 0x7F000 $(SDK_BASE)/bin/esp_init_data_default.bin
 
