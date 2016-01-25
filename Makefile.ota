@@ -2,8 +2,11 @@
 #the espfs combined into the flash binary.
 
 # linker script used for the linker step
-LD_SCRIPT_USR1	:= eagle.app.v6.new.$(ESP_SPI_FLASH_SIZE_K).app1.ld
-LD_SCRIPT_USR2	:= eagle.app.v6.new.$(ESP_SPI_FLASH_SIZE_K).app2.ld
+
+LD_MAP_1:=512:eagle.app.v6.new.512.app1.ld 1024:eagle.app.v6.new.1024.app1.ld 2048:eagle.app.v6.new.2048.ld 4096:eagle.app.v6.new.2048.ld
+LD_MAP_2:=512:eagle.app.v6.new.512.app2.ld 1024:eagle.app.v6.new.1024.app2.ld 2048:eagle.app.v6.new.2048.ld 4096:eagle.app.v6.new.2048.ld
+LD_SCRIPT_USR1	:= $(call maplookup,$(ESP_SPI_FLASH_SIZE_K),$(LD_MAP_1))
+LD_SCRIPT_USR2	:= $(call maplookup,$(ESP_SPI_FLASH_SIZE_K),$(LD_MAP_2))
 
 TARGET_OUT_USR1 := $(addprefix $(BUILD_BASE)/,$(TARGET).user1.out)
 TARGET_OUT_USR2 := $(addprefix $(BUILD_BASE)/,$(TARGET).user2.out)
@@ -13,9 +16,12 @@ TARGET_BIN_USR1 := $(addprefix $(BUILD_BASE)/,$(TARGET).user1.bin)
 TARGET_BIN_USR2 := $(addprefix $(BUILD_BASE)/,$(TARGET).user2.bin)
 TARGET_BIN	:=  $(TARGET_BIN_USR1) $(TARGET_BIN_USR2)
 
+BLANKPOS="$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE_K)*512-0x2000)))"
+INITDATAPOS="$$(printf "0x%X" $$(($(ESP_SPI_FLASH_SIZE_K)*512-0x4000)))"
+
 #Convert SPI size into arg for appgen. Format: no=size
 FLASH_MAP_CONV:=0:512 2:1024 5:2048 6:4096
-ESP_FLASH_SIZE_IX:=$(patsubst %:$(ESP_SPI_FLASH_SIZE_K),%,$(filter %:$(ESP_SPI_FLASH_SIZE_K),$(FLASH_MAP_CONV)))
+ESP_FLASH_SIZE_IX:=$(maplookup $(ESP_SPI_FLASH_SIZE_K),,$(FLASH_MAP_CONV))
 
 define genappbin
 $(1): $$(APP_AR)
@@ -28,14 +34,14 @@ $(3): $(1)
 	$$(Q) $$(OBJCOPY) --only-section .data -O binary $1 build/eagle.app.v6.data.bin
 	$$(Q) $$(OBJCOPY) --only-section .rodata -O binary $1 build/eagle.app.v6.rodata.bin
 	$$(Q) $$(OBJCOPY) --only-section .irom0.text -O binary $1 build/eagle.app.v6.irom0text.bin
-	$$(Q) cd build; COMPILE=gcc PATH=$$(XTENSA_TOOLS_ROOT):$$(PATH) python $$(APPGEN) $(1:build/%=%) 2 $$(ESP_FLASH_MODE) $$(ESP_FLASH_FREQ_DIV) $$(ESP_FLASH_SIZE_IX)
+	$$(Q) cd build; COMPILE=gcc PATH=$$(XTENSA_TOOLS_ROOT):$$(PATH) python $$(APPGEN) $(1:build/%=%) 2 $$(ESP_FLASH_MODE) $$(ESP_FLASH_FREQ_DIV) $$(ESP_FLASH_SIZE_IX) $(4)
 	$$(Q) rm -f eagle.app.v6.*.bin
 	$$(Q) mv build/eagle.app.flash.bin $$@
 	@echo "** user1.bin uses $$$$(stat -c '%s' $$@) bytes of" $$(ESP_FLASH_MAX) "available"
 endef
 
-$(eval $(call genappbin,$(TARGET_OUT_USR1),$$(LD_SCRIPT_USR1),$$(TARGET_BIN_USR1)))
-$(eval $(call genappbin,$(TARGET_OUT_USR2),$$(LD_SCRIPT_USR2),$$(TARGET_BIN_USR2)))
+$(eval $(call genappbin,$(TARGET_OUT_USR1),$$(LD_SCRIPT_USR1),$$(TARGET_BIN_USR1),1))
+$(eval $(call genappbin,$(TARGET_OUT_USR2),$$(LD_SCRIPT_USR2),$$(TARGET_BIN_USR2),2))
 
 .PHONY: ldscript_memspecific.ld
 
@@ -77,7 +83,7 @@ flash: $(TARGET_OUT) $(FW_BASE)
 #	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x00000 $(FW_BASE)/0x00000.bin 0x40000 $(FW_BASE)/0x40000.bin
 
 blankflash:
-	$(Q) $(ESPTOOL)  $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) 0x7E000 $(SDK_BASE)/bin/blank.bin  $(SDK_BASE)/bin/esp_init_data_default.bin
+	$(Q) $(ESPTOOL) $(ESPTOOL_OPTS) write_flash $(ESPTOOL_FLASHDEF) $(BLANKPOS) $(SDK_BASE)/bin/blank.bin $(INITDATAPOS) $(SDK_BASE)/bin/esp_init_data_default.bin
 
 htmlflash: libesphttpd
 	$(Q) if [ $$(stat -c '%s' libesphttpd/webpages.espfs) -gt $$(( $(ESPFS_SIZE) )) ]; then echo "webpages.espfs too big!"; false; fi
