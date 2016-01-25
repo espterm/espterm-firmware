@@ -138,6 +138,11 @@ endif
 #Define default target. If not defined here the one in the included Makefile is used as the default one.
 default-tgt: all
 
+define maplookup
+$(patsubst $(strip $(1)):%,%,$(filter $(strip $(1)):%,$(2)))
+endef
+
+
 #Include options and target specific to the OUTPUT_TYPE
 include Makefile.$(OUTPUT_TYPE)
 
@@ -152,10 +157,6 @@ endif
 INCDIR	:= $(addprefix -I,$(SRC_DIR))
 EXTRA_INCDIR	:= $(addprefix -I,$(EXTRA_INCDIR))
 MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
-
-define maplookup
-$(patsubst $(strip $(1)):%,%,$(filter $(strip $(1)):%,$(2)))
-endef
 
 ESP_FLASH_SIZE_IX=$(call maplookup,$(ESP_SPI_FLASH_SIZE_K),512:0 1024:2 2048:5 4096:6)
 ESPTOOL_FREQ=$(call maplookup,$(ESP_FLASH_FREQ_DIV),0:40m 1:26m, 2:20m 0xf:80m)
