@@ -91,12 +91,6 @@ You should have a working webserver now.
 
 ## WRITING CODE FOR THE WEBSERVER ##
 
-See programming.md
-
-## CHANGE FROM SDK 0.9.3 (and earlier) TO SDK 0.9.4 (and later): ##
-Change all occurences of `espconn_sent(connData->conn, (uint8 *)buff, len);` to
-`httpdSend(connData, buff, len)` please. The reason for this is that you can't do multiple 
-espconn_sent calls serially anymore, so httpd needs to buffer the writes now. This is only 
-needed in your own code; the code that comes with httpd already has this changed.
+Please see the README.md of the libesphttpd project for the programming manual.
 
 
