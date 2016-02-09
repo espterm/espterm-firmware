@@ -102,6 +102,7 @@ CgiUploadFlashDef uploadParams={
 	.fw1Pos=0x1000,
 	.fw2Pos=((OTA_FLASH_SIZE_K*1024)/2)+0x1000,
 	.fwSize=((OTA_FLASH_SIZE_K*1024)/2)-0x1000,
+	.tagName=OTA_TAGNAME
 };
 #define INCLUDE_FLASH_FNS
 #endif

@@ -3,12 +3,12 @@
 # 'combined' - Combined firmware blob, no OTA upgrade
 # 'ota' - Combined firmware blob with OTA upgrades.
 #Please do a 'make clean' after changing this.
-OUTPUT_TYPE=separate
+#OUTPUT_TYPE=separate
 #OUTPUT_TYPE=combined
-#OUTPUT_TYPE=ota
+OUTPUT_TYPE=ota
 
 #SPI flash size, in K
-ESP_SPI_FLASH_SIZE_K=512
+ESP_SPI_FLASH_SIZE_K=1024
 #0: QIO, 1: QOUT, 2: DIO, 3: DOUT
 ESP_FLASH_MODE=0
 #0: 40MHz, 1: 26MHz, 2: 20MHz, 0xf: 80MHz
