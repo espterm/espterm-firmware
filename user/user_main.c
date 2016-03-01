@@ -26,6 +26,7 @@ some pictures of cats.
 #include "captdns.h"
 #include "webpages-espfs.h"
 #include "cgiwebsocket.h"
+#include "cgi-test.h"
 
 //The example can print out the heap use every 3 seconds. You can use this to catch memory leaks.
 //#define SHOW_HEAP_USE
@@ -146,6 +147,10 @@ HttpdBuiltInUrl builtInUrls[]={
 
 	{"/websocket/ws.cgi", cgiWebsocket, myWebsocketConnect},
 	{"/websocket/echo.cgi", cgiWebsocket, myEchoWebsocketConnect},
+
+	{"/test", cgiRedirect, "/test/index.html"},
+	{"/test/", cgiRedirect, "/test/index.html"},
+	{"/test/test.cgi", cgiTestbed, NULL},
 
 	{"*", cgiEspFsHook, NULL}, //Catch-all cgi function for the filesystem
 	{NULL, NULL, NULL}
