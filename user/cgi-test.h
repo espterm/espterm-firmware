@@ -3,6 +3,6 @@
 
 #include "httpd.h"
 
-int cgiTestbed(HttpdConnData *connData);
+httpd_cgi_state cgiTestbed(HttpdConnData *connData);
 
 #endif

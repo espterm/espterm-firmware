@@ -22,7 +22,7 @@ typedef struct {
 } TestbedState;
 
 
-int ICACHE_FLASH_ATTR cgiTestbed(HttpdConnData *connData) {
+httpd_cgi_state ICACHE_FLASH_ATTR cgiTestbed(HttpdConnData *connData) {
 	char buff[1024];
 	int first=0;
 	int l, x;

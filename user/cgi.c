@@ -22,7 +22,7 @@ flash as a binary. Also handles the hit counter on the main page.
 static char currLedState=0;
 
 //Cgi that turns the LED on or off according to the 'led' param in the POST data
-int ICACHE_FLASH_ATTR cgiLed(HttpdConnData *connData) {
+httpd_cgi_state ICACHE_FLASH_ATTR cgiLed(HttpdConnData *connData) {
 	int len;
 	char buff[1024];
 	
@@ -44,7 +44,7 @@ int ICACHE_FLASH_ATTR cgiLed(HttpdConnData *connData) {
 
 
 //Template code for the led page.
-int ICACHE_FLASH_ATTR tplLed(HttpdConnData *connData, char *token, void **arg) {
+httpd_cgi_state ICACHE_FLASH_ATTR tplLed(HttpdConnData *connData, char *token, void **arg) {
 	char buff[128];
 	if (token==NULL) return HTTPD_CGI_DONE;
 
@@ -63,7 +63,7 @@ int ICACHE_FLASH_ATTR tplLed(HttpdConnData *connData, char *token, void **arg) {
 static long hitCounter=0;
 
 //Template code for the counter on the index page.
-int ICACHE_FLASH_ATTR tplCounter(HttpdConnData *connData, char *token, void **arg) {
+httpd_cgi_state ICACHE_FLASH_ATTR tplCounter(HttpdConnData *connData, char *token, void **arg) {
 	char buff[128];
 	if (token==NULL) return HTTPD_CGI_DONE;
 

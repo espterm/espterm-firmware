@@ -187,9 +187,7 @@ endef
 all: checkdirs $(TARGET_OUT) $(FW_BASE)
 
 libesphttpd/Makefile:
-	$(Q) echo "No libesphttpd submodule found. Using git to fetch it..."
-	$(Q) git submodule init
-	$(Q) git submodule update
+	$(Q) [[ -e "libesphttpd/Makefile" ]] || echo -e "\e[31mlibesphttpd submodule missing.\nIf build fails, run \"git submodule init\" and \"git submodule update\".\e[0m"
 
 libesphttpd: libesphttpd/Makefile
 	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK)
