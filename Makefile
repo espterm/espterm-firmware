@@ -1,18 +1,21 @@
+-include esphttpdconfig.mk
+
 #You can build this example in three ways:
 # 'separate' - Separate espfs and binaries, no OTA upgrade
 # 'combined' - Combined firmware blob, no OTA upgrade
 # 'ota' - Combined firmware blob with OTA upgrades.
+
 #Please do a 'make clean' after changing this.
 #OUTPUT_TYPE=separate
 #OUTPUT_TYPE=combined
-OUTPUT_TYPE=ota
+OUTPUT_TYPE?=combined
 
 #SPI flash size, in K
-ESP_SPI_FLASH_SIZE_K=1024
+ESP_SPI_FLASH_SIZE_K?=1024
 #0: QIO, 1: QOUT, 2: DIO, 3: DOUT
-ESP_FLASH_MODE=0
+ESP_FLASH_MODE?=0
 #0: 40MHz, 1: 26MHz, 2: 20MHz, 15: 80MHz
-ESP_FLASH_FREQ_DIV=0
+ESP_FLASH_FREQ_DIV?=0
 
 
 ifeq ("$(OUTPUT_TYPE)","separate")
@@ -38,7 +41,7 @@ SDK_BASE	?= /opt/Espressif/ESP8266_SDK
 USE_OPENSDK?=no
 
 #Esptool.py path and port
-ESPTOOL		?= esptool.py
+ESPTOOL		?= esptool
 ESPPORT		?= /dev/ttyUSB0
 #ESPDELAY indicates seconds to wait between flashing the two binary images
 ESPDELAY	?= 3

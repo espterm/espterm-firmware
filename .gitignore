@@ -9,3 +9,8 @@ espfs/espfstest/espfstest
 html_compressed/
 ldscript_memspecific.ld
 eagle.app.sym
+
+# Garbage added by CLion
+.idea/
+CMakeLists.txt
+cmake-build-debug/
