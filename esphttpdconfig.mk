@@ -35,4 +35,4 @@ SDK_BASE=/opt/Espressif/esp_iot_sdk_v1.5.2
 OUTPUT_TYPE = combined
 
 # SPI flash size, in K
-ESP_SPI_FLASH_SIZE_K = 512
+ESP_SPI_FLASH_SIZE_K = 1024
