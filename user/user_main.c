@@ -119,39 +119,39 @@ general ones. Authorization things (like authBasic) act as a 'barrier' and
 should be placed above the URLs they protect.
 */
 HttpdBuiltInUrl builtInUrls[]={
-	{"*", cgiRedirectApClientToHostname, "esp8266.nonet"},
-	{"/", cgiRedirect, "/index.tpl"},
-	{"/led.tpl", cgiEspFsTemplate, tplLed},
-	{"/index.tpl", cgiEspFsTemplate, tplCounter},
-	{"/led.cgi", cgiLed, NULL},
+	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp8266.nonet"), // redirect func for the captive portal
+	ROUTE_REDIRECT("/", "/index.tpl"),
+	ROUTE_TPL("/led.tpl", tplLed),
+	ROUTE_TPL("/index.tpl", tplCounter),
+	ROUTE_CGI("/led.cgi", cgiLed),
 #ifdef INCLUDE_FLASH_FNS
-	{"/flash/next", cgiGetFirmwareNext, &uploadParams},
-	{"/flash/upload", cgiUploadFirmware, &uploadParams},
+	ROUTE_CGI_ARG("/flash/next", cgiGetFirmwareNext, &uploadParams),
+	ROUTE_CGI_ARG("/flash/upload", cgiUploadFirmware, &uploadParams),
 #endif
-	{"/flash/reboot", cgiRebootFirmware, NULL},
+	ROUTE_CGI("/flash/reboot", cgiRebootFirmware),
 
 	//Routines to make the /wifi URL and everything beneath it work.
 
 //Enable the line below to protect the WiFi configuration with an username/password combo.
-//	{"/wifi/*", authBasic, myPassFn},
+//	ROUTE_AUTH("/wifi/*", myPassFn),
 
-	{"/wifi", cgiRedirect, "/wifi/wifi.tpl"},
-	{"/wifi/", cgiRedirect, "/wifi/wifi.tpl"},
-	{"/wifi/wifiscan.cgi", cgiWiFiScan, NULL},
-	{"/wifi/wifi.tpl", cgiEspFsTemplate, tplWlan},
-	{"/wifi/connect.cgi", cgiWiFiConnect, NULL},
-	{"/wifi/connstatus.cgi", cgiWiFiConnStatus, NULL},
-	{"/wifi/setmode.cgi", cgiWiFiSetMode, NULL},
+	ROUTE_REDIRECT("/wifi", "/wifi/wifi.tpl"),
+	ROUTE_REDIRECT("/wifi/", "/wifi/wifi.tpl"),
+	ROUTE_CGI("/wifi/wifiscan.cgi", cgiWiFiScan),
+	ROUTE_TPL("/wifi/wifi.tpl", tplWlan),
+	ROUTE_CGI("/wifi/connect.cgi", cgiWiFiConnect),
+	ROUTE_CGI("/wifi/connstatus.cgi", cgiWiFiConnStatus),
+	ROUTE_CGI("/wifi/setmode.cgi", cgiWiFiSetMode),
 
-	{"/websocket/ws.cgi", cgiWebsocket, myWebsocketConnect},
-	{"/websocket/echo.cgi", cgiWebsocket, myEchoWebsocketConnect},
+	ROUTE_WS("/websocket/ws.cgi", myWebsocketConnect),
+	ROUTE_WS("/websocket/echo.cgi", myEchoWebsocketConnect),
 
-	{"/test", cgiRedirect, "/test/index.html"},
-	{"/test/", cgiRedirect, "/test/index.html"},
-	{"/test/test.cgi", cgiTestbed, NULL},
+	ROUTE_REDIRECT("/test", "/test/index.html"),
+	ROUTE_REDIRECT("/test/", "/test/index.html"),
+	ROUTE_CGI("/test/test.cgi", cgiTestbed),
 
-	{"*", cgiEspFsHook, NULL}, //Catch-all cgi function for the filesystem
-	{NULL, NULL, NULL}
+	ROUTE_FILESYSTEM(),
+	ROUTE_END(),
 };
 
 
