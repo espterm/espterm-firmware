@@ -1,0 +1,40 @@
+html, body {
+	background: #48505F;
+	color: #eee;
+	font-family: monospace;
+	font-size: 16pt;
+	text-align: center;
+}
+
+header {
+	font-weight: bold;
+	font-size: 14pt;
+	padding: 6px;
+	display: block;
+}
+
+#screen {
+	display: block;
+	white-space: nowrap;
+	background: #111213;
+	border-radius: 3px;
+	padding: 6px;
+	box-shadow: inset 0 0 5px black;
+	display: inline-block;
+}
+
+#screen span {
+	white-space: pre;
+}
+
+#buttons {
+	margin-top: 10px;
+}
+
+button {
+	margin: 0 2px;
+	padding: 10px 0;
+	width: 22%;
+	max-width: 80px;
+	cursor: pointer;
+}
