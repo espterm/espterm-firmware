@@ -8,6 +8,27 @@ This project is based on SpriteTM's esphttpd and libesphttpd, forked by MightyPo
 
 Those forks include improvements not yet available upstream.
 
+## Goals
+
+This project aims to be a wireless terminal emulator that'll work with the likes of Arduino, STM32 / embed etc.
+
+Connect it to the Arduino and use the terminal for debug logging, remote control etc.
+
+It lets you make simple UI (manipulating the screen with ANSI sequences) and receive input from buttons on
+the webpage (and keyboard on PC).
+
+The screen size should be adjustable up to 25x80 and uses 16 standard colors.
+
+## Project status
+
+*Still far from finished and also there's like zero documentation, but you can give it a spin if you wish.*
+
+Presently we have a working **1-way terminal** (UART->ESP->Browser) with real-time update via websocket.
+
+The terminal should support multiple sockets at once (not tested).
+
+The buttons or other input from the browser don't work yet.
+
 ## Setting it all up
 
 - Install [esp-open-sdk](https://github.com/pfalcon/esp-open-sdk/) and build it with 
