@@ -10,24 +10,28 @@ Those forks include improvements not yet available upstream.
 
 ## Goals
 
-This project aims to be a wireless terminal emulator that'll work with the likes of Arduino, STM32 / embed etc.
+This project aims to be a wireless terminal emulator that'll work with the likes of 
+Arduino, Atmega, PIC, STM8, STM32 / mbed etc. Anything with UART, even your USB-serial dongle will work.
 
-Connect it to the Arduino and use the terminal for debug logging, remote control etc.
+Connect it to the Arduino via UART and use the terminal (on your PC or phone) for debug logging, remote control etc. 
+It works like a simple LCD screen, in a way.
 
 It lets you make simple UI (manipulating the screen with ANSI sequences) and receive input from buttons on
-the webpage (and keyboard on PC).
+the webpage (and keyboard on PC). Touch input is a possibility but not currently implemented.
 
-The screen size should be adjustable up to 25x80 and uses 16 standard colors.
+The screen size should be adjustable up to 25x80 (via a special control sequence) and uses 16 standard colors.
 
 ## Project status
 
 *Still far from finished and also there's like zero documentation, but you can give it a spin if you wish.*
 
-Presently we have a working **1-way terminal** (UART->ESP->Browser) with real-time update via websocket.
+- Presently we have a working **1-way terminal** (UART->ESP->Browser) with real-time update via websocket.
+  The terminal should support multiple sockets at once (not tested).
 
-The terminal should support multiple sockets at once (not tested).
+- The buttons or other input from the browser don't work yet.
 
-The buttons or other input from the browser don't work yet.
+- There is also currently no way to set up the WiFi, so it'll use whatever you configured the ESP to
+in your previous project. This'll be addressed later.
 
 ## Setting it all up
 
