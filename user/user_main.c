@@ -23,8 +23,9 @@
 
 #define FIRMWARE_VERSION "0.1"
 
-#define SHOW_HEAP_USE 1
-
+/**
+ * Broadcast screen state to sockets
+ */
 void screen_notifyChange() {
 	// TODO cooldown / buffering to reduce nr of such events
 	dbg("Screen notifyChange");
@@ -40,10 +41,19 @@ void screen_notifyChange() {
 	}
 }
 
+/** Socket connected for updates */
 void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws) {
 	dbg("Socket connected.");
 }
 
+/**
+ * Main page template substitution
+ *
+ * @param connData
+ * @param token
+ * @param arg
+ * @return
+ */
 httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token, void **arg) {
 	// cleanup
 	if (!connData) {
@@ -94,25 +104,30 @@ HttpdBuiltInUrl builtInUrls[]={ //ICACHE_RODATA_ATTR
 
 	// TODO add funcs for WiFi management (when web UI is added)
 
-	ROUTE_TPL_FILE("/", tplScreen, "index.html"),
+//	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
+	ROUTE_TPL("/term.tpl", tplScreen),
 	ROUTE_FILESYSTEM(),
 	ROUTE_END(),
 };
 
-
-#ifdef SHOW_HEAP_USE
 static ETSTimer prHeapTimer;
 
+/** Blink & show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg) {
 	static int led = 0;
-	os_printf("Heap: %ld\n", (unsigned long)system_get_free_heap_size());
+	static unsigned int cnt = 0;
 
-	cgiWebsockBroadcast("/ws/update.cgi", "HELLO", 5, WEBSOCK_FLAG_NONE);
+	if (cnt%3==0) {
+		os_printf("Free heap: %ld bytes\n", (unsigned long) system_get_free_heap_size());
+	}
+
+	//cgiWebsockBroadcast("/ws/update.cgi", "HELLO", 5, WEBSOCK_FLAG_NONE);
 
 	ioLed(led);
 	led = !led;
+
+	cnt++;
 }
-#endif
 
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
 void user_init(void) {
@@ -137,11 +152,10 @@ void user_init(void) {
 
 	httpdInit(builtInUrls, 80);
 
-#ifdef SHOW_HEAP_USE
+	// Heap use timer & blink
 	os_timer_disarm(&prHeapTimer);
 	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
-	os_timer_arm(&prHeapTimer, 3000, 1);
-#endif
+	os_timer_arm(&prHeapTimer, 1000, 1);
 
 	screen_init();
 
