@@ -11,10 +11,10 @@ Those forks include improvements not yet available upstream.
 ## Goals
 
 This project aims to be a wireless terminal emulator that'll work with the likes of 
-Arduino, Atmega, PIC, STM8, STM32 / mbed etc. Anything with UART, even your USB-serial dongle will work.
+Arduino, AVR, PIC, STM8, STM32, mbed etc, anything with UART, even your USB-serial dongle will work.
 
-Connect it to the Arduino via UART and use the terminal (on your PC or phone) for debug logging, remote control etc. 
-It works like a simple LCD screen, in a way.
+Connect it to the master device via UART and use the terminal (on your PC or phone) for debug logging, 
+remote control etc. It works like a simple LCD screen, in a way.
 
 It lets you make simple UI (manipulating the screen with ANSI sequences) and receive input from buttons on
 the webpage (and keyboard on PC). Touch input is a possibility but not currently implemented.
@@ -27,6 +27,11 @@ The screen size should be adjustable up to 25x80 (via a special control sequence
 
 - Presently we have a working **1-way terminal** (UART->ESP->Browser) with real-time update via websocket.
   The terminal should support multiple sockets at once (not tested).
+  
+- All ANSi sequences that make sense, as well as control codes like Backspace and CR / LF are implemented.
+  Set colors with your usual `\e[31;1m` etc (see Wikipedia). `\e` is the hex code 0x18 or dec 27, or ESC. 
+  This may be hard to type on a desktop terminal emulator, if you're trying it with a USB-serial dongle. 
+  It'll be easy with the microcontroller, of course.
 
 - The buttons or other input from the browser don't work yet.
 
