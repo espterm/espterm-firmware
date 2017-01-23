@@ -19,14 +19,49 @@
 #include <webpages-espfs.h>
 #include "serial.h"
 #include "io.h"
+#include "screen.h"
 
 #define FIRMWARE_VERSION "0.1"
 
 #define SHOW_HEAP_USE 1
 
+void screen_notifyChange() {
+	// TODO cooldown / buffering to reduce nr of such events
+	dbg("Screen notifyChange");
 
-void myWebsocketConnect(Websock *ws) {
-	// NOOP
+	void *data = NULL;
+
+	const int bufsiz = 1024;
+	char buff[bufsiz];
+	for (int i = 0; i < 20; i++) {
+		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &data);
+		cgiWebsockBroadcast("/ws/update.cgi", buff, (int)strlen(buff), (cont == HTTPD_CGI_MORE) ? WEBSOCK_FLAG_CONT : WEBSOCK_FLAG_NONE);
+		if (cont == HTTPD_CGI_DONE) break;
+	}
+}
+
+void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws) {
+	dbg("Socket connected.");
+}
+
+httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token, void **arg) {
+	// cleanup
+	if (!connData) {
+		// Release data object
+		screenSerializeToBuffer(NULL, 0, arg);
+		return HTTPD_CGI_DONE;
+	}
+
+	const int bufsiz = 1024;
+	char buff[bufsiz];
+
+	if (streq(token, "screenData")) {
+		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, arg);
+		httpdSend(connData, buff, -1);
+		return cont;
+	}
+
+	return HTTPD_CGI_DONE;
 }
 
 
@@ -51,7 +86,7 @@ CgiUploadFlashDef uploadParams={
 #endif
 
 /** Routes */
-HttpdBuiltInUrl builtInUrls[]={
+HttpdBuiltInUrl builtInUrls[]={ //ICACHE_RODATA_ATTR
 	// redirect func for the captive portal
 	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp8266.nonet"),
 
@@ -59,6 +94,7 @@ HttpdBuiltInUrl builtInUrls[]={
 
 	// TODO add funcs for WiFi management (when web UI is added)
 
+	ROUTE_TPL_FILE("/", tplScreen, "index.html"),
 	ROUTE_FILESYSTEM(),
 	ROUTE_END(),
 };
@@ -106,6 +142,8 @@ void user_init(void) {
 	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
 	os_timer_arm(&prHeapTimer, 3000, 1);
 #endif
+
+	screen_init();
 
 	info("System ready!");
 }

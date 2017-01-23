@@ -158,31 +158,54 @@ var m = function(
 	}
 
 	/** Load screen content from a 'binary' sequence */
-	function load(seq) {
-		if (seq.length != W*H*3) throw "Bad data format.";
+	function load(obj) {
+		cursor.x = obj.x;
+        cursor.y = obj.y;
 
-		// primitive format with 3 chars per cell: letter, fg [hex], bg [hex]
-		for (var i = 0; i < W * H; i++) {
-			var cell = screen[i];
-			cell.t = seq[i*3];
-			cell.fg = parseInt(seq[i*3+1], 16);
-			cell.bg = parseInt(seq[i*3+2], 16);
-		}
+        // Simple compression - hexFG hexBG 'ASCII' (r/s/t/u NUM{1,2,3,4})?
+
+		var i = 0, ci = 0, str = obj.screen;
+		var fg, bg, t, cell, repchars, rep;
+		while(i < str.length && ci<W*H) {
+			cell = screen[ci++];
+			fg = cell.fg = parseInt(str[i++], 16);
+            bg = cell.bg = parseInt(str[i++], 16);
+            t = cell.t = str[i++];
+
+            switch(str[i]) {
+				case 'r': repchars = 1; break;
+                case 's': repchars = 2; break;
+                case 't': repchars = 3; break;
+                case 'u': repchars = 4; break;
+				default: repchars = 0;
+			}
+
+            if (repchars > 0) {
+				rep = parseInt(str.substr(i+1,repchars));
+				i = i + repchars + 1;
+				for (; rep>0 && ci<W*H; rep--) {
+                    cell = screen[ci++];
+                    cell.fg = fg;
+                    cell.bg = bg;
+                    cell.t = t;
+				}
+			}
+        }
 
 		blitAll();
 	}
 
 	/** Parse color */
 	function colorHex(c) {
-		var c = parseInt(c);
+		c = parseInt(c);
 		if (c < 0 || c > 15) c = 0;
 		return CLR[c];
 	}
 
 	/** Init the terminal */
-	function init() {
+	function init(obj) {
 		/* Build screen & show */
-		var e, scr = $('#screen');
+		var e, cell, scr = $('#screen');
 		for(var i = 0; i < W*H; i++) {
 			e = make('span');
 
@@ -193,7 +216,7 @@ var m = function(
 			/* The cell */
 			scr.appendChild(e);
 
-			var cell = {t: ' ', fg: 7, bg: 0, e: e};
+			cell = {t: ' ', fg: 7, bg: 0, e: e};
 			screen.push(cell);
 			blit(cell);
 		}
@@ -209,6 +232,8 @@ var m = function(
 				blit(cursorCell(), cursor.a);
 			}
 		}, 500);
+
+		load(obj);
 	}
 
 	// publish
@@ -217,7 +242,7 @@ var m = function(
 		load: load,
 		setCursor: cursorSet,
 		enableCursor: cursorEnable,
-		clear: cls,
+		clear: cls
 	};
 })();
 
@@ -237,8 +262,12 @@ var m = function(
 	}
 
 	function onMessage(evt) {
-		console.log("Message received!", evt.data);
-		// TODO process
+		try {
+			// Assume all our messages are screen updates
+            Term.load(JSON.parse(evt.data));
+        } catch(e) {
+			console.error(e);
+		}
 	}
 
 	function onError(evt) {
@@ -246,13 +275,16 @@ var m = function(
 	}
 
 	function doSend(message) {
+		if (typeof message != "string") {
+			message = JSON.stringify(message);
+        }
 		ws.send(message);
 	}
 		
 	function init() {
 		ws = new WebSocket(wsUri);
 		ws.onopen = onOpen;
-		ws.onclose = onClose
+		ws.onclose = onClose;
 		ws.onmessage = onMessage;
 		ws.onerror = onError;
 		
@@ -262,10 +294,11 @@ var m = function(
 	window.Conn = {
 		ws: null,
 		init: init,
+		send: doSend
 	};
 })();
 
-function init() {
-	Term.init();
+function init(obj) {
+	Term.init(obj);
 	Conn.init();
 }

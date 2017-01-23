@@ -1,6 +1,7 @@
 #include <esp8266.h>
 #include "uart_driver.h"
 #include "uart_handler.h"
+#include "ansi_parser.h"
 
 // Here the bitrates are defined
 #define UART0_BAUD BIT_RATE_115200
@@ -24,5 +25,7 @@ void ICACHE_FLASH_ATTR serialInit(void)
  */
 void ICACHE_FLASH_ATTR UART_HandleRxByte(char c)
 {
-	printf("'%c',", c);
+	// TODO buffering, do not run parser after just 1 char
+	printf("(%c)", c);
+	ansi_parser(&c, 1);
 }
