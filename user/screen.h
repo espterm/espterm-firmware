@@ -53,7 +53,7 @@ typedef enum {
 } ClearMode;
 
 typedef uint8_t Color;
-typedef unsigned int Coordinate;
+typedef int Coordinate;
 
 httpd_cgi_state ICACHE_FLASH_ATTR
 screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);

@@ -25,7 +25,10 @@ void ICACHE_FLASH_ATTR serialInit(void)
  */
 void ICACHE_FLASH_ATTR UART_HandleRxByte(char c)
 {
-	// TODO buffering, do not run parser after just 1 char
-	printf("(%c)", c);
-	ansi_parser(&c, 1);
+	if (c > 0 && c < 127) {
+		// TODO buffering, do not run parser after just 1 char
+		ansi_parser(&c, 1);
+	} else {
+		warn("Bad char %d ('%c')", (unsigned char)c, c);
+	}
 }

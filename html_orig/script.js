@@ -163,15 +163,26 @@ var m = function(
         cursor.y = obj.y;
 
         // Simple compression - hexFG hexBG 'ASCII' (r/s/t/u NUM{1,2,3,4})?
+		// comma instead of both colors = same as before
 
 		var i = 0, ci = 0, str = obj.screen;
-		var fg, bg, t, cell, repchars, rep;
+		var fg = 7, bg = 0;
 		while(i < str.length && ci<W*H) {
-			cell = screen[ci++];
-			fg = cell.fg = parseInt(str[i++], 16);
-            bg = cell.bg = parseInt(str[i++], 16);
-            t = cell.t = str[i++];
+			var cell = screen[ci++];
 
+			var j = str[i];
+			if (j != ',') { // comma = repeat last colors
+                fg = cell.fg = parseInt(str[i++], 16);
+                bg = cell.bg = parseInt(str[i++], 16);
+            } else {
+				i++;
+                cell.fg = fg;
+                cell.bg = bg;
+			}
+
+            var t = cell.t = str[i++];
+
+			var repchars = 0;
             switch(str[i]) {
 				case 'r': repchars = 1; break;
                 case 's': repchars = 2; break;
@@ -181,7 +192,7 @@ var m = function(
 			}
 
             if (repchars > 0) {
-				rep = parseInt(str.substr(i+1,repchars));
+				var rep = parseInt(str.substr(i+1,repchars));
 				i = i + repchars + 1;
 				for (; rep>0 && ci<W*H; rep--) {
                     cell = screen[ci++];
@@ -263,6 +274,7 @@ var m = function(
 
 	function onMessage(evt) {
 		try {
+            console.log("RX: ", evt.data);
 			// Assume all our messages are screen updates
             Term.load(JSON.parse(evt.data));
         } catch(e) {

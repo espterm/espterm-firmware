@@ -182,9 +182,15 @@ $1/%.o: %.S
 	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
 endef
 
-.PHONY: all checkdirs clean libesphttpd default-tgt
+.PHONY: all web parser checkdirs clean libesphttpd default-tgt
 
-all: checkdirs $(TARGET_OUT) $(FW_BASE)
+web:
+	$(Q) ./build_web.sh
+
+parser:
+	$(Q) ./build_parser.sh
+
+all: checkdirs web parser $(TARGET_OUT) $(FW_BASE)
 
 libesphttpd/Makefile:
 	$(Q) [[ -e "libesphttpd/Makefile" ]] || echo -e "\e[31mlibesphttpd submodule missing.\nIf build fails, run \"git submodule init\" and \"git submodule update\".\e[0m"

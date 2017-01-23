@@ -55,8 +55,7 @@ void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws) {
  * @return
  */
 httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token, void **arg) {
-	// cleanup
-	if (!connData) {
+	if (token==NULL) {
 		// Release data object
 		screenSerializeToBuffer(NULL, 0, arg);
 		return HTTPD_CGI_DONE;
@@ -67,6 +66,9 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 
 	if (streq(token, "screenData")) {
 		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, arg);
+
+		dbg("Sending buf: %s", buff);
+
 		httpdSend(connData, buff, -1);
 		return cont;
 	}
@@ -104,8 +106,7 @@ HttpdBuiltInUrl builtInUrls[]={ //ICACHE_RODATA_ATTR
 
 	// TODO add funcs for WiFi management (when web UI is added)
 
-//	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
-	ROUTE_TPL("/term.tpl", tplScreen),
+	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
 	ROUTE_FILESYSTEM(),
 	ROUTE_END(),
 };

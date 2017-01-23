@@ -53,9 +53,21 @@ static Coordinate W = SCREEN_DEF_W;
  */
 static Coordinate H = SCREEN_DEF_H;
 
+// XXX volatile is probably not needed
+static volatile int notifyLock = 0;
+
 //endregion
 
 //region Helpers
+
+#define NOTIFY_LOCK()   do { \
+							notifyLock++; \
+						} while(0)
+
+#define NOTIFY_DONE()   do { \
+							if (notifyLock > 0) notifyLock--; \
+							if (notifyLock == 0) screen_notifyChange(); \
+						} while(0)
 
 /**
  * Reset a cell
@@ -103,12 +115,13 @@ cursor_reset(void)
 void ICACHE_FLASH_ATTR
 screen_init(void)
 {
+	NOTIFY_LOCK();
 	for (unsigned int i = 0; i < MAX_SCREEN_SIZE; i++) {
 		cell_init(&screen[i]);
 	}
 
 	cursor_reset();
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -117,9 +130,10 @@ screen_init(void)
 void ICACHE_FLASH_ATTR
 screen_reset(void)
 {
+	NOTIFY_LOCK();
 	screen_clear(CLEAR_ALL);
 	cursor_reset();
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -128,6 +142,7 @@ screen_reset(void)
 void ICACHE_FLASH_ATTR
 screen_clear(ClearMode mode)
 {
+	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
 			clear_range(0, W * H - 1);
@@ -141,7 +156,7 @@ screen_clear(ClearMode mode)
 			clear_range(0, (cursor.y * W) + cursor.x);
 			break;
 	}
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -150,6 +165,7 @@ screen_clear(ClearMode mode)
 void ICACHE_FLASH_ATTR
 screen_clear_line(ClearMode mode)
 {
+	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
 			clear_range(cursor.y * W, (cursor.y + 1) * W - 1);
@@ -163,7 +179,7 @@ screen_clear_line(ClearMode mode)
 			clear_range(cursor.y * W, cursor.y * W + cursor.x);
 			break;
 	}
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 //endregion
@@ -179,6 +195,7 @@ screen_clear_line(ClearMode mode)
 void ICACHE_FLASH_ATTR
 screen_resize(Coordinate w, Coordinate h)
 {
+	NOTIFY_LOCK();
 	// sanitize
 	if (w < 1) w = 1;
 	if (h < 1) h = 1;
@@ -186,7 +203,7 @@ screen_resize(Coordinate w, Coordinate h)
 	W = w;
 	H = h;
 	screen_reset();
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -195,13 +212,15 @@ screen_resize(Coordinate w, Coordinate h)
 void ICACHE_FLASH_ATTR
 screen_scroll_up(unsigned int lines)
 {
+	NOTIFY_LOCK();
 	if (lines >= H - 1) {
 		screen_clear(CLEAR_ALL);
-		return;
+		goto done;
 	}
 
+	// bad cmd
 	if (lines == 0) {
-		return;
+		goto done;
 	}
 
 	int y;
@@ -210,7 +229,9 @@ screen_scroll_up(unsigned int lines)
 	}
 
 	clear_range(y * W, W * H - 1);
-	screen_notifyChange();
+
+done:
+	NOTIFY_DONE();
 }
 
 /**
@@ -219,13 +240,15 @@ screen_scroll_up(unsigned int lines)
 void ICACHE_FLASH_ATTR
 screen_scroll_down(unsigned int lines)
 {
+	NOTIFY_LOCK();
 	if (lines >= H - 1) {
 		screen_clear(CLEAR_ALL);
-		return;
+		goto done;
 	}
 
+	// bad cmd
 	if (lines == 0) {
-		return;
+		goto done;
 	}
 
 	int y;
@@ -234,7 +257,8 @@ screen_scroll_down(unsigned int lines)
 	}
 
 	clear_range(0, lines * W-1);
-	screen_notifyChange();
+done:
+	NOTIFY_DONE();
 }
 
 //endregion
@@ -247,11 +271,12 @@ screen_scroll_down(unsigned int lines)
 void ICACHE_FLASH_ATTR
 screen_cursor_set(Coordinate x, Coordinate y)
 {
+	NOTIFY_LOCK();
 	if (x >= W) x = W - 1;
 	if (y >= H) y = H - 1;
 	cursor.x = x;
 	cursor.y = y;
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -260,9 +285,10 @@ screen_cursor_set(Coordinate x, Coordinate y)
 void ICACHE_FLASH_ATTR
 screen_cursor_set_x(Coordinate x)
 {
+	NOTIFY_LOCK();
 	if (x >= W) x = W - 1;
 	cursor.x = x;
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -271,9 +297,10 @@ screen_cursor_set_x(Coordinate x)
 void ICACHE_FLASH_ATTR
 screen_cursor_set_y(Coordinate y)
 {
+	NOTIFY_LOCK();
 	if (y >= H) y = H - 1;
 	cursor.y = y;
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -282,10 +309,27 @@ screen_cursor_set_y(Coordinate y)
 void ICACHE_FLASH_ATTR
 screen_cursor_move(int dx, int dy)
 {
-	if (dx < 0 && -dx > cursor.x) dx = -cursor.x;
-	if (dy < 0 && -dy > cursor.y) dy = -cursor.y;
-	screen_cursor_set(cursor.x + dx, cursor.y + dy);
-	screen_notifyChange();
+	NOTIFY_LOCK();
+	int move;
+
+	cursor.x += dx;
+	cursor.y += dy;
+	if (cursor.x >= W) cursor.x = W - 1;
+	if (cursor.x < 0) cursor.x = 0;
+
+	if (cursor.y < 0) {
+		move = -cursor.y;
+		cursor.y = 0;
+		screen_scroll_down((unsigned int)move);
+	}
+
+	if (cursor.y >= H) {
+		move = cursor.y - (H - 1);
+		cursor.y = H - 1;
+		screen_scroll_up((unsigned int)move);
+	}
+
+	NOTIFY_DONE();
 }
 
 /**
@@ -304,9 +348,10 @@ screen_cursor_save(void)
 void ICACHE_FLASH_ATTR
 screen_cursor_restore(void)
 {
+	NOTIFY_LOCK();
 	cursor.x = cursor_sav.x;
 	cursor.y = cursor_sav.y;
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 /**
@@ -315,8 +360,9 @@ screen_cursor_restore(void)
 void ICACHE_FLASH_ATTR
 screen_cursor_enable(bool enable)
 {
+	NOTIFY_LOCK();
 	cursor.visible = enable;
-	screen_notifyChange();
+	NOTIFY_DONE();
 }
 
 //endregion
@@ -383,7 +429,44 @@ screen_set_bright_fg(void)
 void ICACHE_FLASH_ATTR
 screen_putchar(char ch)
 {
+	NOTIFY_LOCK();
+
 	Cell *c = &screen[cursor.x + cursor.y * W];
+
+	// Special treatment for CRLF
+	switch (ch) {
+		case '\r':
+			screen_cursor_set_x(0);
+			goto done;
+
+		case '\n':
+			screen_cursor_move(0, 1);
+			goto done;
+
+		case 8: // BS
+			if (cursor.x > 0) cursor.x--;
+			// erase target cell
+			c = &screen[cursor.x + cursor.y * W];
+			c->c = ' ';
+			goto done;
+
+		case 9: // TAB
+			c->c = ' ';
+			// nested recurs >:( but it's ok
+			screen_putchar(' ');
+			screen_putchar(' ');
+			screen_putchar(' ');
+			screen_putchar(' ');
+			goto done;
+
+		default:
+			if (ch < ' ') {
+				// Discard
+				warn("Ignoring control char %d", (int)c);
+				goto done;
+			}
+	}
+
 	c->c = ch;
 
 	if (cursor.inverse) {
@@ -407,7 +490,8 @@ screen_putchar(char ch)
 		}
 	}
 
-	screen_notifyChange();
+done:
+	NOTIFY_DONE();
 }
 
 
@@ -495,7 +579,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastFg = 0;
 		ss->lastChar = '\0';
 
-		bufprint("{x:%d,y:%d,screen:\"", cursor.x, cursor.y);
+		bufprint("{\"x\":%d,\"y\":%d,\"screen\":\"", cursor.x, cursor.y);
 	}
 
 	int i = ss->index;

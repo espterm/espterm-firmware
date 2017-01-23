@@ -188,11 +188,11 @@ handle_plainchar(char c)
 static const char _ansi_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
-	7, 1, 8
+	7, 1, 8, 1, 9
 };
 
 static const char _ansi_eof_actions[] = {
-	0, 0, 0, 13, 13, 0, 0
+	0, 15, 15, 13, 13, 0, 0
 };
 
 static const int ansi_start = 1;
@@ -267,11 +267,11 @@ case 1:
 	goto tr0;
 case 2:
 	switch( (*p) ) {
-		case 91: goto tr2;
+		case 91: goto tr3;
 		case 93: goto tr4;
 		case 99: goto tr5;
 	}
-	goto tr3;
+	goto tr2;
 case 0:
 	goto _out;
 case 5:
@@ -312,27 +312,28 @@ case 6:
 	goto tr6;
 	}
 
-	tr3: cs = 0; goto _again;
-	tr6: cs = 0; goto f4;
-	tr0: cs = 1; goto f0;
+	tr2: cs = 0; goto f0;
+	tr6: cs = 0; goto f5;
+	tr0: cs = 1; goto f1;
 	tr1: cs = 2; goto _again;
-	tr7: cs = 4; goto f5;
-	tr8: cs = 4; goto f6;
-	tr9: cs = 4; goto f7;
-	tr2: cs = 5; goto f1;
-	tr4: cs = 5; goto f2;
-	tr5: cs = 5; goto f3;
-	tr10: cs = 6; goto f8;
+	tr7: cs = 4; goto f6;
+	tr8: cs = 4; goto f7;
+	tr9: cs = 4; goto f8;
+	tr3: cs = 5; goto f2;
+	tr4: cs = 5; goto f3;
+	tr5: cs = 5; goto f4;
+	tr10: cs = 6; goto f9;
 
-	f0: _acts = _ansi_actions + 1; goto execFuncs;
-	f1: _acts = _ansi_actions + 3; goto execFuncs;
-	f5: _acts = _ansi_actions + 5; goto execFuncs;
-	f6: _acts = _ansi_actions + 7; goto execFuncs;
-	f7: _acts = _ansi_actions + 9; goto execFuncs;
-	f8: _acts = _ansi_actions + 11; goto execFuncs;
-	f4: _acts = _ansi_actions + 13; goto execFuncs;
-	f2: _acts = _ansi_actions + 15; goto execFuncs;
+	f1: _acts = _ansi_actions + 1; goto execFuncs;
+	f2: _acts = _ansi_actions + 3; goto execFuncs;
+	f6: _acts = _ansi_actions + 5; goto execFuncs;
+	f7: _acts = _ansi_actions + 7; goto execFuncs;
+	f8: _acts = _ansi_actions + 9; goto execFuncs;
+	f9: _acts = _ansi_actions + 11; goto execFuncs;
+	f5: _acts = _ansi_actions + 13; goto execFuncs;
+	f0: _acts = _ansi_actions + 15; goto execFuncs;
 	f3: _acts = _ansi_actions + 17; goto execFuncs;
+	f4: _acts = _ansi_actions + 19; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
@@ -397,21 +398,27 @@ execFuncs:
 		}
 	break;
 	case 7:
-/* #line 288 "user/ansi_parser.rl" */
+/* #line 280 "user/ansi_parser.rl" */
+	{
+			{cs = 1; goto _again;}
+		}
+	break;
+	case 8:
+/* #line 292 "user/ansi_parser.rl" */
 	{
 			// TODO implement OS control code parsing
 			{cs = 1; goto _again;}
 		}
 	break;
-	case 8:
-/* #line 293 "user/ansi_parser.rl" */
+	case 9:
+/* #line 297 "user/ansi_parser.rl" */
 	{
 			// Reset screen
 			handle_RESET_cmd();
 			{cs = 1; goto _again;}
 		}
 	break;
-/* #line 415 "user/ansi_parser.c" */
+/* #line 422 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -434,7 +441,13 @@ _again:
 			{cs = 1; goto _again;}
 		}
 	break;
-/* #line 438 "user/ansi_parser.c" */
+	case 7:
+/* #line 280 "user/ansi_parser.rl" */
+	{
+			{cs = 1; goto _again;}
+		}
+	break;
+/* #line 451 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -442,6 +455,6 @@ _again:
 	_out: {}
 	}
 
-/* #line 311 "user/ansi_parser.rl" */
+/* #line 315 "user/ansi_parser.rl" */
 
 }

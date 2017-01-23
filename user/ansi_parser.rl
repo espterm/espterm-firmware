@@ -277,6 +277,10 @@ ansi_parser(const char *newdata, size_t len)
 			fgoto main;
 		}
 
+		action main_fail {
+			fgoto main;
+		}
+
 		CSI_body := ((32..47|60..64) @CSI_leading)?
 			((digit @CSI_digit)* ';' @CSI_semi)*
 			(digit @CSI_digit)* alpha @CSI_end $!CSI_fail;
@@ -305,7 +309,7 @@ ansi_parser(const char *newdata, size_t len)
 					']' @OSC_start |
 					'c' @RESET_cmd
 				)
-			)+;
+			)+ $!main_fail;
 
 		write exec;
 	}%%
