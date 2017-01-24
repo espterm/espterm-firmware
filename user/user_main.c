@@ -32,11 +32,14 @@ void screen_notifyChange() {
 
 	void *data = NULL;
 
-	const int bufsiz = 256;
+	const int bufsiz = 512;
 	char buff[bufsiz];
 	for (int i = 0; i < 20; i++) {
 		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &data);
-		cgiWebsockBroadcast("/ws/update.cgi", buff, (int)strlen(buff), (cont == HTTPD_CGI_MORE) ? WEBSOCK_FLAG_CONT : WEBSOCK_FLAG_NONE);
+		int flg = 0;
+		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
+		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
+		cgiWebsockBroadcast("/ws/update.cgi", buff, (int)strlen(buff), flg);
 		if (cont == HTTPD_CGI_DONE) break;
 	}
 }
@@ -66,7 +69,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 		return HTTPD_CGI_DONE;
 	}
 
-	const int bufsiz = 256;
+	const int bufsiz = 512;
 	char buff[bufsiz];
 
 	if (streq(token, "screenData")) {
