@@ -21,7 +21,7 @@
 #include "serial.h"
 #include "io.h"
 #include "screen.h"
-#include "web.h"
+#include "routes.h"
 
 #define FIRMWARE_VERSION "0.1"
 

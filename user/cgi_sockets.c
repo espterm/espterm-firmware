@@ -1,46 +1,10 @@
 #include <esp8266.h>
 #include <httpd.h>
 #include <cgiwebsocket.h>
-#include <httpdespfs.h>
 
-#include "web.h"
-#include "screen.h"
+#include "cgi_sockets.h"
 #include "uart_driver.h"
-
-#define URL_WS_UPDATE "/ws/update.cgi"
-
-/* Routes are defined at the bottom of the file */
-
-/**
- * Main page template substitution
- *
- * @param connData
- * @param token
- * @param arg
- * @return
- */
-httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token, void **arg)
-{
-	if (token == NULL) {
-		// Release data object
-		screenSerializeToBuffer(NULL, 0, arg);
-		return HTTPD_CGI_DONE;
-	}
-
-	const int bufsiz = 512;
-	char buff[bufsiz];
-
-	if (streq(token, "screenData")) {
-		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, arg);
-		httpdSend(connData, buff, -1);
-		return cont;
-	}
-
-	return HTTPD_CGI_DONE;
-}
-
-// --- Sockets ---
-
+#include "screen.h"
 
 /**
  * Broadcast screen state to sockets
@@ -94,17 +58,3 @@ void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws)
 	info("Socket connected to "URL_WS_UPDATE);
 	ws->recvCb = myWebsocketRecv;
 }
-
-/** Routes */
-HttpdBuiltInUrl builtInUrls[] = { //ICACHE_RODATA_ATTR
-	// redirect func for the captive portal
-	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp8266.nonet"),
-
-	ROUTE_WS(URL_WS_UPDATE, myWebsocketConnect),
-
-	// TODO add funcs for WiFi management (when web UI is added)
-
-	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
-	ROUTE_FILESYSTEM(),
-	ROUTE_END(),
-};
