@@ -1,3 +1,9 @@
+/**
+ * This is the ESP8266 Remote Terminal project main file.
+ *
+ * Front-end URLs and handlers are defined in web.c
+ */
+
 /*
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
@@ -7,83 +13,17 @@
  * ----------------------------------------------------------------------------
  */
 
-/**
- * This is the ESP8266 Remote Terminal project main file.
- */
-
 #include <esp8266.h>
 #include <httpdespfs.h>
-#include <cgiwebsocket.h>
 #include <captdns.h>
 #include <espfs.h>
 #include <webpages-espfs.h>
 #include "serial.h"
 #include "io.h"
 #include "screen.h"
+#include "web.h"
 
 #define FIRMWARE_VERSION "0.1"
-
-/**
- * Broadcast screen state to sockets
- */
-void screen_notifyChange() {
-	// TODO cooldown / buffering to reduce nr of such events
-	dbg("Screen notifyChange");
-
-	void *data = NULL;
-
-	const int bufsiz = 512;
-	char buff[bufsiz];
-	for (int i = 0; i < 20; i++) {
-		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &data);
-		int flg = 0;
-		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
-		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
-		cgiWebsockBroadcast("/ws/update.cgi", buff, (int)strlen(buff), flg);
-		if (cont == HTTPD_CGI_DONE) break;
-	}
-}
-
-void myWebsocketRecv(Websock *ws, char *data, int len, int flags) {
-	dbg("Sock RX str: %s, len %d", data, len);
-}
-
-/** Socket connected for updates */
-void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws) {
-	dbg("Socket connected.");
-	ws->recvCb=myWebsocketRecv;
-}
-
-/**
- * Main page template substitution
- *
- * @param connData
- * @param token
- * @param arg
- * @return
- */
-httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token, void **arg) {
-	if (token==NULL) {
-		// Release data object
-		screenSerializeToBuffer(NULL, 0, arg);
-		return HTTPD_CGI_DONE;
-	}
-
-	const int bufsiz = 512;
-	char buff[bufsiz];
-
-	if (streq(token, "screenData")) {
-		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, arg);
-
-		dbg("Sending buf: %s", buff);
-
-		httpdSend(connData, buff, -1);
-		return cont;
-	}
-
-	return HTTPD_CGI_DONE;
-}
-
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -105,33 +45,18 @@ CgiUploadFlashDef uploadParams={
 #define INCLUDE_FLASH_FNS
 #endif
 
-/** Routes */
-HttpdBuiltInUrl builtInUrls[]={ //ICACHE_RODATA_ATTR
-	// redirect func for the captive portal
-	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp8266.nonet"),
-
-	ROUTE_WS("/ws/update.cgi", myWebsocketConnect),
-
-	// TODO add funcs for WiFi management (when web UI is added)
-
-	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
-	ROUTE_FILESYSTEM(),
-	ROUTE_END(),
-};
-
 static ETSTimer prHeapTimer;
 
 /** Blink & show heap usage */
-static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg) {
+static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
+{
 	static int led = 0;
 	static unsigned int cnt = 0;
 
-	if (cnt==5) {
+	if (cnt == 5) {
 		dbg("HEAP: %ld bytes free", (unsigned long) system_get_free_heap_size());
 		cnt = 0;
 	}
-
-	//cgiWebsockBroadcast("/ws/update.cgi", "HELLO", 5, WEBSOCK_FLAG_NONE);
 
 	ioLed(led);
 	led = !led;
@@ -140,14 +65,19 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg) {
 }
 
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
-void user_init(void) {
+void user_init(void)
+{
 	serialInit();
 
-	banner("ESP8266 Remote Terminal");
-	banner_info("Version "FIRMWARE_VERSION", built "__DATE__" at "__TIME__);
-	dbg("!!! TODO (c) and GitHub link here !!!");
-
-	//stdoutInit();
+	printf("\r\n");
+	banner("*** ESP8266 Remote Terminal ***");
+	banner_info("Firmware (c) Ondrej Hruska, 2017");
+	banner_info("github.com/MightyPork/esp-vt100-firmware");
+	banner_info("");
+	banner_info("Version " FIRMWARE_VERSION ", built " __DATE__ " at " __TIME__);
+	banner_info("");
+	banner_info("Department of Measurement, CTU Prague");
+	banner_info("");
 
 	captdnsInit();
 	ioInit();
@@ -157,7 +87,7 @@ void user_init(void) {
 #ifdef ESPFS_POS
 	espFsInit((void*)(0x40200000 + ESPFS_POS));
 #else
-	espFsInit((void*)(webpages_espfs_start));
+	espFsInit((void *) (webpages_espfs_start));
 #endif
 
 	httpdInit(builtInUrls, 80);
@@ -167,23 +97,27 @@ void user_init(void) {
 	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
 	os_timer_arm(&prHeapTimer, 1000, 1);
 
+	// The terminal screen
 	screen_init();
 
-	info("System ready!");
+	info("Listening on UART0, 115200-8-N-1!");
 }
 
 // ---- unused funcs removed from sdk to save space ---
 
-void user_rf_pre_init() {
+void user_rf_pre_init()
+{
 	//Not needed, but some SDK versions want this defined.
 }
 
 // вызывается из phy_chip_v6.o
-void ICACHE_FLASH_ATTR chip_v6_set_sense(void) {
+void ICACHE_FLASH_ATTR chip_v6_set_sense(void)
+{
 	// ret.n
 }
 
 // вызывается из phy_chip_v6.o
-int ICACHE_FLASH_ATTR chip_v6_unset_chanfreq(void) {
+int ICACHE_FLASH_ATTR chip_v6_unset_chanfreq(void)
+{
 	return 0;
 }
