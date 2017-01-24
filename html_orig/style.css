@@ -14,7 +14,6 @@ header {
 }
 
 #screen {
-	display: block;
 	white-space: nowrap;
 	background: #111213;
 	border-radius: 3px;
@@ -25,16 +24,23 @@ header {
 
 #screen span {
 	white-space: pre;
+	cursor: pointer;
+}
+
+#screen span:hover {
+	outline: 1px solid rgba(255,255,255,0.5);
 }
 
 #buttons {
 	margin-top: 10px;
+	white-space: nowrap;
 }
 
 button {
-	margin: 0 2px;
+	margin: 0 3px;
 	padding: 10px 0;
-	width: 22%;
-	max-width: 80px;
+	width: 18%;
+	max-width: 65px;
 	cursor: pointer;
+	font-weight: bold;
 }

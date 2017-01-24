@@ -32,7 +32,7 @@ void screen_notifyChange() {
 
 	void *data = NULL;
 
-	const int bufsiz = 1024;
+	const int bufsiz = 256;
 	char buff[bufsiz];
 	for (int i = 0; i < 20; i++) {
 		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &data);
@@ -41,9 +41,14 @@ void screen_notifyChange() {
 	}
 }
 
+void myWebsocketRecv(Websock *ws, char *data, int len, int flags) {
+	dbg("Sock RX str: %s, len %d", data, len);
+}
+
 /** Socket connected for updates */
 void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws) {
 	dbg("Socket connected.");
+	ws->recvCb=myWebsocketRecv;
 }
 
 /**
@@ -61,7 +66,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 		return HTTPD_CGI_DONE;
 	}
 
-	const int bufsiz = 1024;
+	const int bufsiz = 256;
 	char buff[bufsiz];
 
 	if (streq(token, "screenData")) {
@@ -118,8 +123,9 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg) {
 	static int led = 0;
 	static unsigned int cnt = 0;
 
-	if (cnt%3==0) {
-		os_printf("Free heap: %ld bytes\n", (unsigned long) system_get_free_heap_size());
+	if (cnt==5) {
+		dbg("HEAP: %ld bytes free", (unsigned long) system_get_free_heap_size());
+		cnt = 0;
 	}
 
 	//cgiWebsockBroadcast("/ws/update.cgi", "HELLO", 5, WEBSOCK_FLAG_NONE);

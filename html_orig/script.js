@@ -1,83 +1,12 @@
-//region Libs / utils
-
-/*
- * DOM selector
- *
- * Usage:
- *   $('div');
- *   $('#name');
- *   $('.name');
- *
- *
- * Copyright (C) 2011 Jed Schmidt <http://jed.is> - WTFPL
- * More: https://gist.github.com/991057
- *
- */
-
-var $ = function(
-  a,                         // take a simple selector like "name", "#name", or ".name", and
-  b                          // an optional context, and
-){
-  a = a.match(/^(\W)?(.*)/); // split the selector into name and symbol.
-  return(                    // return an element or list, from within the scope of
-    b                        // the passed context
-    || document              // or document,
-  )[
-    "getElement" + (         // obtained by the appropriate method calculated by
-      a[1]
-        ? a[1] == "#"
-          ? "ById"           // the node by ID,
-          : "sByClassName"   // the nodes by class name, or
-        : "sByTagName"       // the nodes by tag name,
-    )
-  ](
-    a[2]                     // called with the name.
-  )
-};
-
-/*
- * Create DOM element
- *
- * Usage:
- *   var el = m('<h1>Hello</h1>');
- *   document.body.appendChild(el);
- *
- *
- *            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
- *                    Version 2, December 2004
- *
- * Copyright (C) 2011 Jed Schmidt <http://jed.is> - WTFPL
- * More: https://gist.github.com/966233
- *
- */
-
-var m = function(
-  a, // an HTML string
-  b, // placeholder
-  c  // placeholder
-){
-  b = document;                   // get the document,
-  c = b.createElement("p");       // create a container element,
-  c.innerHTML = a;                // write the HTML to it, and
-  a = b.createDocumentFragment(); // create a fragment.
-
-  while (                         // while
-    b = c.firstChild              // the container element has a first child
-  ) a.appendChild(b);             // append the child to the fragment,
-
-  return a                        // and then return the fragment.
-};
-
-//endregion
-
+function mk(e) {return document.createElement(e)}
+function q1(s) {return document.querySelector(s)}
+function qa(s) {return document.querySelectorAll(s)}
 
 //
 // Terminal class
 //
 (function () {
-	function make(e) {return document.createElement(e)}
-
-	var W = 26, H = 10; //26, 10
+	var W, H;
 	var cursor = {a: false, x: 0, y: 0, suppress: false, hidden: false};
 	var screen = [];
 
@@ -162,6 +91,12 @@ var m = function(
 		cursor.x = obj.x;
         cursor.y = obj.y;
 
+        // full re-init if size changed
+        if (obj.w != W || obj.h != H) {
+        	Term.init(obj);
+        	return;
+		}
+
         // Simple compression - hexFG hexBG 'ASCII' (r/s/t/u NUM{1,2,3,4})?
 		// comma instead of both colors = same as before
 
@@ -215,14 +150,31 @@ var m = function(
 
 	/** Init the terminal */
 	function init(obj) {
+		W = obj.w;
+		H = obj.h;
+
 		/* Build screen & show */
-		var e, cell, scr = $('#screen');
+		var e, cell, scr = q1('#screen');
+
+		// Empty the screen node
+		while (scr.firstChild) scr.removeChild(scr.firstChild);
+
+		screen = [];
+
 		for(var i = 0; i < W*H; i++) {
-			e = make('span');
+			e = mk('span');
+
+			(function() {
+				var x = i % W;
+				var y = Math.floor(i / W);
+				e.addEventListener('click', function () {
+					Kinp.onTap(y, x);
+				});
+			})();
 
 			/* End of line */
 			if ((i > 0) && (i % W == 0)) {
-				scr.appendChild(make('br'));
+				scr.appendChild(mk('br'));
 			}
 			/* The cell */
 			scr.appendChild(e);
@@ -287,6 +239,11 @@ var m = function(
 	}
 
 	function doSend(message) {
+		console.log("TX: ", message);
+		if (ws.readyState != 1) {
+			console.error("Socket not ready");
+			return;
+		}
 		if (typeof message != "string") {
 			message = JSON.stringify(message);
         }
@@ -310,7 +267,62 @@ var m = function(
 	};
 })();
 
+//
+// Keyboard (& mouse) input
+//
+(function() {
+	function sendStrMsg(str) {
+		Conn.send("STR:"+str);
+	}
+
+	function sendPosMsg(y, x) {
+		Conn.send("TAP:"+y+','+x);
+	}
+
+	function sendBtnMsg(n) {
+		Conn.send("BTN:"+n);
+	}
+
+	function init() {
+		window.addEventListener('keypress', function(e) {
+			var code = +e.which;
+			if (code >= 32 && code < 127) {
+				var ch = String.fromCharCode(code);
+				//console.log("Typed ", ch, "code", code, e);
+				sendStrMsg(ch);
+			}
+		});
+
+		window.addEventListener('keydown', function(e) {
+			var code = e.keyCode;
+			//console.log("Down ", code, e);
+			switch(code) {
+				case 8: sendStrMsg('\x08'); break;
+				case 13: sendStrMsg('\x0d\x0a'); break;
+				case 27: sendStrMsg('\x1b'); break; // this allows to directly enter control sequences
+				case 37: sendStrMsg('\x1b[D'); break;
+				case 38: sendStrMsg('\x1b[A'); break;
+				case 39: sendStrMsg('\x1b[C'); break;
+				case 40: sendStrMsg('\x1b[B'); break;
+			}
+		});
+
+		qa('#buttons button').forEach(function(s) {
+			s.addEventListener('click', function() {
+				sendBtnMsg(+this.dataset['n']);
+			});
+		});
+	}
+
+	window.Kinp = {
+		init: init,
+		onTap: sendPosMsg
+	};
+})();
+
+
 function init(obj) {
 	Term.init(obj);
 	Conn.init();
+	Kinp.init();
 }
