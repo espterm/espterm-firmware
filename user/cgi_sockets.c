@@ -7,7 +7,9 @@
 #include "screen.h"
 
 /**
- * Broadcast screen state to sockets
+ * Broadcast screen state to sockets.
+ * This is a callback for the Screen module,
+ * called after each visible screen modification.
  */
 void ICACHE_FLASH_ATTR screen_notifyChange()
 {
@@ -28,7 +30,7 @@ void ICACHE_FLASH_ATTR screen_notifyChange()
 }
 
 /** Socket received a message */
-void ICACHE_FLASH_ATTR myWebsocketRecv(Websock *ws, char *data, int len, int flags)
+void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 {
 	dbg("Sock RX str: %s, len %d", data, len);
 
@@ -53,8 +55,8 @@ void ICACHE_FLASH_ATTR myWebsocketRecv(Websock *ws, char *data, int len, int fla
 }
 
 /** Socket connected for updates */
-void ICACHE_FLASH_ATTR myWebsocketConnect(Websock *ws)
+void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 {
 	info("Socket connected to "URL_WS_UPDATE);
-	ws->recvCb = myWebsocketRecv;
+	ws->recvCb = updateSockRx;
 }

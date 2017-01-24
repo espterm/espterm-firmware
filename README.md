@@ -25,15 +25,20 @@ The screen size should be adjustable up to 25x80 (via a special control sequence
 
 *Still far from finished and also there's like zero documentation, but you can give it a spin if you wish.*
 
-- Presently we have a working **1-way terminal** (UART->ESP->Browser) with real-time update via websocket.
-  The terminal should support multiple sockets at once (not tested).
+- We have a working **2-way terminal** (UART->ESP->Browser and vice versa) with real-time update via websocket.
   
-- All ANSi sequences that make sense, as well as control codes like Backspace and CR / LF are implemented.
-  Set colors with your usual `\e[31;1m` etc (see Wikipedia). `\e` is the hex code 0x18 or dec 27, or ESC. 
-  This may be hard to type on a desktop terminal emulator, if you're trying it with a USB-serial dongle. 
-  It'll be easy with the microcontroller, of course.
+  This means that what you type in the browser is sent to UART0 and what's received on UART0 is processed by the 
+  ANSI parser and applied to the internal screen buffer. You'll also immediately see the changes in your browser.
+  
+  For a quick test, try connecting the UART0 Rx and Tx to make a loopback interface. 
+  You should then see what you type & can even try out the ANSI sequences.
+  
+  Arrow keys generate ANSI sequences, ESC sends literal ASCII code 27 - should be all you need to get started.
+  
+- All ANSI sequences that make sense, as well as control codes like Backspace and CR / LF are implemented.
+  Set colors with your usual `\e[31;1m` etc (see Wikipedia). `\e` is the ASCII code 27 (ESC). 
 
-- The buttons or other input from the browser don't work yet.
+- Buttons pressed in the browser UI 
 
 - There is also currently no way to set up the WiFi, so it'll use whatever you configured the ESP to
 in your previous project. This'll be addressed later.

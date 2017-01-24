@@ -1,3 +1,7 @@
+/**
+ * Low level UART peripheral support functions
+ */
+
 /*
  * File : uart.h
  * Copyright (C) 2013 - 2016, Espressif Systems

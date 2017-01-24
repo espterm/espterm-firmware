@@ -17,10 +17,13 @@
 #define WIFI_AUTH_PASS "password"
 
 #if WIFI_PROTECT
-static int ICACHE_FLASH_ATTR myPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen);
+static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass,
+                                        int passLen);
 #endif
 
-/** Routes */
+/**
+ * Application routes
+ */
 HttpdBuiltInUrl builtInUrls[] = {
 	// redirect func for the captive portal
 	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp8266.nonet"),
@@ -29,16 +32,15 @@ HttpdBuiltInUrl builtInUrls[] = {
 	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
 
 	// --- Sockets ---
-	ROUTE_WS(URL_WS_UPDATE, myWebsocketConnect),
+	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),
 
 	// --- System control ---
 	ROUTE_CGI("/system/reset", cgiResetDevice),
 	ROUTE_CGI("/system/ping", cgiPing),
 
-
 	// --- WiFi config ---
 #if WIFI_PROTECT
-	ROUTE_AUTH("/wifi*", myPassFn),
+	ROUTE_AUTH("/wifi*", wifiPassFn),
 #endif
 	// TODO add those pages
 //	ROUTE_REDIRECT("/wifi/", "/wifi"),
@@ -53,6 +55,8 @@ HttpdBuiltInUrl builtInUrls[] = {
 	ROUTE_FILESYSTEM(),
 	ROUTE_END(),
 };
+
+// --- Wifi password protection ---
 
 #if WIFI_PROTECT
 /**
@@ -70,7 +74,7 @@ HttpdBuiltInUrl builtInUrls[] = {
  * @param passLen  : password buffer size
  * @return 0 to end, 1 if more users are available.
  */
-static int ICACHE_FLASH_ATTR myPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
+static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
 {
 	(void)connData;
 	(void)userLen;

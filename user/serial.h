@@ -1,12 +1,9 @@
-#ifndef STDOUT_H
-#define STDOUT_H
-
-#include <esp8266.h>
+#ifndef SERIAL_H
+#define SERIAL_H
 
 /** Init the uarts */
-void serialInit();
+void serialInit(void);
 
-/** poll uart while waiting for something */
-void uart_poll(void);
+void UART_HandleRxByte(char c);
 
-#endif
+#endif //SERIAL_H

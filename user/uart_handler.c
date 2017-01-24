@@ -1,4 +1,6 @@
-//Stupid bit of code that does the bare minimum to make os_printf work.
+/**
+ * Higher level UART driver that makes os_printf work and supports async Rx on UART0
+ */
 
 /*
  * ----------------------------------------------------------------------------

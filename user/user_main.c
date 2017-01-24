@@ -1,7 +1,7 @@
 /**
  * This is the ESP8266 Remote Terminal project main file.
  *
- * Front-end URLs and handlers are defined in web.c
+ * Front-end URLs are defined in routes.c, handlers in cgi_*.c
  */
 
 /*
@@ -47,10 +47,9 @@ CgiUploadFlashDef uploadParams={
 
 static ETSTimer prHeapTimer;
 
-/** Blink & show heap usage */
+/** Periodically show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 {
-	static int led = 0;
 	static unsigned int cnt = 0;
 
 	if (cnt == 5) {
@@ -58,28 +57,24 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 		cnt = 0;
 	}
 
-	ioLed(led);
-	led = !led;
-
 	cnt++;
 }
 
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
-void user_init(void)
+void ICACHE_FLASH_ATTR user_init(void)
 {
 	serialInit();
 
 	printf("\r\n");
-	banner("*** ESP8266 Remote Terminal ***");
+	banner("====== ESP8266 Remote Terminal ======");
 	banner_info("Firmware (c) Ondrej Hruska, 2017");
 	banner_info("github.com/MightyPork/esp-vt100-firmware");
 	banner_info("");
 	banner_info("Version " FIRMWARE_VERSION ", built " __DATE__ " at " __TIME__);
 	banner_info("");
 	banner_info("Department of Measurement, CTU Prague");
-	banner_info("");
+	printf("\r\n");
 
-	captdnsInit();
 	ioInit();
 
 	// 0x40200000 is the base address for spi flash memory mapping, ESPFS_POS is the position
@@ -90,6 +85,10 @@ void user_init(void)
 	espFsInit((void *) (webpages_espfs_start));
 #endif
 
+	// Captive portal
+	captdnsInit();
+
+	// Server
 	httpdInit(builtInUrls, 80);
 
 	// Heap use timer & blink
@@ -104,11 +103,6 @@ void user_init(void)
 }
 
 // ---- unused funcs removed from sdk to save space ---
-
-void user_rf_pre_init()
-{
-	//Not needed, but some SDK versions want this defined.
-}
 
 // вызывается из phy_chip_v6.o
 void ICACHE_FLASH_ATTR chip_v6_set_sense(void)

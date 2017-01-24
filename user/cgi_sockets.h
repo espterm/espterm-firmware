@@ -3,6 +3,7 @@
 
 #define URL_WS_UPDATE "/ws/update.cgi"
 
-void myWebsocketConnect(Websock *ws);
+/** Update websocket connect callback */
+void updateSockConnect(Websock *ws);
 
 #endif //CGI_SOCKETS_H

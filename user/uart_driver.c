@@ -1,18 +1,11 @@
-/*
-* Driver file for ESP8266 UART, works with the SDK.
-*/
+/**
+ * Driver file for ESP8266 UART, works with the SDK.
+ * This is the low level periph interface.
+ */
 
 #include "uart_driver.h"
 
 #include <esp8266.h>
-
-#include "ets_sys.h"
-#include "osapi.h"
-#include "mem.h"
-#include "os_type.h"
-
-#include "ets_sys_extra.h"
-#include "uart_register.h"
 
 //========================================================
 
@@ -71,7 +64,7 @@ void ICACHE_FLASH_ATTR UART_SetFlowCtrl(UARTn uart_no, UART_HwFlowCtrl flow_ctrl
 }
 
 
-void ICACHE_FLASH_ATTR UART_WaitTxFifoEmpty(UARTn uart_no , uint32 time_out_us) //do not use if tx flow control enabled
+void ICACHE_FLASH_ATTR UART_WaitTxFifoEmpty(UARTn uart_no, uint32 time_out_us) //do not use if tx flow control enabled
 {
 	uint32 t_s = system_get_time();
 	while (READ_PERI_REG(UART_STATUS(uart_no)) & (UART_TXFIFO_CNT << UART_TXFIFO_CNT_S)) {
@@ -129,25 +122,24 @@ void ICACHE_FLASH_ATTR UART_SetIntrEna(UARTn uart_no, uint32 ena_mask)
 
 LOCAL void u0_putc_crlf(char c)
 {
-	UART_WriteCharCRLF(UART0, (u8)c, UART_TIMEOUT_US);
+	UART_WriteCharCRLF(UART0, (u8) c, UART_TIMEOUT_US);
 }
 
 
 LOCAL void u1_putc_crlf(char c)
 {
-	UART_WriteCharCRLF(UART1, (u8)c, UART_TIMEOUT_US);
+	UART_WriteCharCRLF(UART1, (u8) c, UART_TIMEOUT_US);
 }
 
 
 void ICACHE_FLASH_ATTR UART_SetPrintPort(UARTn uart_no)
 {
 	if (uart_no == UART0) {
-		os_install_putc1((void *)u0_putc_crlf);
+		os_install_putc1((void *) u0_putc_crlf);
 	} else {
-		os_install_putc1((void *)u1_putc_crlf);
+		os_install_putc1((void *) u1_putc_crlf);
 	}
 }
-
 
 // -------------- Custom UART functions -------------------------
 
@@ -183,7 +175,6 @@ STATUS UART_WriteChar(UARTn uart_no, uint8 c, uint32 timeout_us)
 	return FAIL;
 }
 
-
 /**
  * @brief Write a char to UART, translating LF to CRLF and discarding CR.
  * @param uart_no
@@ -210,7 +201,6 @@ STATUS UART_WriteCharCRLF(UARTn uart_no, uint8 c, uint32 timeout_us)
 	}
 }
 
-
 /**
  * @brief Send a string to UART.
  * @param uart_no
@@ -221,14 +211,12 @@ STATUS UART_WriteCharCRLF(UARTn uart_no, uint8 c, uint32 timeout_us)
 STATUS UART_WriteString(UARTn uart_no, const char *str, uint32 timeout_us)
 {
 	while (*str) {
-		STATUS suc = UART_WriteChar(uart_no, (u8) * str++, timeout_us);
+		STATUS suc = UART_WriteChar(uart_no, (u8) *str++, timeout_us);
 		if (suc != OK) return suc;
 	}
 
 	return OK;
 }
-
-
 
 /**
  * @brief Send a buffer
@@ -241,7 +229,7 @@ STATUS UART_WriteString(UARTn uart_no, const char *str, uint32 timeout_us)
 STATUS UART_WriteBuffer(UARTn uart_no, const uint8 *buffer, size_t len, uint32 timeout_us)
 {
 	for (size_t i = 0; i < len; i++) {
-		STATUS suc = UART_WriteChar(uart_no, (u8) * buffer++, timeout_us);
+		STATUS suc = UART_WriteChar(uart_no, (u8) *buffer++, timeout_us);
 		if (suc != OK) return suc;
 	}
 

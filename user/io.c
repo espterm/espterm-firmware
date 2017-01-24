@@ -11,21 +11,12 @@
 
 #include <esp8266.h>
 
-#define LEDGPIO 2
 #define BTNGPIO 0
 
+/** Set to false if GPIO0 stuck low on boot (after flashing) */
 static bool enable_ap_button = false;
 
 static ETSTimer resetBtntimer;
-
-void ICACHE_FLASH_ATTR ioLed(int ena) {
-	//gpio_output_set is overkill. ToDo: use better mactos
-	if (ena) {
-		gpio_output_set((1<<LEDGPIO), 0, (1<<LEDGPIO), 0);
-	} else {
-		gpio_output_set(0, (1<<LEDGPIO), (1<<LEDGPIO), 0);
-	}
-}
 
 static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 	static int resetCnt=0;
@@ -43,9 +34,11 @@ static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 }
 
 void ICACHE_FLASH_ATTR ioInit() {
-	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+	// GPIO1, GPIO2, GPIO3 - UARTs.
+
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
-	gpio_output_set(0, 0, (1<<LEDGPIO), (1<<BTNGPIO));
+	gpio_output_set(0, 0, 0, (1<<BTNGPIO));
+
 	os_timer_disarm(&resetBtntimer);
 	os_timer_setfn(&resetBtntimer, resetBtnTimerCb, NULL);
 	os_timer_arm(&resetBtntimer, 500, 1);
