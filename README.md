@@ -38,10 +38,11 @@ The screen size should be adjustable up to 25x80 (via a special control sequence
 - All ANSI sequences that make sense, as well as control codes like Backspace and CR / LF are implemented.
   Set colors with your usual `\e[31;1m` etc (see Wikipedia). `\e` is the ASCII code 27 (ESC). 
 
-- Buttons pressed in the browser UI 
+- Buttons pressed in the browser UI send ASCII codes 1..5. Mouse clicks also send events to the server, 
+  but currently don't generate any output in the terminal.
 
 - There is also currently no way to set up the WiFi, so it'll use whatever you configured the ESP to
-in your previous project. This'll be addressed later.
+  in your previous project. This'll be addressed later.
 
 ## Setting it all up
 
