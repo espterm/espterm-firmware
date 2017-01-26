@@ -1,0 +1,17 @@
+
+// Customize Neat grid
+
+@import "lib/neat/neat-helpers";
+
+// optionally change gri settings
+
+// Define breakpoints
+$phone: new-breakpoint(max-width 544px);
+$tablet: new-breakpoint(min-width 545px max-width 1000px);
+$normal: new-breakpoint(min-width 1001px max-width 1376px);
+$large: new-breakpoint(min-width 1377px);
+
+$tablet-max: new-breakpoint(max-width 1000px);
+$normal-max: new-breakpoint(max-width 1376px);
+$tablet-min: new-breakpoint(min-width 545px);
+$normal-min: new-breakpoint(min-width 1001px);

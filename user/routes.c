@@ -12,24 +12,21 @@
 #include "cgi_main.h"
 #include "cgi_sockets.h"
 
-#define WIFI_PROTECT 1
-#define WIFI_AUTH_NAME "admin"
-#define WIFI_AUTH_PASS "password"
+#define WIFI_PROTECT 0
+#define WIFI_AUTH_NAME "wifi"
+#define WIFI_AUTH_PASS "nicitel"
 
-#if WIFI_PROTECT
-static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass,
-                                        int passLen);
-#endif
+static int wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen);
 
 /**
  * Application routes
  */
-HttpdBuiltInUrl builtInUrls[] = {
+HttpdBuiltInUrl routes[] = {
 	// redirect func for the captive portal
-	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp8266.nonet"),
+	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp-remote-term.ap"),
 
 	// --- Web pages ---
-	ROUTE_TPL_FILE("/", tplScreen, "term.tpl"),
+	ROUTE_TPL_FILE("/", tplScreen, "/term.tpl"),
 
 	// --- Sockets ---
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),
@@ -42,15 +39,15 @@ HttpdBuiltInUrl builtInUrls[] = {
 #if WIFI_PROTECT
 	ROUTE_AUTH("/wifi*", wifiPassFn),
 #endif
-	// TODO add those pages
-//	ROUTE_REDIRECT("/wifi/", "/wifi"),
-//	ROUTE_TPL_FILE("/wifi", tplWlan, "/pages/wifi.tpl"),
+	ROUTE_REDIRECT("/wifi/", "/wifi"),
+	ROUTE_TPL_FILE("/wifi", tplWlan, "/wifi.tpl"),
 
 	ROUTE_CGI("/wifi/scan", cgiWiFiScan),
 	ROUTE_CGI("/wifi/connect", cgiWiFiConnect),
 	ROUTE_CGI("/wifi/connstatus", cgiWiFiConnStatus),
 	ROUTE_CGI("/wifi/setmode", cgiWiFiSetMode),
 	ROUTE_CGI("/wifi/setchannel", cgiWiFiSetChannel),
+	ROUTE_CGI("/wifi/setname", cgiWiFiSetSSID),
 
 	ROUTE_FILESYSTEM(),
 	ROUTE_END(),
@@ -58,38 +55,15 @@ HttpdBuiltInUrl builtInUrls[] = {
 
 // --- Wifi password protection ---
 
-#if WIFI_PROTECT
 /**
- * @brief BasicAuth name/password checking function.
- *
- * It's invoked by the authBasic() built-in route handler
- * until it returns 0. Each time it populates the provided
- * name and password buffer.
- *
- * @param connData : connection context
- * @param no       : user number (incremented each time it's called)
- * @param user     : user buffer
- * @param userLen  : user buffer size
- * @param pass     : password buffer
- * @param passLen  : password buffer size
- * @return 0 to end, 1 if more users are available.
+ * Password for WiFi config
  */
 static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
 {
-	(void)connData;
-	(void)userLen;
-	(void)passLen;
-
 	if (no == 0) {
 		os_strcpy(user, WIFI_AUTH_NAME);
 		os_strcpy(pass, WIFI_AUTH_PASS);
 		return 1;
-//Add more users this way. Check against incrementing no for each user added.
-//  } else if (no==1) {
-//      os_strcpy(user, "user1");
-//      os_strcpy(pass, "something");
-//      return 1;
 	}
 	return 0;
 }
-#endif

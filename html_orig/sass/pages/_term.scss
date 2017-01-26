@@ -1,0 +1,39 @@
+.page-term {
+	#screen {
+		font-family: monospace;
+		font-size: 16pt;
+		white-space: nowrap;
+		background: #111213;
+		padding: 6px;
+		display: inline-block;
+
+		border: 2px solid #3983CD;//#1bc249;
+
+		span {
+			white-space: pre;
+			cursor: pointer;
+			&:hover {
+				outline: 1px solid rgba(#ffffff,0.5);
+			}
+		}
+	}
+
+	#buttons {
+		margin-top: 10px;
+		white-space: nowrap;
+
+		button {
+			margin: 0 3px;
+			padding: 10px 0;
+			width: 18%;
+			max-width: 65px;
+			min-width: initial;
+			cursor: pointer;
+			font-weight: bold;
+		}
+	}
+}
+
+#termwrap {
+	text-align: center;
+}

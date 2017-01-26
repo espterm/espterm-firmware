@@ -2,7 +2,17 @@
 
 echo "-- Preparing WWW files --"
 
-mkdir -p html
-yuicompressor html_orig/style.css > html/style.css
-yuicompressor html_orig/script.js > html/script.js
-minify --type=html html_orig/term.html -o html/term.tpl
+# Join scripts
+DD=html_orig/jssrc
+cat $DD/chibi.js \
+	$DD/utils.js \
+	$DD/appcommon.js \
+	$DD/term.js \
+	$DD/wifi.js > html/js/app.js
+
+# No need to compress CSS and JS now, we run YUI on it later
+cp html_orig/css/app.css    html/css/app.css
+cp html_orig/term.html      html/term.tpl
+cp html_orig/wifi.html      html/wifi.tpl
+cp html_orig/img/loader.gif html/img/loader.gif
+cp html_orig/favicon.ico    html/favicon.ico

@@ -1,0 +1,58 @@
+
+// Button styling
+@mixin fancy-btn-base() {
+	text-align: center;
+	cursor: pointer;
+	display: inline-block;
+	border-radius: 2px;
+	padding: 0 0.6em;
+	border: 0 none;
+	outline: 0 none !important;
+	line-height: 1.8em;
+	font-size: 1.1em;
+	margin-bottom: 3px;
+	min-width: 5em;
+
+	@include noselect();
+
+	//&[class^="icon-"]::before, &[class*=" icon-"]::before {
+	//	margin-left:0;
+	//}
+
+	&:active {
+		position: relative;
+		top: 2px;
+	}
+
+	//&, &:active, &:hover, &:visited {
+	//	text-decoration: none;
+	//}
+}
+
+@mixin fancy-btn-colors-full($text_p, $back_p, $side_p, $text_a, $back_a, $side_a) {
+	background-color: $back_p;
+	box-shadow: 0 3px 0 $side_p;
+	text-decoration: none !important;
+
+	&, &:link, &:visited {
+		color: $text_p;
+	}
+
+	&:hover, &:active, &.active, &.selected {
+		background-color: $back_a;
+		color: $text_a;
+	}
+
+	&:hover, &.selected, &.active {
+		box-shadow: 0 3px 0 $side_a;
+	}
+
+	// thinner shadow
+	&:active {
+		box-shadow: 0 1px 0 $side_a;
+	}
+}
+
+@mixin fancy-btn-colors($text_p, $back_p, $text_a, $back_a) {
+	@include fancy-btn-colors-full($text_p, $back_p, darken($back_p, 14), $text_a, $back_a, darken($back_a, 16));
+}

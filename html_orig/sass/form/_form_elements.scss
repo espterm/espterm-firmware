@@ -1,0 +1,29 @@
+@import "buttons";
+
+#{$all-text-inputs}, select {
+	border: 0 none;
+	border-bottom: 2px solid $c-form-highlight;
+	background-color: $c-form-field-bg;
+	color: $c-form-field-fg;
+	padding: 6px;
+	line-height: 1em;
+	outline: 0 none !important;
+	-moz-outline: 0 none !important;
+	font-weight: normal;
+
+	&:focus, &:hover {
+		border-bottom-color: $c-form-highlight-a;
+	}
+}
+
+//#{$all-text-inputs} {
+//	@include can-select();
+//}
+
+//textarea {
+//	font-family: monospace;
+//	line-height: 1.2em;
+//	display: block; // fixes weird bottom margin
+//}
+
+//@import "select";

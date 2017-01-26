@@ -4,7 +4,7 @@
 #include <esp8266.h>
 #include <httpd.h>
 
-extern HttpdBuiltInUrl builtInUrls[];
+extern HttpdBuiltInUrl routes[];
 
 /** Broadcast screen state to sockets */
 void screen_notifyChange();

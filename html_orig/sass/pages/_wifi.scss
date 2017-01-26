@@ -1,0 +1,89 @@
+#ap-list {
+	column-count: 3;
+	column-gap: 0;
+
+	@include media($tablet) {
+		column-count: 2;
+	}
+
+	@include media($phone) {
+		column-count: 1;
+	}
+
+	margin: 0 (- dist(-3));
+}
+
+#ap-loader {
+	background: rgba(white, .1);
+	border-radius: 5px;
+	padding: dist(-2);
+	margin-bottom: dist(-2);
+}
+
+#ap-box {
+	padding-bottom: dist(-2);
+}
+
+.AP {
+	// can't use margins inside a column
+
+	break-inside: avoid-column;
+	max-width: 500px;
+	padding: dist(-3);
+
+	&.selected .inner {//#70dfa3
+		background: #42a6f9 !important; // override the hover effect #43de81
+		cursor: default;
+		top: 0 !important; // no click effect
+	}
+
+	// the actual silver box
+	.inner {
+		cursor: pointer;
+		@include noselect;
+
+		position: relative;
+		&:active {
+			left: 0;
+			top: 1px;
+		}
+
+		border-radius: 3px;
+		color: #222;
+
+		background: #afafaf;
+		transition: background-color 0.5s;
+		&:hover { background: white }
+
+		display: flex;
+
+		& > * {
+			padding: dist(-1);
+			@include nowrap;
+		}
+
+		.rssi {
+			min-width: 2.5rem;
+			flex: 0 0 15%;
+			text-align: right;
+
+			&:after {
+				padding-left: dist(-5);
+				content: '%';
+				font-size: fsize(-1);
+			}
+		}
+
+		.essid {
+			flex: 1 1 70%;
+			min-width: 0;
+			text-overflow: ellipsis;
+			overflow: hidden;
+			font-weight: bold;
+		}
+
+		.auth {
+			flex: 0 0 15%;
+		}
+	}
+}

@@ -1,0 +1,52 @@
+
+// target chrome only
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+	select { padding-right: 18px }
+}
+
+select {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+
+	cursor: pointer;
+	line-height: 1.2em;
+	//padding: 3.5px;
+
+	padding-right: 1em;
+
+	// hack for firefox to disable dotted outline
+	&:-moz-focusring {
+		color: transparent;
+		text-shadow: 0 0 0 $c-form-field-fg;
+	}
+
+	option {
+		background: $c-form-field-bg;
+	}
+}
+
+label.select-wrap {
+	position: relative;
+	display: inline !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	width: auto !important;
+
+	&:after {
+		content: '<>'; /* will be rotated */
+		font-family: "Consolas", monospace;
+		font-weight: bold;
+		color: $c-form-highlight-a;
+
+		top: 50%;
+		@include transform(translate(0, -50%) rotate(90deg));
+
+		right: 2px;
+
+		position:absolute;
+		z-index: 100;
+
+		pointer-events: none;
+	}
+}

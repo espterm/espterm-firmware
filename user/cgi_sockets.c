@@ -32,7 +32,11 @@ void ICACHE_FLASH_ATTR screen_notifyChange()
 /** Socket received a message */
 void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 {
+	// Add terminator if missing (seems to randomly happen)
+	data[len] = 0;
+
 	dbg("Sock RX str: %s, len %d", data, len);
+
 
 	if (strstarts(data, "STR:")) {
 		// pass string verbatim

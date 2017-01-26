@@ -23,7 +23,7 @@
 #include "screen.h"
 #include "routes.h"
 
-#define FIRMWARE_VERSION "0.1"
+#define FIRMWARE_VERSION "0.2"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -50,11 +50,14 @@ static ETSTimer prHeapTimer;
 /** Periodically show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 {
-	static unsigned int cnt = 0;
+	static uint32_t cnt = 0;
+	static uint32_t last = 0;
 
 	if (cnt == 5) {
-		dbg("HEAP: %ld bytes free", (unsigned long) system_get_free_heap_size());
+		uint32_t heap = system_get_free_heap_size();
+		dbg("Free heap: %d bytes (~ %d)", heap, (heap-last));
 		cnt = 0;
+		last = heap;
 	}
 
 	cnt++;
@@ -89,7 +92,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	captdnsInit();
 
 	// Server
-	httpdInit(builtInUrls, 80);
+	httpdInit(routes, 80);
 
 	// Heap use timer & blink
 	os_timer_disarm(&prHeapTimer);
