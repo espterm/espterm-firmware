@@ -23,7 +23,7 @@ static int wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, 
  */
 HttpdBuiltInUrl routes[] = {
 	// redirect func for the captive portal
-	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp-remote-term.ap"),
+	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp-terminal.ap"),
 
 	// --- Web pages ---
 	ROUTE_TPL_FILE("/", tplScreen, "/term.tpl"),
@@ -45,6 +45,7 @@ HttpdBuiltInUrl routes[] = {
 	ROUTE_CGI("/wifi/scan", cgiWiFiScan),
 	ROUTE_CGI("/wifi/connect", cgiWiFiConnect),
 	ROUTE_CGI("/wifi/connstatus", cgiWiFiConnStatus),
+	ROUTE_FILE("/wifi/connecting", "/wifi_conn.tpl"),
 	ROUTE_CGI("/wifi/setmode", cgiWiFiSetMode),
 	ROUTE_CGI("/wifi/setchannel", cgiWiFiSetChannel),
 	ROUTE_CGI("/wifi/setname", cgiWiFiSetSSID),

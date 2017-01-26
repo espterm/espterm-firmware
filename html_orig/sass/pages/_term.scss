@@ -13,7 +13,10 @@
 			white-space: pre;
 			cursor: pointer;
 			&:hover {
-				outline: 1px solid rgba(#ffffff,0.5);
+				outline: 1px solid rgba(#ffffff,0.4);
+				@include media($tablet-max) {
+					outline: 0 none;
+				}
 			}
 		}
 	}

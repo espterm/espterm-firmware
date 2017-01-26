@@ -13,15 +13,34 @@
 	margin: 0 (- dist(-3));
 }
 
-#ap-loader {
+#ap-loader, #ap-noscan {
 	background: rgba(white, .1);
 	border-radius: 5px;
 	padding: dist(-2);
 	margin-bottom: dist(-2);
 }
 
+#ap-noscan {
+	font-weight: bold;
+}
+
 #ap-box {
 	padding-bottom: dist(-2);
+}
+
+#psk-modal form {
+	@extend %form-row-spacing;
+	display: flex;
+	align-items: center;
+	margin: dist(-2);
+
+	input[type=password] {
+		min-width: 5rem;
+	}
+}
+
+#wificonfbox form {
+	@extend %form-row-spacing;
 }
 
 .AP {

@@ -54,23 +54,17 @@
 				$item.on('click', function () {
 					var $th = $(this);
 
-					var ssid = $th.data('ssid');
-					var pass = '';
+					// populate the form
+					$('#conn-essid').val($th.data('ssid'));
+					$('#conn-passwd').val(''); // clear
 
 					if ($th.data('pwd')) {
 						// this AP needs a password
-						pass = prompt("Password for \""+ssid+"\":");
-						if (pass === null) {
-							return;
-						}
+						Modal.show('#psk-modal');
+					} else {
+						Modal.show('#reset-modal');
+						$('#conn-form').submit();
 					}
-
-					$.post('http://'+_root+'/wifi/connect', null, {
-						data: {
-							essid: ssid,
-							passwd: pass
-						}
-					});
 				});
 
 
@@ -81,7 +75,7 @@
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('http://'+_root+'/wifi/scan', onScan);
+		$.get('/wifi/scan', onScan);
 	}
 
 	function rescan(time) {
@@ -100,8 +94,85 @@
 		//	}
 		//};
 
-		curSSID = obj.curSSID;
+		// Hide what should be hidden in this mode
+		$('.x-hide-'+obj.mode).addClass('hidden');
+		obj.mode = +obj.mode;
 
-		scanAPs();
+		// Channel writable only in AP mode
+		if (obj.mode != 2) $('#channel').attr('readonly', 1);
+
+		curSSID = obj.staSSID;
+
+		// add SSID to the opmode field
+		if (curSSID) {
+			var box = $('#opmodebox');
+			box.html(box.html() + ' (' + curSSID + ')');
+		}
+
+		// hide IP if IP not received
+		if (!obj.staIP) $('.x-hide-noip').addClass('hidden');
+
+		// scan if not AP
+		if (obj.mode != 2) {
+			scanAPs();
+		}
+
+		$('#modeswitch').html([
+			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>',
+			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>',
+			'<a class="button" href="/wifi/setmode?mode=1">Client only</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>'
+		][obj.mode-1]);
+	};
+
+	window.wifiConn = function () {
+		var xhr = new XMLHttpRequest();
+		var abortTmeo;
+
+		function getStatus() {
+			xhr.open("GET", "/wifi/connstatus");
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
+					clearTimeout(abortTmeo);
+					var data = JSON.parse(xhr.responseText);
+					var done = false;
+					var msg = '...';
+
+					if (data.status == "idle") {
+						msg = "Preparing to connect";
+					}
+					else if (data.status == "success") {
+						msg = "Connected! Received IP " + data.ip + ".";
+						done = true;
+					}
+					else if (data.status == "working") {
+						msg = "Connecting to selected AP";
+					}
+					else if (data.status == "fail") {
+						msg = "Connection failed, check your password and try again.";
+						done = true;
+					}
+
+					$("#status").html(msg);
+
+					if (done) {
+						$('#backbtn').removeClass('hidden');
+						$('.anim-dots').addClass('hidden');
+					} else {
+						window.setTimeout(getStatus, 1000);
+					}
+				}
+			};
+
+			abortTmeo = setTimeout(function () {
+				xhr.abort();
+				$("#status").html("Telemetry lost, try reconnecting to the AP.");
+				$('#backbtn').removeClass('hidden');
+				$('.anim-dots').addClass('hidden');
+			}, 4000);
+
+			xhr.send();
+		}
+
+		getStatus();
 	};
 })();

@@ -170,18 +170,35 @@
 			classarray = classes.split(/\s+/);
 			nodeLoop(function (elm) {
 				for (i = 0; i < classarray.length; i += 1) {
-					search = new RegExp('\\b' + classarray[i] + '\\b', 'g');
-					replace = new RegExp(' *' + classarray[i] + '\\b', 'g');
+					var clz = classarray[i];
 					if (action === 'remove') {
-						elm.className = elm.className.replace(search, '');
-					} else if (action === 'toggle') {
-						elm.className = (elm.className.match(search)) ? elm.className.replace(replace, '') : elm.className + ' ' + classarray[i];
-					} else if (action === 'has') {
-						if (elm.className.match(search)) {
+						elm.classList.remove(clz);
+					}
+					else if (action === 'add') {
+						elm.classList.add(clz);
+					}
+					else if (action === 'toggle') {
+						elm.classList.toggle(clz);
+					}
+					else if (action === 'has') {
+						if (elm.classList.contains(clz)) {
 							has = true;
 							break;
 						}
 					}
+
+					// search = new RegExp('\\b' + classarray[i] + '\\b', 'g');
+					// replace = new RegExp(' *' + classarray[i] + '\\b', 'g');
+					// if (action === 'remove') {
+					// 	elm.className = elm.className.replace(search, '');
+					// } else if (action === 'toggle') {
+					// 	elm.className = (elm.className.match(search)) ? elm.className.replace(replace, '') : elm.className + ' ' + classarray[i];
+					// } else if (action === 'has') {
+					// 	if (elm.className.match(search)) {
+					// 		has = true;
+					// 		break;
+					// 	}
+					// }
 				}
 			}, nodes);
 		}
@@ -362,11 +379,12 @@
 		};
 		// Add class
 		cb.addClass = function (classes) {
-			if (classes) {
-				nodeLoop(function (elm) {
-					elm.className += ' ' + classes;
-				}, nodes);
-			}
+			classHelper(classes, 'add', nodes);
+			// if (classes) {
+			// 	nodeLoop(function (elm) {
+			// 		elm.className += ' ' + classes;
+			// 	}, nodes);
+			// }
 			return cb;
 		};
 		// Remove class

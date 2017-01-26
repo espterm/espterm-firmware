@@ -10,6 +10,7 @@ $.ready(function () {
 		});
 	}, 1000);
 
+	// flipping number boxes with the mouse wheel
 	$('input[type=number]').on('mousewheel', function(e) {
 		var val = +$(this).val();
 		if (isNaN(val)) val = 1;
@@ -37,10 +38,11 @@ $.ready(function () {
 
 		e.preventDefault();
 	});
+
+	Modal.init();
 });
 
 $._loader = function(vis) {
-	console.log("loader fn", vis);
 	if(vis)
 		$('#loader').addClass('show');
 	else

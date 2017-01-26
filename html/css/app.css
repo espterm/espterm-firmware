@@ -319,6 +319,78 @@ html {
 [onclick] {
   cursor: pointer; }
 
+.Modal {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity .5s;
+  background: rgba(0, 0, 0, 0.65);
+  opacity: 0; }
+  .Modal.visible {
+    opacity: 1; }
+  .Modal.hidden {
+    display: none; }
+
+.Dialog {
+  margin: 0.61805rem;
+  padding: 1rem;
+  overflow: hidden;
+  max-width: 100%;
+  max-height: 100%;
+  flex: 0 1 30rem;
+  background: #1c1c1e;
+  border-left: 6px solid #2972ba;
+  border-right: 6px solid #2972ba;
+  box-shadow: 0 0 2px 0 #434349, 0 0 6px 0 black;
+  border-radius: 6px; }
+  .Dialog h1, .Dialog h2 {
+    margin-top: 0; }
+  .Dialog p:last-child {
+    margin-bottom: 0; }
+
+/*
+// "toast"
+.NotifyMsg {
+	position: fixed;
+	bottom: dist(2);
+	padding: dist(-1) dist(0);
+
+	// center horizontally
+	left: 50%;
+	@include translate(-50%,0);
+	// hack to remove blur in chrome
+	-webkit-font-smoothing: subpixel-antialiased;
+	-webkit-transform: translateZ(0) scale(1.0, 1.0);
+
+	background: #37a349;
+	&.error {
+		background: #d03e42;
+	}
+
+	color: white;
+	text-shadow: 0 0 2px black;
+	box-shadow: 0 0 6px 0 rgba(black, .6);
+	border-radius: 5px;
+
+	max-width: 80%;
+
+	@include media($phone) {
+		width: calc(100% - 1rem);
+	}
+
+	transition: opacity .5s;
+	opacity: 0;
+	&.visible { opacity: 1 }
+	&.hidden { display: none }
+}
+*/
 html {
   font-family: Arial, sans-serif;
   color: #D0D0D0;
@@ -353,6 +425,8 @@ a:hover {
     .Box {
       margin-top: 0.61805rem;
       padding: 0.23608rem 0.38198rem; } }
+  .Box p:first-child {
+    margin-top: 0; }
 
 body {
   position: relative;
@@ -376,6 +450,11 @@ body {
     @media screen and (min-width: 545px) and (max-width: 1000px) {
       body h1 {
         font-size: 1.80203em; } }
+  body h2 {
+    font-size: 1.26563em;
+    margin-bottom: 0.61805rem; }
+    body h2:first-child {
+      margin-top: 0; }
   body td, body th {
     padding: 0.38198rem;
     white-space: nowrap; }
@@ -408,7 +487,7 @@ body {
   #loader.show {
     opacity: 1; }
 
-button, input[type=submit] {
+button, input[type=submit], .button {
   text-align: center;
   cursor: pointer;
   display: inline-block;
@@ -428,22 +507,22 @@ button, input[type=submit] {
   background-color: #3983cd;
   box-shadow: 0 3px 0 #265f98;
   text-decoration: none !important; }
-  button:active, input[type=submit]:active {
+  button:active, input[type=submit]:active, .button:active {
     position: relative;
     top: 2px; }
-  button.narrow, input[type=submit].narrow {
+  button.narrow, input[type=submit].narrow, .button.narrow {
     min-width: initial; }
-  button, button:link, button:visited, input[type=submit], input[type=submit]:link, input[type=submit]:visited {
+  button, button:link, button:visited, input[type=submit], input[type=submit]:link, input[type=submit]:visited, .button, .button:link, .button:visited {
     color: #FEFEFE; }
-  button:hover, button:active, button.active, button.selected, input[type=submit]:hover, input[type=submit]:active, input[type=submit].active, input[type=submit].selected {
+  button:hover, button:active, button.active, button.selected, input[type=submit]:hover, input[type=submit]:active, input[type=submit].active, input[type=submit].selected, .button:hover, .button:active, .button.active, .button.selected {
     background-color: #2076C6;
     color: #FEFEFE; }
-  button:hover, button.selected, button.active, input[type=submit]:hover, input[type=submit].selected, input[type=submit].active {
+  button:hover, button.selected, button.active, input[type=submit]:hover, input[type=submit].selected, input[type=submit].active, .button:hover, .button.selected, .button.active {
     box-shadow: 0 3px 0 #154c80; }
-  button:active, input[type=submit]:active {
+  button:active, input[type=submit]:active, .button:active {
     box-shadow: 0 1px 0 #154c80; }
 
-button, input[type=submit] {
+button, input[type=submit], .button {
   text-align: center;
   cursor: pointer;
   display: inline-block;
@@ -463,19 +542,19 @@ button, input[type=submit] {
   background-color: #3983cd;
   box-shadow: 0 3px 0 #265f98;
   text-decoration: none !important; }
-  button:active, input[type=submit]:active {
+  button:active, input[type=submit]:active, .button:active {
     position: relative;
     top: 2px; }
-  button.narrow, input[type=submit].narrow {
+  button.narrow, input[type=submit].narrow, .button.narrow {
     min-width: initial; }
-  button, button:link, button:visited, input[type=submit], input[type=submit]:link, input[type=submit]:visited {
+  button, button:link, button:visited, input[type=submit], input[type=submit]:link, input[type=submit]:visited, .button, .button:link, .button:visited {
     color: #FEFEFE; }
-  button:hover, button:active, button.active, button.selected, input[type=submit]:hover, input[type=submit]:active, input[type=submit].active, input[type=submit].selected {
+  button:hover, button:active, button.active, button.selected, input[type=submit]:hover, input[type=submit]:active, input[type=submit].active, input[type=submit].selected, .button:hover, .button:active, .button.active, .button.selected {
     background-color: #2076C6;
     color: #FEFEFE; }
-  button:hover, button.selected, button.active, input[type=submit]:hover, input[type=submit].selected, input[type=submit].active {
+  button:hover, button.selected, button.active, input[type=submit]:hover, input[type=submit].selected, input[type=submit].active, .button:hover, .button.selected, .button.active {
     box-shadow: 0 3px 0 #154c80; }
-  button:active, input[type=submit]:active {
+  button:active, input[type=submit]:active, .button:active {
     box-shadow: 0 1px 0 #154c80; }
 
 input[type="number"], input[type="password"], input[type="text"], textarea, select {
@@ -491,6 +570,11 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
   input[type="number"]:focus, input[type="number"]:hover, input[type="password"]:focus, input[type="password"]:hover, input[type="text"]:focus, input[type="text"]:hover, textarea:focus, textarea:hover, select:focus, select:hover {
     border-bottom-color: #2972ba; }
 
+#psk-modal form > *, #wificonfbox form > * {
+  margin-right: 0.38198rem; }
+  #psk-modal form > *:last-child, #wificonfbox form > *:last-child {
+    margin-right: 0; }
+
 #ap-list {
   column-count: 3;
   column-gap: 0;
@@ -502,14 +586,24 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
     #ap-list {
       column-count: 1; } }
 
-#ap-loader {
+#ap-loader, #ap-noscan {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 5px;
   padding: 0.38198rem;
   margin-bottom: 0.38198rem; }
 
+#ap-noscan {
+  font-weight: bold; }
+
 #ap-box {
   padding-bottom: 0.38198rem; }
+
+#psk-modal form {
+  display: flex;
+  align-items: center;
+  margin: 0.38198rem; }
+  #psk-modal form input[type=password] {
+    min-width: 5rem; }
 
 .AP {
   break-inside: avoid-column;
@@ -569,7 +663,10 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
     white-space: pre;
     cursor: pointer; }
     .page-term #screen span:hover {
-      outline: 1px solid rgba(255, 255, 255, 0.5); }
+      outline: 1px solid rgba(255, 255, 255, 0.4); }
+      @media screen and (max-width: 1000px) {
+        .page-term #screen span:hover {
+          outline: 0 none; } }
 .page-term #buttons {
   margin-top: 10px;
   white-space: nowrap; }

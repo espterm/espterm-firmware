@@ -462,7 +462,7 @@ screen_putchar(char ch)
 		default:
 			if (ch < ' ') {
 				// Discard
-				warn("Ignoring control char %d", (int)c);
+				warn("Ignoring control char %d", (int)ch);
 				goto done;
 			}
 	}

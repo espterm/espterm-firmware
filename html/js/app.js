@@ -170,18 +170,35 @@
 			classarray = classes.split(/\s+/);
 			nodeLoop(function (elm) {
 				for (i = 0; i < classarray.length; i += 1) {
-					search = new RegExp('\\b' + classarray[i] + '\\b', 'g');
-					replace = new RegExp(' *' + classarray[i] + '\\b', 'g');
+					var clz = classarray[i];
 					if (action === 'remove') {
-						elm.className = elm.className.replace(search, '');
-					} else if (action === 'toggle') {
-						elm.className = (elm.className.match(search)) ? elm.className.replace(replace, '') : elm.className + ' ' + classarray[i];
-					} else if (action === 'has') {
-						if (elm.className.match(search)) {
+						elm.classList.remove(clz);
+					}
+					else if (action === 'add') {
+						elm.classList.add(clz);
+					}
+					else if (action === 'toggle') {
+						elm.classList.toggle(clz);
+					}
+					else if (action === 'has') {
+						if (elm.classList.contains(clz)) {
 							has = true;
 							break;
 						}
 					}
+
+					// search = new RegExp('\\b' + classarray[i] + '\\b', 'g');
+					// replace = new RegExp(' *' + classarray[i] + '\\b', 'g');
+					// if (action === 'remove') {
+					// 	elm.className = elm.className.replace(search, '');
+					// } else if (action === 'toggle') {
+					// 	elm.className = (elm.className.match(search)) ? elm.className.replace(replace, '') : elm.className + ' ' + classarray[i];
+					// } else if (action === 'has') {
+					// 	if (elm.className.match(search)) {
+					// 		has = true;
+					// 		break;
+					// 	}
+					// }
 				}
 			}, nodes);
 		}
@@ -362,11 +379,12 @@
 		};
 		// Add class
 		cb.addClass = function (classes) {
-			if (classes) {
-				nodeLoop(function (elm) {
-					elm.className += ' ' + classes;
-				}, nodes);
-			}
+			classHelper(classes, 'add', nodes);
+			// if (classes) {
+			// 	nodeLoop(function (elm) {
+			// 		elm.className += ' ' + classes;
+			// 	}, nodes);
+			// }
 			return cb;
 		};
 		// Remove class
@@ -777,6 +795,47 @@ String.prototype.format = function () {
 	return out;
 };
 
+/** Module for toggling a modal overlay */
+(function () {
+	var modal = {};
+
+	modal.show = function (sel) {
+		var $m = $(sel);
+		$m.removeClass('hidden visible');
+		setTimeout(function () {
+			$m.addClass('visible');
+		}, 1);
+	};
+
+	modal.hide = function (sel) {
+		var $m = $(sel);
+		$m.removeClass('visible');
+		setTimeout(function () {
+			$m.addClass('hidden');
+		}, 500); // transition time
+	};
+
+	modal.init = function () {
+		// close modal by click outside the dialog
+		$('.Modal').on('click', function () {
+			if ($(this).hasClass('no-close')) return; // this is a no-close modal
+			modal.hide(this);
+		});
+
+		$('.Dialog').on('click', function (e) {
+			e.stopImmediatePropagation();
+		});
+
+		// Hide all modals on esc
+		$(window).on('keydown', function (e) {
+			if (e.which == 27) {
+				modal.hide('.Modal');
+			}
+		});
+	};
+
+	window.Modal = modal;
+})();
 /** Global generic init */
 $.ready(function () {
 	// loader dots...
@@ -789,6 +848,7 @@ $.ready(function () {
 		});
 	}, 1000);
 
+	// flipping number boxes with the mouse wheel
 	$('input[type=number]').on('mousewheel', function(e) {
 		var val = +$(this).val();
 		if (isNaN(val)) val = 1;
@@ -816,10 +876,11 @@ $.ready(function () {
 
 		e.preventDefault();
 	});
+
+	Modal.init();
 });
 
 $._loader = function(vis) {
-	console.log("loader fn", vis);
 	if(vis)
 		$('#loader').addClass('show');
 	else
@@ -1202,23 +1263,17 @@ $._loader = function(vis) {
 				$item.on('click', function () {
 					var $th = $(this);
 
-					var ssid = $th.data('ssid');
-					var pass = '';
+					// populate the form
+					$('#conn-essid').val($th.data('ssid'));
+					$('#conn-passwd').val(''); // clear
 
 					if ($th.data('pwd')) {
 						// this AP needs a password
-						pass = prompt("Password for \""+ssid+"\":");
-						if (pass === null) {
-							return;
-						}
+						Modal.show('#psk-modal');
+					} else {
+						Modal.show('#reset-modal');
+						$('#conn-form').submit();
 					}
-
-					$.post('http://'+_root+'/wifi/connect', null, {
-						data: {
-							essid: ssid,
-							passwd: pass
-						}
-					});
 				});
 
 
@@ -1229,7 +1284,7 @@ $._loader = function(vis) {
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('http://'+_root+'/wifi/scan', onScan);
+		$.get('/wifi/scan', onScan);
 	}
 
 	function rescan(time) {
@@ -1248,8 +1303,85 @@ $._loader = function(vis) {
 		//	}
 		//};
 
-		curSSID = obj.curSSID;
+		// Hide what should be hidden in this mode
+		$('.x-hide-'+obj.mode).addClass('hidden');
+		obj.mode = +obj.mode;
 
-		scanAPs();
+		// Channel writable only in AP mode
+		if (obj.mode != 2) $('#channel').attr('readonly', 1);
+
+		curSSID = obj.staSSID;
+
+		// add SSID to the opmode field
+		if (curSSID) {
+			var box = $('#opmodebox');
+			box.html(box.html() + ' (' + curSSID + ')');
+		}
+
+		// hide IP if IP not received
+		if (!obj.staIP) $('.x-hide-noip').addClass('hidden');
+
+		// scan if not AP
+		if (obj.mode != 2) {
+			scanAPs();
+		}
+
+		$('#modeswitch').html([
+			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>',
+			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>',
+			'<a class="button" href="/wifi/setmode?mode=1">Client only</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>'
+		][obj.mode-1]);
+	};
+
+	window.wifiConn = function () {
+		var xhr = new XMLHttpRequest();
+		var abortTmeo;
+
+		function getStatus() {
+			xhr.open("GET", "/wifi/connstatus");
+			xhr.onreadystatechange = function () {
+				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
+					clearTimeout(abortTmeo);
+					var data = JSON.parse(xhr.responseText);
+					var done = false;
+					var msg = '...';
+
+					if (data.status == "idle") {
+						msg = "Preparing to connect";
+					}
+					else if (data.status == "success") {
+						msg = "Connected! Received IP " + data.ip + ".";
+						done = true;
+					}
+					else if (data.status == "working") {
+						msg = "Connecting to selected AP";
+					}
+					else if (data.status == "fail") {
+						msg = "Connection failed, check your password and try again.";
+						done = true;
+					}
+
+					$("#status").html(msg);
+
+					if (done) {
+						$('#backbtn').removeClass('hidden');
+						$('.anim-dots').addClass('hidden');
+					} else {
+						window.setTimeout(getStatus, 1000);
+					}
+				}
+			};
+
+			abortTmeo = setTimeout(function () {
+				xhr.abort();
+				$("#status").html("Telemetry lost, try reconnecting to the AP.");
+				$('#backbtn').removeClass('hidden');
+				$('.anim-dots').addClass('hidden');
+			}, 4000);
+
+			xhr.send();
+		}
+
+		getStatus();
 	};
 })();

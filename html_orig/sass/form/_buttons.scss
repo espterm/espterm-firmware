@@ -24,7 +24,7 @@ $btn-orange-b: #dd8751;
 $btn-orange-fa: #FEFEFE;
 $btn-orange-ba: #C6733F;
 
-button, input[type=submit] {
+button, input[type=submit], .button {
 	@include fancy-btn-base();
 
 	&.narrow {
