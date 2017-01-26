@@ -579,7 +579,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastFg = 0;
 		ss->lastChar = '\0';
 
-		bufprint("{\"w\":%d,\"h\":%d,\"x\":%d,\"y\":%d,\"screen\":\"", W, H, cursor.x, cursor.y);
+		bufprint("{\"w\":%d,\"h\":%d,\"x\":%d,\"y\":%d,\"cv\":%d,\"screen\":\"", W, H, cursor.x, cursor.y, cursor.visible);
 	}
 
 	int i = ss->index;

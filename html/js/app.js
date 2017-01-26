@@ -574,9 +574,6 @@
 			query = serializeData(opts.data);
 		}
 
-		console.log(opts);
-		console.log(query);
-
 		if (query && (method === 'GET')) {
 			url += (url.indexOf('?') === -1) ? '?' + query : '&' + query;
 			query = null;
