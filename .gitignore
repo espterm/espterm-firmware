@@ -14,5 +14,6 @@ eagle.app.sym
 .idea/
 CMakeLists.txt
 cmake-build-debug/
+.sass-cache
 
 *.map

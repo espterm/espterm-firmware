@@ -668,6 +668,10 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
     .page-term h1 {
       font-size: 1.42383em; } }
 .page-term #screen {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
   font-family: monospace;
   font-size: 16pt;
   white-space: nowrap;
@@ -680,7 +684,7 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
     cursor: pointer; }
     .page-term #screen span:hover {
       outline: 1px solid rgba(255, 255, 255, 0.4); }
-      @media screen and (max-width: 1000px) {
+      @media screen and (max-width: 544px) {
         .page-term #screen span:hover {
           outline: 0 none; } }
 .page-term #buttons {
@@ -697,5 +701,3 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
 
 #termwrap {
   text-align: center; }
-
-/*# sourceMappingURL=app.css.map */

@@ -32,11 +32,11 @@ void ICACHE_FLASH_ATTR screen_notifyChange()
 /** Socket received a message */
 void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 {
+	char buf[20];
 	// Add terminator if missing (seems to randomly happen)
 	data[len] = 0;
 
 	dbg("Sock RX str: %s, len %d", data, len);
-
 
 	if (strstarts(data, "STR:")) {
 		// pass string verbatim
@@ -50,8 +50,37 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 		}
 	}
 	else if (strstarts(data, "TAP:")) {
-		// TODO
-		warn("TODO mouse input handling not implemented!");
+		// this comes in as 0-based
+
+		int y=0, x=0;
+
+		char *pc=data+4;
+		char c;
+		int phase=0;
+
+		while((c=*pc++) != '\0') {
+			if (c==','||c==';') {
+				phase++;
+			}
+			else if (c>='0' && c<='9') {
+				if (phase==0) {
+					y=y*10+(c-'0');
+				} else {
+					x=x*10+(c-'0');
+				}
+			}
+		}
+
+		if (!screen_isCoordValid(y, x)) {
+			warn("Mouse input at invalid coordinates");
+			return;
+		}
+
+		dbg("Screen clicked at row %d, col %d", y+1, x+1);
+
+		// Send as 1-based to user
+		sprintf(buf, "\033[%d;%dM", y+1, x+1);
+		UART_WriteString(UART0, buf, UART_TIMEOUT_US);
 	}
 	else {
 		warn("Bad command.");

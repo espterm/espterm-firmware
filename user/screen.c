@@ -27,8 +27,8 @@ static Cell screen[MAX_SCREEN_SIZE];
  * Cursor position and attributes
  */
 static struct {
-	Coordinate x;    //!< X coordinate
-	Coordinate y;    //!< Y coordinate
+	int x;    //!< X coordinate
+	int y;    //!< Y coordinate
 	bool visible;    //!< Visible
 	bool inverse;    //!< Inverse colors
 	Color fg;        //!< Foreground color for writing
@@ -39,19 +39,19 @@ static struct {
  * Saved cursor position, used with the SCP RCP commands
  */
 static struct {
-	Coordinate x;
-	Coordinate y;
+	int x;
+	int y;
 } cursor_sav;
 
 /**
  * Active screen width
  */
-static Coordinate W = SCREEN_DEF_W;
+static int W = SCREEN_DEF_W;
 
 /**
  * Active screen height
  */
-static Coordinate H = SCREEN_DEF_H;
+static int H = SCREEN_DEF_H;
 
 // XXX volatile is probably not needed
 static volatile int notifyLock = 0;
@@ -193,7 +193,7 @@ screen_clear_line(ClearMode mode)
  * @param rows - new height
  */
 void ICACHE_FLASH_ATTR
-screen_resize(Coordinate rows, Coordinate cols)
+screen_resize(int rows, int cols)
 {
 	NOTIFY_LOCK();
 	// sanitize
@@ -277,7 +277,7 @@ done:
  * Set cursor position
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_set(Coordinate x, Coordinate y)
+screen_cursor_set(int y, int x)
 {
 	NOTIFY_LOCK();
 	if (x >= W) x = W - 1;
@@ -288,10 +288,20 @@ screen_cursor_set(Coordinate x, Coordinate y)
 }
 
 /**
+ * Set cursor position
+ */
+void ICACHE_FLASH_ATTR
+screen_cursor_get(int *y, int *x)
+{
+	*x = cursor.x;
+	*y = cursor.y;
+}
+
+/**
  * Set cursor X position
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_set_x(Coordinate x)
+screen_cursor_set_x(int x)
 {
 	NOTIFY_LOCK();
 	if (x >= W) x = W - 1;
@@ -303,7 +313,7 @@ screen_cursor_set_x(Coordinate x)
  * Set cursor Y position
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_set_y(Coordinate y)
+screen_cursor_set_y(int y)
 {
 	NOTIFY_LOCK();
 	if (y >= H) y = H - 1;
@@ -315,7 +325,7 @@ screen_cursor_set_y(Coordinate y)
  * Relative cursor move
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_move(int dx, int dy)
+screen_cursor_move(int dy, int dx)
 {
 	NOTIFY_LOCK();
 	int move;
@@ -432,6 +442,18 @@ screen_set_bright_fg(void)
 //endregion
 
 /**
+ * Check if coords are in range
+ *
+ * @param y
+ * @param x
+ * @return OK
+ */
+bool ICACHE_FLASH_ATTR screen_isCoordValid(int y, int x)
+{
+	return x >= 0 && y >= 0 && x < W && y < H;
+}
+
+/**
  * Set a character in the cursor color, move to right with wrap.
  */
 void ICACHE_FLASH_ATTR
@@ -448,23 +470,31 @@ screen_putchar(char ch)
 			goto done;
 
 		case '\n':
-			screen_cursor_move(0, 1);
+			screen_cursor_move(1, 0);
 			goto done;
 
 		case 8: // BS
-			if (cursor.x > 0) cursor.x--;
+			if (cursor.x > 0) {
+				cursor.x--;
+			} else {
+				// wrap around start of line
+				if (cursor.y>0) {
+					cursor.x=W-1;
+					cursor.y--;
+				}
+			}
 			// erase target cell
 			c = &screen[cursor.x + cursor.y * W];
 			c->c = ' ';
 			goto done;
 
 		case 9: // TAB
-			c->c = ' ';
-			// nested recurs >:( but it's ok
-			screen_putchar(' ');
-			screen_putchar(' ');
-			screen_putchar(' ');
-			screen_putchar(' ');
+			if (cursor.x<((W-1)-(W-1)%4)) {
+				c->c = ' ';
+				do {
+					screen_putchar(' ');
+				} while(cursor.x%4!=0);
+			}
 			goto done;
 
 		default:

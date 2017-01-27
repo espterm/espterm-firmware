@@ -7,6 +7,8 @@
 	}
 
 	#screen {
+		@include noselect();
+
 		font-family: monospace;
 		font-size: 16pt;
 		white-space: nowrap;
@@ -21,7 +23,7 @@
 			cursor: pointer;
 			&:hover {
 				outline: 1px solid rgba(#ffffff,0.4);
-				@include media($tablet-max) {
+				@include media($phone) {
 					outline: 0 none;
 				}
 			}

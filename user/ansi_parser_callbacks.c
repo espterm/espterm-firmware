@@ -53,7 +53,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 		CSI n T	SD – Scroll Down
 		CSI n ; m f	HVP – Horizontal and Vertical Position
 		CSI n m	SGR – Select Graphic Rendition  (Implemented only some)
-		CSI 6n	DSR – Device Status Report  NOT IMPL
+		CSI 6n	DSR – Device Status Report
 		CSI s	SCP – Save Cursor Position
 		CSI u	RCP – Restore Cursor Position
 		CSI ?25l	DECTCEM	Hides the cursor
@@ -92,18 +92,18 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 
 	switch (keychar) {
 		// CUU CUD CUF CUB
-		case 'A': screen_cursor_move(0, -n1); break;
-		case 'B': screen_cursor_move(0, n1);  break;
-		case 'C': screen_cursor_move(n1, 0);  break;
-		case 'D': screen_cursor_move(-n1, 0); break;
+		case 'A': screen_cursor_move(-n1, 0); break;
+		case 'B': screen_cursor_move(n1, 0);  break;
+		case 'C': screen_cursor_move(0, n1);  break;
+		case 'D': screen_cursor_move(0, -n1); break;
 
 		case 'E': // CNL
-			screen_cursor_move(0, n1);
+			screen_cursor_move(n1, 0);
 			screen_cursor_set_x(0);
 			break;
 
 		case 'F': // CPL
-			screen_cursor_move(0, -n1);
+			screen_cursor_move(-n1, 0);
 			screen_cursor_set_x(0);
 			break;
 
@@ -118,7 +118,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			// CUP,HVP
 		case 'H':
 		case 'f':
-			screen_cursor_set(n2-1, n1-1); break; // 1-based
+			screen_cursor_set(n1-1, n2-1); break; // 1-based
 
 		case 'J': // ED
 			if (n1 == 0) {
@@ -145,6 +145,16 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			// SCP, RCP
 		case 's': screen_cursor_save(); break;
 		case 'u': screen_cursor_restore(); break;
+
+		case 'n':
+			if (n1 == 6) {
+				char buf[20];
+				int x, y;
+				screen_cursor_get(&y, &x);
+				sprintf(buf, "\033[%d;%dR", y+1, x+1);
+				UART_WriteString(UART0, buf, UART_TIMEOUT_US);
+			}
+			break;
 
 			// DECTCEM cursor show hide
 		case 'l':

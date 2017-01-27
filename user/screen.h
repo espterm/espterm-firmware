@@ -24,7 +24,7 @@
  * 8 black, 9 red, 10 green, 11 yellow
  * 12 blue, 13 mag, 14 cyan, 15 white
  *
- * Coordinates are 0-based, left-top is the origin.
+ * ints are 0-based, left-top is the origin.
  * X grows to the right, Y to the bottom.
  *
  * +---->
@@ -53,7 +53,6 @@ typedef enum {
 } ClearMode;
 
 typedef uint8_t Color;
-typedef int Coordinate;
 
 httpd_cgi_state ICACHE_FLASH_ATTR
 screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
@@ -62,7 +61,10 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
 void screen_init(void);
 
 /** Change the screen size */
-void screen_resize(Coordinate rows, Coordinate cols);
+void screen_resize(int rows, int cols);
+
+/** Check if coord is valid */
+bool screen_isCoordValid(int y, int x);
 
 // --- Clearing ---
 
@@ -84,16 +86,19 @@ void screen_scroll_down(unsigned int lines);
 // --- Cursor control ---
 
 /** Set cursor position */
-void screen_cursor_set(Coordinate x, Coordinate y);
+void screen_cursor_set(int y, int x);
+
+/** Read cursor pos to given vars */
+void screen_cursor_get(int *y, int *x);
 
 /** Set cursor X position */
-void screen_cursor_set_x(Coordinate x);
+void screen_cursor_set_x(int x);
 
 /** Set cursor Y position */
-void screen_cursor_set_y(Coordinate y);
+void screen_cursor_set_y(int y);
 
 /** Relative cursor move */
-void screen_cursor_move(int dx, int dy);
+void screen_cursor_move(int dy, int dx);
 
 /** Save the cursor pos */
 void screen_cursor_save(void);

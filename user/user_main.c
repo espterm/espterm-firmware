@@ -23,7 +23,7 @@
 #include "screen.h"
 #include "routes.h"
 
-#define FIRMWARE_VERSION "0.2"
+#define FIRMWARE_VERSION "0.3"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -50,20 +50,29 @@ static ETSTimer prHeapTimer;
 /** Periodically show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 {
-	static uint32_t last = 0;
+	static int last = 0;
+	static int cnt = 0;
 
-	uint32_t heap = system_get_free_heap_size();
-	int32_t diff = (heap-last);
+	int heap = system_get_free_heap_size();
+	int diff = (heap-last);
+
 	const char *cc = "+";
 	if (diff<0) cc = "";
 
 	if (diff == 0) {
-		dbg("Free heap: %d bytes", heap);
+		if (cnt == 5) {
+			// only every 5 secs if no change
+			dbg("Free heap: %d bytes", heap);
+			cnt = 0;
+		}
 	} else {
+		// report change
 		dbg("Free heap: %d bytes (%s%d)", heap, cc, diff);
+		cnt = 0;
 	}
 
 	last = heap;
+	cnt++;
 }
 
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
@@ -100,7 +109,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	// Heap use timer & blink
 	os_timer_disarm(&prHeapTimer);
 	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
-	os_timer_arm(&prHeapTimer, 5000, 1);
+	os_timer_arm(&prHeapTimer, 1000, 1);
 
 	// The terminal screen
 	screen_init();
