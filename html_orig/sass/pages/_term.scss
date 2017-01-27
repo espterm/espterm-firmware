@@ -1,4 +1,11 @@
 .page-term {
+	h1 {
+		font-size: fsize(5);
+		@include media($phone) {
+			font-size: fsize(3);
+		}
+	}
+
 	#screen {
 		font-family: monospace;
 		font-size: 16pt;

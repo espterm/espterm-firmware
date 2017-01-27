@@ -662,6 +662,11 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
     .AP .inner .auth {
       flex: 0 0 15%; }
 
+.page-term h1 {
+  font-size: 1.80203em; }
+  @media screen and (max-width: 544px) {
+    .page-term h1 {
+      font-size: 1.42383em; } }
 .page-term #screen {
   font-family: monospace;
   font-size: 16pt;
