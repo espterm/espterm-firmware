@@ -13,36 +13,43 @@ Those forks include improvements not yet available upstream.
 This project aims to be a wireless terminal emulator that'll work with the likes of 
 Arduino, AVR, PIC, STM8, STM32, mbed etc, anything with UART, even your USB-serial dongle will work.
 
-Connect it to the master device via UART and use the terminal (on your PC or phone) for debug logging, 
+Connect it to the master device via UART and use the terminal on the built-in web page for debug logging, 
 remote control etc. It works like a simple LCD screen, in a way.
 
 It lets you make simple UI (manipulating the screen with ANSI sequences) and receive input from buttons on
-the webpage (and keyboard on PC). Touch input is a possibility but not currently implemented.
+the webpage (and keyboard on PC). Touch input is planned as well.
 
-The screen size should be adjustable up to 25x80 (via a special control sequence) and uses 16 standard colors.
+The screen size is adjustable up to 25x80 (via a special control sequence) and uses 16 standard colors 
+(8 dark and 8 bright).
 
 ## Project status
 
-*Still far from finished and also there's like zero documentation, but you can give it a spin if you wish.*
+*Almost finished, still possibly buggy, but it looks promising. Most of the features are there now.*
 
 - We have a working **2-way terminal** (UART->ESP->Browser and vice versa) with real-time update via websocket.
   
   This means that what you type in the browser is sent to UART0 and what's received on UART0 is processed by the 
-  ANSI parser and applied to the internal screen buffer. You'll also immediately see the changes in your browser.
+  ANSI parser and applied to the internal screen buffer. You'll also immediately see the changes in your browser. 
+  There's a filter in the way that discards garbage characters (like unicode and most ASCII outside 32-126).
   
-  For a quick test, try connecting the UART0 Rx and Tx to make a loopback interface. 
-  You should then see what you type & can even try out the ANSI sequences.
-  
-  Arrow keys generate ANSI sequences, ESC sends literal ASCII code 27 - should be all you need to get started.
+  For a quick test, try connecting the UART0 Rx and Tx with a piece of wire to make a loopback interface. 
+  *NOTE: Use the bare module, not something like LoLin or NodeMCU with a FTDI, it'll interfere*. 
+  You should then directly see what you type & can even try some ANSI sequences, right from the browser.
   
 - All ANSI sequences that make sense, as well as control codes like Backspace and CR / LF are implemented.
-  Set colors with your usual `\e[31;1m` etc (see Wikipedia). `\e` is the ASCII code 27 (ESC). 
+  Set colors with your usual `\e[31;1m` etc (see Wikipedia). `\e` is the ASCII code 27 (ESC).
+  
+  Arrow keys generate ANSI sequences, ESC sends literal ASCII code 27 etc. Almost everything can be input 
+  straight from the browser.
+  
+- To resize the screen, send `\e]W<rows>;<cols>\a` (it's an OSC code, terminated by ST).
 
 - Buttons pressed in the browser UI send ASCII codes 1..5. Mouse clicks also send events to the server, 
-  but currently don't generate any output in the terminal.
+  but currently don't generate any output in the terminal, I still hadn't decided on the best encoding.
 
-- There is also currently no way to set up the WiFi, so it'll use whatever you configured the ESP to
-  in your previous project. This'll be addressed later.
+- By tapping the header on the terminal page, you'll open the WiFi config page. It's in essence the 
+  esphttpd's wifi config page, but re-styled and much improved. You can set AP SSID, channel, see the IP
+  address etc right there.
 
 ## Setting it all up
 
