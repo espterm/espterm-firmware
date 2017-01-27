@@ -78,55 +78,59 @@ body {
 		margin-left: auto;
 		margin-right: auto;
 	}
+}
 
-	h1 {
-		text-align: center;
-		font-size: fsize(6);
-		margin-top: 0;
-		margin-bottom: dist(0);
+h1,h2 {
+	@include noselect();
+}
 
-		@include media($phone) {
-			font-size: fsize(3);
-			margin-bottom: dist(-1);
-		}
+h1 {
+	text-align: center;
+	font-size: fsize(6);
+	margin-top: 0;
+	margin-bottom: dist(0);
 
-		@include media($tablet) {
-			font-size: fsize(5);
-		}
-	}
-
-	h2 {
-		font-size: fsize(2);
+	@include media($phone) {
+		font-size: fsize(3);
 		margin-bottom: dist(-1);
-		&:first-child{margin-top:0}
 	}
 
-	td, th {
-		padding: dist(-2);
-		white-space: nowrap;
+	@include media($tablet) {
+		font-size: fsize(5);
+	}
+}
+
+h2 {
+	font-size: fsize(2);
+	margin-bottom: dist(-1);
+	&:first-child{margin-top:0}
+}
+
+td, th {
+	padding: dist(-2);
+	white-space: nowrap;
+
+	@include media($phone) {
+		padding: dist(-3);
+	}
+}
+
+tbody th {
+	text-align: right;
+	width: $form-label-w;
+	color: $c-form-label-fg;
+
+	@include media($phone) {
+		width: auto;
+	}
+}
+
+tbody td {
+	input[type="text"], input[type="number"] {
+		width: 10em;
 
 		@include media($phone) {
-			padding: dist(-3);
-		}
-	}
-
-	tbody th {
-		text-align: right;
-		width: $form-label-w;
-		color: $c-form-label-fg;
-
-		@include media($phone) {
-			width: auto;
-		}
-	}
-
-	tbody td {
-		input[type="text"], input[type="number"] {
-			width: 10em;
-
-			@include media($phone) {
-				width: 8em;
-			}
+			width: 8em;
 		}
 	}
 }

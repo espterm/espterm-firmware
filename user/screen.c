@@ -189,20 +189,28 @@ screen_clear_line(ClearMode mode)
 /**
  * Change the screen size
  *
- * @param w - new width
- * @param h - new height
+ * @param cols - new width
+ * @param rows - new height
  */
 void ICACHE_FLASH_ATTR
-screen_resize(Coordinate w, Coordinate h)
+screen_resize(Coordinate rows, Coordinate cols)
 {
 	NOTIFY_LOCK();
 	// sanitize
-	if (w < 1) w = 1;
-	if (h < 1) h = 1;
+	if (cols < 1 || rows < 1) {
+		error("Screen size must be positive");
+		goto done;
+	}
 
-	W = w;
-	H = h;
+	if (cols * rows > MAX_SCREEN_SIZE) {
+		error("Max screen size exceeded");
+		goto done;
+	}
+
+	W = cols;
+	H = rows;
 	screen_reset();
+done:
 	NOTIFY_DONE();
 }
 
@@ -579,11 +587,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastFg = 0;
 		ss->lastChar = '\0';
 
-		bufprint("{\"w\":%d,\"h\":%d,\"x\":%d,\"y\":%d,\"cv\":%d,\"screen\":\"", W, H, cursor.x, cursor.y, cursor.visible);
+		bufprint("{\n \"w\": %d, \"h\": %d,\n \"x\": %d, \"y\": %d,\n \"cv\": %d,\n \"screen\": \"", W, H, cursor.x, cursor.y, cursor.visible);
 	}
 
 	int i = ss->index;
-	while(i < W*H && remain > 6) {
+	while(i < W*H && remain > 12) {
 		cell = cell0 = &screen[i];
 
 		// Count how many times same as previous
@@ -598,11 +606,25 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		}
 
 		if (repCnt == 0) {
+			// All this crap is needed because it's JSON and also
+			// embedded in HTML (hence the angle brackets)
+
 			if (cell0->fg == ss->lastFg && cell0->bg == ss->lastBg) {
 				// same colors as previous
-				bufprint(",%c", cell0->c);
+				bufprint(",");
 			} else {
-				bufprint("%X%X%c", cell0->fg, cell0->bg, cell0->c);
+				bufprint("%X%X", cell0->fg, cell0->bg);
+			}
+
+			char c = cell0->c;
+			if (c == '"' || c == '\\') {
+				bufprint("\\%c", c);
+			}
+			else if (c == '<' || c == '>' || c == '\'' || c == '/' || c == '&') {
+				bufprint("\\u00%02X", (int)c);
+			}
+			else {
+				bufprint("%c", c);
 			}
 
 			ss->lastFg = cell0->fg;
@@ -633,7 +655,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	}
 
 	if (remain >= 3) {
-		bufprint("\"}");
+		bufprint("\"\n}");
 		return HTTPD_CGI_DONE;
 	} else {
 		return HTTPD_CGI_MORE;

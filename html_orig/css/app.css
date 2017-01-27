@@ -438,41 +438,52 @@ body {
   body > * {
     margin-left: auto;
     margin-right: auto; }
-  body h1 {
-    text-align: center;
-    font-size: 2.02729em;
-    margin-top: 0;
-    margin-bottom: 1rem; }
-    @media screen and (max-width: 544px) {
-      body h1 {
-        font-size: 1.42383em;
-        margin-bottom: 0.61805rem; } }
-    @media screen and (min-width: 545px) and (max-width: 1000px) {
-      body h1 {
-        font-size: 1.80203em; } }
-  body h2 {
-    font-size: 1.26563em;
-    margin-bottom: 0.61805rem; }
-    body h2:first-child {
-      margin-top: 0; }
-  body td, body th {
-    padding: 0.38198rem;
-    white-space: nowrap; }
-    @media screen and (max-width: 544px) {
-      body td, body th {
-        padding: 0.23608rem; } }
-  body tbody th {
-    text-align: right;
-    width: 130px;
-    color: white; }
-    @media screen and (max-width: 544px) {
-      body tbody th {
-        width: auto; } }
-  body tbody td input[type="text"], body tbody td input[type="number"] {
-    width: 10em; }
-    @media screen and (max-width: 544px) {
-      body tbody td input[type="text"], body tbody td input[type="number"] {
-        width: 8em; } }
+
+h1, h2 {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none; }
+
+h1 {
+  text-align: center;
+  font-size: 2.02729em;
+  margin-top: 0;
+  margin-bottom: 1rem; }
+  @media screen and (max-width: 544px) {
+    h1 {
+      font-size: 1.42383em;
+      margin-bottom: 0.61805rem; } }
+  @media screen and (min-width: 545px) and (max-width: 1000px) {
+    h1 {
+      font-size: 1.80203em; } }
+
+h2 {
+  font-size: 1.26563em;
+  margin-bottom: 0.61805rem; }
+  h2:first-child {
+    margin-top: 0; }
+
+td, th {
+  padding: 0.38198rem;
+  white-space: nowrap; }
+  @media screen and (max-width: 544px) {
+    td, th {
+      padding: 0.23608rem; } }
+
+tbody th {
+  text-align: right;
+  width: 130px;
+  color: white; }
+  @media screen and (max-width: 544px) {
+    tbody th {
+      width: auto; } }
+
+tbody td input[type="text"], tbody td input[type="number"] {
+  width: 10em; }
+  @media screen and (max-width: 544px) {
+    tbody td input[type="text"], tbody td input[type="number"] {
+      width: 8em; } }
 
 #loader {
   position: absolute;

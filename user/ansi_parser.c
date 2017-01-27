@@ -182,28 +182,49 @@ handle_plainchar(char c)
 	screen_putchar(c);
 }
 
+void ICACHE_FLASH_ATTR
+handle_OSC_FactoryReset(void)
+{
+	info("OSC: Factory reset");
+
+	warn("NOT IMPLEMENTED");
+	// TODO
+}
+
+void ICACHE_FLASH_ATTR
+handle_OSC_SetScreenSize(int rows, int cols)
+{
+	info("OSC: Set screen size to %d x %d", rows, cols);
+
+	screen_resize(rows, cols);
+}
+
+
 /* Ragel constants block */
 
-/* #line 188 "user/ansi_parser.c" */
+/* #line 206 "user/ansi_parser.c" */
 static const char _ansi_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
-	7, 1, 8, 1, 9
+	7, 1, 8, 1, 9, 1, 10
 };
 
 static const char _ansi_eof_actions[] = {
-	0, 15, 15, 13, 13, 0, 0
+	0, 13, 13, 13, 13, 13, 13, 13, 
+	13, 13, 13, 13, 13, 13, 0, 0, 
+	0
 };
 
 static const int ansi_start = 1;
-static const int ansi_first_final = 5;
+static const int ansi_first_final = 14;
 static const int ansi_error = 0;
 
 static const int ansi_en_CSI_body = 3;
+static const int ansi_en_OSC_body = 5;
 static const int ansi_en_main = 1;
 
 
-/* #line 187 "user/ansi_parser.rl" */
+/* #line 205 "user/ansi_parser.rl" */
 
 
 /**
@@ -240,17 +261,17 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 244 "user/ansi_parser.c" */
+/* #line 265 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
 
-/* #line 223 "user/ansi_parser.rl" */
+/* #line 241 "user/ansi_parser.rl" */
 	}
 
 	// The parser
 	
-/* #line 254 "user/ansi_parser.c" */
+/* #line 275 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -274,79 +295,137 @@ case 2:
 	goto tr2;
 case 0:
 	goto _out;
-case 5:
+case 14:
 	if ( (*p) == 27 )
 		goto tr1;
 	goto tr0;
 case 3:
 	if ( (*p) == 59 )
-		goto tr9;
+		goto tr8;
 	if ( (*p) < 60 ) {
 		if ( (*p) > 47 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr8;
+				goto tr7;
 		} else if ( (*p) >= 32 )
-			goto tr7;
+			goto tr6;
 	} else if ( (*p) > 64 ) {
 		if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr10;
+				goto tr9;
 		} else if ( (*p) >= 65 )
-			goto tr10;
+			goto tr9;
 	} else
-		goto tr7;
-	goto tr6;
+		goto tr6;
+	goto tr2;
 case 4:
 	if ( (*p) == 59 )
-		goto tr9;
+		goto tr8;
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
-			goto tr8;
+			goto tr7;
 	} else if ( (*p) > 90 ) {
 		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr10;
+			goto tr9;
 	} else
-		goto tr10;
-	goto tr6;
+		goto tr9;
+	goto tr2;
+case 15:
+	goto tr2;
+case 5:
+	switch( (*p) ) {
+		case 70: goto tr10;
+		case 87: goto tr11;
+	}
+	goto tr2;
 case 6:
-	goto tr6;
+	if ( (*p) == 82 )
+		goto tr12;
+	goto tr2;
+case 7:
+	switch( (*p) ) {
+		case 7: goto tr13;
+		case 27: goto tr14;
+	}
+	goto tr2;
+case 16:
+	goto tr2;
+case 8:
+	if ( (*p) == 92 )
+		goto tr13;
+	goto tr2;
+case 9:
+	if ( 48 <= (*p) && (*p) <= 57 )
+		goto tr15;
+	goto tr2;
+case 10:
+	if ( (*p) == 59 )
+		goto tr16;
+	if ( 48 <= (*p) && (*p) <= 57 )
+		goto tr15;
+	goto tr2;
+case 11:
+	if ( 48 <= (*p) && (*p) <= 57 )
+		goto tr17;
+	goto tr2;
+case 12:
+	switch( (*p) ) {
+		case 7: goto tr18;
+		case 27: goto tr19;
+	}
+	if ( 48 <= (*p) && (*p) <= 57 )
+		goto tr17;
+	goto tr2;
+case 13:
+	if ( (*p) == 92 )
+		goto tr18;
+	goto tr2;
 	}
 
 	tr2: cs = 0; goto f0;
-	tr6: cs = 0; goto f5;
 	tr0: cs = 1; goto f1;
 	tr1: cs = 2; goto _again;
+	tr6: cs = 4; goto f5;
 	tr7: cs = 4; goto f6;
 	tr8: cs = 4; goto f7;
-	tr9: cs = 4; goto f8;
-	tr3: cs = 5; goto f2;
-	tr4: cs = 5; goto f3;
-	tr5: cs = 5; goto f4;
-	tr10: cs = 6; goto f9;
+	tr10: cs = 6; goto _again;
+	tr12: cs = 7; goto _again;
+	tr14: cs = 8; goto _again;
+	tr11: cs = 9; goto _again;
+	tr15: cs = 10; goto f6;
+	tr16: cs = 11; goto f7;
+	tr17: cs = 12; goto f6;
+	tr19: cs = 13; goto _again;
+	tr3: cs = 14; goto f2;
+	tr4: cs = 14; goto f3;
+	tr5: cs = 14; goto f4;
+	tr9: cs = 15; goto f8;
+	tr13: cs = 16; goto f9;
+	tr18: cs = 16; goto f10;
 
 	f1: _acts = _ansi_actions + 1; goto execFuncs;
 	f2: _acts = _ansi_actions + 3; goto execFuncs;
-	f6: _acts = _ansi_actions + 5; goto execFuncs;
-	f7: _acts = _ansi_actions + 7; goto execFuncs;
-	f8: _acts = _ansi_actions + 9; goto execFuncs;
-	f9: _acts = _ansi_actions + 11; goto execFuncs;
-	f5: _acts = _ansi_actions + 13; goto execFuncs;
-	f0: _acts = _ansi_actions + 15; goto execFuncs;
-	f3: _acts = _ansi_actions + 17; goto execFuncs;
-	f4: _acts = _ansi_actions + 19; goto execFuncs;
+	f5: _acts = _ansi_actions + 5; goto execFuncs;
+	f6: _acts = _ansi_actions + 7; goto execFuncs;
+	f7: _acts = _ansi_actions + 9; goto execFuncs;
+	f8: _acts = _ansi_actions + 11; goto execFuncs;
+	f0: _acts = _ansi_actions + 13; goto execFuncs;
+	f3: _acts = _ansi_actions + 15; goto execFuncs;
+	f9: _acts = _ansi_actions + 17; goto execFuncs;
+	f10: _acts = _ansi_actions + 19; goto execFuncs;
+	f4: _acts = _ansi_actions + 21; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
 	while ( _nacts-- > 0 ) {
 		switch ( *_acts++ ) {
 	case 0:
-/* #line 233 "user/ansi_parser.rl" */
+/* #line 251 "user/ansi_parser.rl" */
 	{
 			handle_plainchar((*p));
 		}
 	break;
 	case 1:
-/* #line 240 "user/ansi_parser.rl" */
+/* #line 258 "user/ansi_parser.rl" */
 	{
 			/* Reset the CSI builder */
 			csi_leading = csi_char = 0;
@@ -361,13 +440,13 @@ execFuncs:
 		}
 	break;
 	case 2:
-/* #line 253 "user/ansi_parser.rl" */
+/* #line 271 "user/ansi_parser.rl" */
 	{
 			csi_leading = (*p);
 		}
 	break;
 	case 3:
-/* #line 257 "user/ansi_parser.rl" */
+/* #line 275 "user/ansi_parser.rl" */
 	{
 			/* x10 + digit */
 			if (csi_ni < CSI_N_MAX) {
@@ -376,13 +455,13 @@ execFuncs:
 		}
 	break;
 	case 4:
-/* #line 264 "user/ansi_parser.rl" */
+/* #line 282 "user/ansi_parser.rl" */
 	{
 			csi_ni++;
 		}
 	break;
 	case 5:
-/* #line 268 "user/ansi_parser.rl" */
+/* #line 286 "user/ansi_parser.rl" */
 	{
 			csi_char = (*p);
 
@@ -392,33 +471,49 @@ execFuncs:
 		}
 	break;
 	case 6:
-/* #line 276 "user/ansi_parser.rl" */
+/* #line 294 "user/ansi_parser.rl" */
 	{
+			warn("Invalid escape sequence discarded.");
 			{cs = 1; goto _again;}
 		}
 	break;
 	case 7:
-/* #line 280 "user/ansi_parser.rl" */
+/* #line 311 "user/ansi_parser.rl" */
 	{
-			{cs = 1; goto _again;}
+			csi_ni = 0;
+
+			// we reuse the CSI numeric buffer
+			for(int i = 0; i < CSI_N_MAX; i++) {
+				csi_n[i] = 0;
+			}
+
+			{cs = 5; goto _again;}
 		}
 	break;
 	case 8:
-/* #line 292 "user/ansi_parser.rl" */
+/* #line 322 "user/ansi_parser.rl" */
 	{
-			// TODO implement OS control code parsing
+			handle_OSC_FactoryReset();
 			{cs = 1; goto _again;}
 		}
 	break;
 	case 9:
-/* #line 297 "user/ansi_parser.rl" */
+/* #line 327 "user/ansi_parser.rl" */
+	{
+			handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
+
+			{cs = 1; goto _again;}
+		}
+	break;
+	case 10:
+/* #line 338 "user/ansi_parser.rl" */
 	{
 			// Reset screen
 			handle_RESET_cmd();
 			{cs = 1; goto _again;}
 		}
 	break;
-/* #line 422 "user/ansi_parser.c" */
+/* #line 517 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -436,18 +531,13 @@ _again:
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
 	case 6:
-/* #line 276 "user/ansi_parser.rl" */
+/* #line 294 "user/ansi_parser.rl" */
 	{
+			warn("Invalid escape sequence discarded.");
 			{cs = 1; goto _again;}
 		}
 	break;
-	case 7:
-/* #line 280 "user/ansi_parser.rl" */
-	{
-			{cs = 1; goto _again;}
-		}
-	break;
-/* #line 451 "user/ansi_parser.c" */
+/* #line 541 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -455,6 +545,6 @@ _again:
 	_out: {}
 	}
 
-/* #line 315 "user/ansi_parser.rl" */
+/* #line 356 "user/ansi_parser.rl" */
 
 }

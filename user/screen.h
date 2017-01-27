@@ -62,7 +62,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
 void screen_init(void);
 
 /** Change the screen size */
-void screen_resize(Coordinate w, Coordinate h);
+void screen_resize(Coordinate rows, Coordinate cols);
 
 // --- Clearing ---
 

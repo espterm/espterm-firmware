@@ -180,6 +180,24 @@ handle_plainchar(char c)
 	screen_putchar(c);
 }
 
+void ICACHE_FLASH_ATTR
+handle_OSC_FactoryReset(void)
+{
+	info("OSC: Factory reset");
+
+	warn("NOT IMPLEMENTED");
+	// TODO
+}
+
+void ICACHE_FLASH_ATTR
+handle_OSC_SetScreenSize(int rows, int cols)
+{
+	info("OSC: Set screen size to %d x %d", rows, cols);
+
+	screen_resize(rows, cols);
+}
+
+
 /* Ragel constants block */
 %%{
 	machine ansi;
@@ -273,26 +291,49 @@ ansi_parser(const char *newdata, size_t len)
 			fgoto main;
 		}
 
-		action CSI_fail {
+		action errBadSeq {
+			warn("Invalid escape sequence discarded.");
 			fgoto main;
 		}
 
-		action main_fail {
+		action back2main {
 			fgoto main;
 		}
 
 		CSI_body := ((32..47|60..64) @CSI_leading)?
 			((digit @CSI_digit)* ';' @CSI_semi)*
-			(digit @CSI_digit)* alpha @CSI_end $!CSI_fail;
+			(digit @CSI_digit)* alpha @CSI_end $!errBadSeq;
 
 
 		# --- OSC commands (Operating System Commands) ---
 		# Module parametrisation
 
 		action OSC_start {
-			// TODO implement OS control code parsing
+			csi_ni = 0;
+
+			// we reuse the CSI numeric buffer
+			for(int i = 0; i < CSI_N_MAX; i++) {
+				csi_n[i] = 0;
+			}
+
+			fgoto OSC_body;
+		}
+
+		action OSC_fr {
+			handle_OSC_FactoryReset();
 			fgoto main;
 		}
+
+		action OSC_resize {
+			handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
+
+			fgoto main;
+		}
+		
+		OSC_body := (
+			("FR" ('\a' | ESC '\\') @OSC_fr) |
+			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ ('\a' | ESC '\\') @OSC_resize)
+		) $!errBadSeq;
 
 		action RESET_cmd {
 			// Reset screen
@@ -309,7 +350,7 @@ ansi_parser(const char *newdata, size_t len)
 					']' @OSC_start |
 					'c' @RESET_cmd
 				)
-			)+ $!main_fail;
+			)+ $!errBadSeq;
 
 		write exec;
 	}%%

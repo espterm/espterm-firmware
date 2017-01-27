@@ -6,6 +6,7 @@
 		var W, H;
 		var cursor = {a: false, x: 0, y: 0, suppress: false, hidden: false};
 		var screen = [];
+		var blinkIval;
 
 		/** Colors table */
 		var CLR = [// dark gray #2E3436
@@ -183,7 +184,8 @@
 			}
 
 			/* Cursor blinking */
-			setInterval(function() {
+			clearInterval(blinkIval);
+			blinkIval = setInterval(function() {
 				cursor.a = !cursor.a;
 				if (cursor.hidden) {
 					cursor.a = false;
