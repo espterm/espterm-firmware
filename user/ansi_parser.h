@@ -6,6 +6,13 @@
 // Max nr of CSI parameters
 #define CSI_N_MAX 3
 
+extern void apars_handle_badseq(void);
+extern void apars_handle_CSI(char leadchar, int *params, char keychar);
+extern void apars_handle_RESET_cmd(void);
+extern void apars_handle_plainchar(char c);
+extern void apars_handle_OSC_FactoryReset(void);
+extern void apars_handle_OSC_SetScreenSize(int rows, int cols);
+
 /**
  * \brief Linear ANSI chars stream parser
  * 
