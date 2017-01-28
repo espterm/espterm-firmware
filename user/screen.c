@@ -10,12 +10,12 @@
 #define COLOR_MAX 15
 
 /**
- * Screen cell data type
+ * Screen cell data type (16 bits)
  */
-typedef struct {
-	char c;
-	Color fg;
-	Color bg;
+typedef struct __attribute__((packed)){
+	char c   : 8;
+	Color fg : 4;
+	Color bg : 4;
 } Cell;
 
 /**
