@@ -41,6 +41,12 @@ static struct {
 static struct {
 	int x;
 	int y;
+
+	// optionally saved attrs
+	bool withAttrs;
+	bool inverse;
+	Color fg;
+	Color bg;
 } cursor_sav;
 
 /**
@@ -354,21 +360,40 @@ screen_cursor_move(int dy, int dx)
  * Save the cursor pos
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_save(void)
+screen_cursor_save(bool withAttrs)
 {
 	cursor_sav.x = cursor.x;
 	cursor_sav.y = cursor.y;
+
+	cursor_sav.withAttrs = withAttrs;
+
+	if (withAttrs) {
+		cursor_sav.fg = cursor.fg;
+		cursor_sav.bg = cursor.bg;
+		cursor_sav.inverse = cursor.inverse;
+	} else {
+		cursor_sav.fg = SCREEN_DEF_FG;
+		cursor_sav.bg = SCREEN_DEF_BG;
+		cursor_sav.inverse = 0;
+	}
 }
 
 /**
  * Restore the cursor pos
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_restore(void)
+screen_cursor_restore(bool withAttrs)
 {
 	NOTIFY_LOCK();
 	cursor.x = cursor_sav.x;
 	cursor.y = cursor_sav.y;
+
+	if (withAttrs) {
+		cursor.fg = cursor_sav.fg;
+		cursor.bg = cursor_sav.bg;
+		cursor.inverse = cursor_sav.inverse;
+	}
+
 	NOTIFY_DONE();
 }
 

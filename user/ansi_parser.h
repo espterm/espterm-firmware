@@ -12,6 +12,8 @@ extern void apars_handle_RESET_cmd(void);
 extern void apars_handle_plainchar(char c);
 extern void apars_handle_OSC_FactoryReset(void);
 extern void apars_handle_OSC_SetScreenSize(int rows, int cols);
+extern void apars_handle_saveCursorAttrs(void);
+extern void apars_handle_restoreCursorAttrs(void);
 
 /**
  * \brief Linear ANSI chars stream parser

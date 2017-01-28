@@ -9,7 +9,8 @@
 static const char _ansi_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
-	7, 1, 8, 1, 9, 1, 10
+	7, 1, 8, 1, 9, 1, 10, 1, 
+	11, 1, 12
 };
 
 static const char _ansi_eof_actions[] = {
@@ -64,7 +65,7 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 68 "user/ansi_parser.c" */
+/* #line 69 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
@@ -74,7 +75,7 @@ ansi_parser(const char *newdata, size_t len)
 
 	// The parser
 	
-/* #line 78 "user/ansi_parser.c" */
+/* #line 79 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -91,9 +92,11 @@ case 1:
 	goto tr0;
 case 2:
 	switch( (*p) ) {
-		case 91: goto tr3;
-		case 93: goto tr4;
-		case 99: goto tr5;
+		case 55: goto tr3;
+		case 56: goto tr4;
+		case 91: goto tr5;
+		case 93: goto tr6;
+		case 99: goto tr7;
 	}
 	goto tr2;
 case 0:
@@ -104,118 +107,122 @@ case 14:
 	goto tr0;
 case 3:
 	if ( (*p) == 59 )
-		goto tr8;
+		goto tr10;
 	if ( (*p) < 60 ) {
 		if ( (*p) > 47 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr7;
+				goto tr9;
 		} else if ( (*p) >= 32 )
-			goto tr6;
+			goto tr8;
 	} else if ( (*p) > 64 ) {
 		if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr9;
+				goto tr11;
 		} else if ( (*p) >= 65 )
-			goto tr9;
+			goto tr11;
 	} else
-		goto tr6;
+		goto tr8;
 	goto tr2;
 case 4:
 	if ( (*p) == 59 )
-		goto tr8;
+		goto tr10;
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
-			goto tr7;
+			goto tr9;
 	} else if ( (*p) > 90 ) {
 		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr9;
+			goto tr11;
 	} else
-		goto tr9;
+		goto tr11;
 	goto tr2;
 case 15:
 	goto tr2;
 case 5:
 	switch( (*p) ) {
-		case 70: goto tr10;
-		case 87: goto tr11;
+		case 70: goto tr12;
+		case 87: goto tr13;
 	}
 	goto tr2;
 case 6:
 	if ( (*p) == 82 )
-		goto tr12;
+		goto tr14;
 	goto tr2;
 case 7:
 	switch( (*p) ) {
-		case 7: goto tr13;
-		case 27: goto tr14;
+		case 7: goto tr15;
+		case 27: goto tr16;
 	}
 	goto tr2;
 case 16:
 	goto tr2;
 case 8:
 	if ( (*p) == 92 )
-		goto tr13;
+		goto tr15;
 	goto tr2;
 case 9:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr15;
+		goto tr17;
 	goto tr2;
 case 10:
 	if ( (*p) == 59 )
-		goto tr16;
+		goto tr18;
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr15;
+		goto tr17;
 	goto tr2;
 case 11:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr17;
+		goto tr19;
 	goto tr2;
 case 12:
 	switch( (*p) ) {
-		case 7: goto tr18;
-		case 27: goto tr19;
+		case 7: goto tr20;
+		case 27: goto tr21;
 	}
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr17;
+		goto tr19;
 	goto tr2;
 case 13:
 	if ( (*p) == 92 )
-		goto tr18;
+		goto tr20;
 	goto tr2;
 	}
 
 	tr2: cs = 0; goto f0;
 	tr0: cs = 1; goto f1;
 	tr1: cs = 2; goto _again;
-	tr6: cs = 4; goto f5;
-	tr7: cs = 4; goto f6;
 	tr8: cs = 4; goto f7;
-	tr10: cs = 6; goto _again;
-	tr12: cs = 7; goto _again;
-	tr14: cs = 8; goto _again;
-	tr11: cs = 9; goto _again;
-	tr15: cs = 10; goto f6;
-	tr16: cs = 11; goto f7;
-	tr17: cs = 12; goto f6;
-	tr19: cs = 13; goto _again;
+	tr9: cs = 4; goto f8;
+	tr10: cs = 4; goto f9;
+	tr12: cs = 6; goto _again;
+	tr14: cs = 7; goto _again;
+	tr16: cs = 8; goto _again;
+	tr13: cs = 9; goto _again;
+	tr17: cs = 10; goto f8;
+	tr18: cs = 11; goto f9;
+	tr19: cs = 12; goto f8;
+	tr21: cs = 13; goto _again;
 	tr3: cs = 14; goto f2;
 	tr4: cs = 14; goto f3;
 	tr5: cs = 14; goto f4;
-	tr9: cs = 15; goto f8;
-	tr13: cs = 16; goto f9;
-	tr18: cs = 16; goto f10;
+	tr6: cs = 14; goto f5;
+	tr7: cs = 14; goto f6;
+	tr11: cs = 15; goto f10;
+	tr15: cs = 16; goto f11;
+	tr20: cs = 16; goto f12;
 
 	f1: _acts = _ansi_actions + 1; goto execFuncs;
-	f2: _acts = _ansi_actions + 3; goto execFuncs;
-	f5: _acts = _ansi_actions + 5; goto execFuncs;
-	f6: _acts = _ansi_actions + 7; goto execFuncs;
-	f7: _acts = _ansi_actions + 9; goto execFuncs;
-	f8: _acts = _ansi_actions + 11; goto execFuncs;
+	f4: _acts = _ansi_actions + 3; goto execFuncs;
+	f7: _acts = _ansi_actions + 5; goto execFuncs;
+	f8: _acts = _ansi_actions + 7; goto execFuncs;
+	f9: _acts = _ansi_actions + 9; goto execFuncs;
+	f10: _acts = _ansi_actions + 11; goto execFuncs;
 	f0: _acts = _ansi_actions + 13; goto execFuncs;
-	f3: _acts = _ansi_actions + 15; goto execFuncs;
-	f9: _acts = _ansi_actions + 17; goto execFuncs;
-	f10: _acts = _ansi_actions + 19; goto execFuncs;
-	f4: _acts = _ansi_actions + 21; goto execFuncs;
+	f5: _acts = _ansi_actions + 15; goto execFuncs;
+	f11: _acts = _ansi_actions + 17; goto execFuncs;
+	f12: _acts = _ansi_actions + 19; goto execFuncs;
+	f6: _acts = _ansi_actions + 21; goto execFuncs;
+	f2: _acts = _ansi_actions + 23; goto execFuncs;
+	f3: _acts = _ansi_actions + 25; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
@@ -316,7 +323,21 @@ execFuncs:
 			{cs = 1; goto _again;}
 		}
 	break;
-/* #line 320 "user/ansi_parser.c" */
+	case 11:
+/* #line 147 "user/ansi_parser.rl" */
+	{
+			apars_handle_saveCursorAttrs();
+			{cs = 1; goto _again;}
+		}
+	break;
+	case 12:
+/* #line 152 "user/ansi_parser.rl" */
+	{
+			apars_handle_restoreCursorAttrs();
+			{cs = 1; goto _again;}
+		}
+	break;
+/* #line 341 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -340,7 +361,7 @@ _again:
 			{cs = 1; goto _again;}
 		}
 	break;
-/* #line 344 "user/ansi_parser.c" */
+/* #line 365 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -348,6 +369,6 @@ _again:
 	_out: {}
 	}
 
-/* #line 159 "user/ansi_parser.rl" */
+/* #line 171 "user/ansi_parser.rl" */
 
 }

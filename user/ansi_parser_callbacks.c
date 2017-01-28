@@ -143,16 +143,21 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			break;
 
 			// SCP, RCP
-		case 's': screen_cursor_save(); break;
-		case 'u': screen_cursor_restore(); break;
+		case 's': screen_cursor_save(0); break;
+		case 'u': screen_cursor_restore(0); break;
 
 		case 'n':
 			if (n1 == 6) {
+				// Query cursor position
 				char buf[20];
 				int x, y;
 				screen_cursor_get(&y, &x);
 				sprintf(buf, "\033[%d;%dR", y+1, x+1);
 				UART_WriteString(UART0, buf, UART_TIMEOUT_US);
+			}
+			else if (n1 == 5) {
+				// Query device status - reply "Device is OK"
+				UART_WriteString(UART0, "\0330n", UART_TIMEOUT_US);
 			}
 			break;
 
@@ -191,6 +196,16 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			break;
 	}
+}
+
+void ICACHE_FLASH_ATTR apars_handle_saveCursorAttrs(void)
+{
+	screen_cursor_save(1);
+}
+
+void ICACHE_FLASH_ATTR apars_handle_restoreCursorAttrs(void)
+{
+	screen_cursor_restore(1);
 }
 
 /**

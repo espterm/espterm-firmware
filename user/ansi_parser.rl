@@ -144,6 +144,16 @@ ansi_parser(const char *newdata, size_t len)
 			fgoto main;
 		}
 
+		action CSI_SaveCursorAttrs {
+			apars_handle_saveCursorAttrs();
+			fgoto main;
+		}
+
+		action CSI_RestoreCursorAttrs {
+			apars_handle_restoreCursorAttrs();
+			fgoto main;
+		}
+
 		# --- Main parser loop ---
 
 		main :=
@@ -151,7 +161,9 @@ ansi_parser(const char *newdata, size_t len)
 				(NOESC @plain_char)* ESC (
 					'[' @CSI_start |
 					']' @OSC_start |
-					'c' @RESET_cmd
+					'c' @RESET_cmd |
+			        '7' @CSI_SaveCursorAttrs |
+					'8' @CSI_RestoreCursorAttrs
 				)
 			)+ $!errBadSeq;
 

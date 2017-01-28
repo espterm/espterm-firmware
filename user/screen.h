@@ -101,10 +101,10 @@ void screen_cursor_set_y(int y);
 void screen_cursor_move(int dy, int dx);
 
 /** Save the cursor pos */
-void screen_cursor_save(void);
+void screen_cursor_save(bool withAttrs);
 
 /** Restore the cursor pos */
-void screen_cursor_restore(void);
+void screen_cursor_restore(bool withAttrs);
 
 /** Enable cursor display */
 void screen_cursor_enable(bool enable);
