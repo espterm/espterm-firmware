@@ -27,6 +27,8 @@ void ICACHE_FLASH_ATTR screen_notifyChange()
 		cgiWebsockBroadcast(URL_WS_UPDATE, buff, (int) strlen(buff), flg);
 		if (cont == HTTPD_CGI_DONE) break;
 	}
+
+	screenSerializeToBuffer(NULL, bufsiz, &data);
 }
 
 /** Socket received a message */
