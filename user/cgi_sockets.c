@@ -6,18 +6,15 @@
 #include "uart_driver.h"
 #include "screen.h"
 
-/**
- * Broadcast screen state to sockets.
- * This is a callback for the Screen module,
- * called after each visible screen modification.
- */
-void ICACHE_FLASH_ATTR screen_notifyChange()
-{
-	// TODO cooldown / buffering to reduce nr of such events
+static volatile bool timer_running = false;
+static ETSTimer notifyTim;
+
+static void notifyTimCb(void *arg) {
+	timer_running = false;
 
 	void *data = NULL;
 
-	const int bufsiz = 512;
+	const int bufsiz = 1024;
 	char buff[bufsiz];
 	for (int i = 0; i < 20; i++) {
 		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &data);
@@ -29,6 +26,21 @@ void ICACHE_FLASH_ATTR screen_notifyChange()
 	}
 
 	screenSerializeToBuffer(NULL, bufsiz, &data);
+}
+
+/**
+ * Broadcast screen state to sockets.
+ * This is a callback for the Screen module,
+ * called after each visible screen modification.
+ */
+void ICACHE_FLASH_ATTR screen_notifyChange(void)
+{
+	if (timer_running) return;
+
+	timer_running = true;
+	os_timer_disarm(&notifyTim);
+	os_timer_setfn(&notifyTim, notifyTimCb, NULL);
+	os_timer_arm(&notifyTim, 20, 0);
 }
 
 /** Socket received a message */
