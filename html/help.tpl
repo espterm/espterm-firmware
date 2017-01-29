@@ -68,14 +68,14 @@
 	<b>Background</b>
 
 	<div class="colorprev">
-		<span class="bg0 fg15">30</span>
-		<span class="bg1 fg15">31</span>
-		<span class="bg2 fg15">32</span>
-		<span class="bg3 fg0">33</span>
-		<span class="bg4 fg15">34</span>
-		<span class="bg5 fg15">35</span>
-		<span class="bg6 fg15">36</span>
-		<span class="bg7 fg0">37</span>
+		<span class="bg0 fg15">40</span>
+		<span class="bg1 fg15">41</span>
+		<span class="bg2 fg15">42</span>
+		<span class="bg3 fg0">43</span>
+		<span class="bg4 fg15">44</span>
+		<span class="bg5 fg15">45</span>
+		<span class="bg6 fg15">46</span>
+		<span class="bg7 fg0">47</span>
 	</div>
 
 	<div class="colorprev">
