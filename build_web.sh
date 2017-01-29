@@ -2,7 +2,7 @@
 
 echo "-- Preparing WWW files --"
 
-rm -r html
+[[ -e html ]] && rm -r html
 mkdir -p html/img
 mkdir -p html/js
 mkdir -p html/css
