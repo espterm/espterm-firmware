@@ -10,6 +10,6 @@ $f = str_replace('%screenData%',
  "screen": "70 t259"
 }', $f);
 
-$f = str_replace('window.location.host', '"192.168.0.15"', $f);
+$f = str_replace('window.location.host', '"192.168.0.18"', $f);
 
 echo $f;

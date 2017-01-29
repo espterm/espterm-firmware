@@ -700,8 +700,6 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
       @media screen and (max-width: 544px) {
         .page-term #screen span:hover {
           outline: 0 none; } }
-  .page-term #screen .fg8, .page-term #screen .fg9, .page-term #screen .fg10, .page-term #screen .fg11, .page-term #screen .fg12, .page-term #screen .fg13, .page-term #screen .fg14, .page-term #screen .fg15 {
-    font-weight: bold; }
 .page-term #buttons {
   margin-top: 10px;
   white-space: nowrap; }
@@ -750,7 +748,7 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
 .ansiref.w100 {
   width: 100%; }
   .ansiref.w100 td:nth-child(1) {
-    width: 6em; }
+    width: 7em; }
   .ansiref.w100 td:nth-child(2) {
     width: 8em; }
 
@@ -849,6 +847,12 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
 
 .bg15 {
   background-color: #EEEEEC; }
+
+.fg8, .fg9, .fg10, .fg11, .fg12, .fg13, .fg14, .fg15 {
+  font-weight: bold; }
+
+.nb {
+  font-weight: normal !important; }
 
 @media screen and (min-width: 545px) {
   .mq-phone {

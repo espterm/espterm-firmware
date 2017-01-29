@@ -896,19 +896,6 @@ $._loader = function(vis) {
 		var screen = [];
 		var blinkIval;
 
-		/** Colors table */
-		var CLR = [// dark gray #2E3436
-			// 0 black, 1 red, 2 green, 3 yellow
-			// 4 blue, 5 mag, 6 cyan, 7 white
-			'#111213','#CC0000','#4E9A06','#C4A000',
-			'#3465A4','#75507B','#06989A','#D3D7CF',
-			// BRIGHT
-			// 8 black, 9 red, 10 green, 11 yellow
-			// 12 blue, 13 mag, 14 cyan, 15 white
-			'#555753','#EF2929','#8AE234','#FCE94F',
-			'#729FCF','#AD7FA8','#34E2E2','#EEEEEC'
-		];
-
 		/** Clear screen */
 		function cls() {
 			screen.forEach(function(cell, i) {
@@ -958,9 +945,7 @@ $._loader = function(vis) {
 			bg = inv ? cell.fg : cell.bg;
 			// Update
 			e.innerText = (cell.t+' ')[0];
-			e.style.color = colorHex(fg);
-			e.style.backgroundColor = colorHex(bg);
-			e.style.fontWeight = fg > 7 ? 'bold' : 'normal';
+			e.className = 'fg'+fg+' bg'+bg;
 		}
 
 		/** Show entire screen */
@@ -1026,13 +1011,6 @@ $._loader = function(vis) {
 			}
 
 			blitAll();
-		}
-
-		/** Parse color */
-		function colorHex(c) {
-			c = parseInt(c);
-			if (c < 0 || c > 15) c = 0;
-			return CLR[c];
 		}
 
 		/** Init the terminal */

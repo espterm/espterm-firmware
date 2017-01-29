@@ -8,20 +8,8 @@
 		var screen = [];
 		var blinkIval;
 
-		/** Colors table */
-		var CLR = [// dark gray #2E3436
-			// 0 black, 1 red, 2 green, 3 yellow
-			// 4 blue, 5 mag, 6 cyan, 7 white
-			'#111213','#CC0000','#4E9A06','#C4A000',
-			'#3465A4','#75507B','#06989A','#D3D7CF',
-			// BRIGHT
-			// 8 black, 9 red, 10 green, 11 yellow
-			// 12 blue, 13 mag, 14 cyan, 15 white
-			'#555753','#EF2929','#8AE234','#FCE94F',
-			'#729FCF','#AD7FA8','#34E2E2','#EEEEEC'
-		];
-
-		/** Clear screen */
+/*
+		/!** Clear screen *!/
 		function cls() {
 			screen.forEach(function(cell, i) {
 				cell.t = ' ';
@@ -30,6 +18,7 @@
 				blit(cell);
 			});
 		}
+*/
 
 		/** Set text and color at XY */
 		function cellAt(y, x) {
@@ -41,14 +30,15 @@
 			return cellAt(cursor.y, cursor.x);
 		}
 
-		/** Enable or disable cursor visibility */
+/*
+		/!** Enable or disable cursor visibility *!/
 		function cursorEnable(enable) {
 			cursor.hidden = !enable;
 			cursor.a &= enable;
 			blit(cursorCell(), cursor.a);
 		}
 
-		/** Safely move cursor */
+		/!** Safely move cursor *!/
 		function cursorSet(y, x) {
 			// Hide and prevent from showing up during the move
 			cursor.suppress = true;
@@ -61,6 +51,7 @@
 			cursor.suppress = false;
 			blit(cursorCell(), cursor.a);
 		}
+*/
 
 		/** Update cell on display. inv = invert (for cursor) */
 		function blit(cell, inv) {
@@ -70,10 +61,7 @@
 			bg = inv ? cell.fg : cell.bg;
 			// Update
 			e.innerText = (cell.t+' ')[0];
-			e.classList.className = 'fg'+fg+' bg'+bg;
-			// e.style.color = colorHex(fg);
-			// e.style.backgroundColor = colorHex(bg);
-			// e.style.fontWeight = fg > 7 ? 'bold' : 'normal';
+			e.className = 'fg'+fg+' bg'+bg;
 		}
 
 		/** Show entire screen */
@@ -139,13 +127,6 @@
 			}
 
 			blitAll();
-		}
-
-		/** Parse color */
-		function colorHex(c) {
-			c = parseInt(c);
-			if (c < 0 || c > 15) c = 0;
-			return CLR[c];
 		}
 
 		/** Init the terminal */

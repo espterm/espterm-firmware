@@ -14,3 +14,11 @@ $term-colors:
 	.fg#{$i - 1} { color: $c; }
 	.bg#{$i - 1} { background-color: $c; }
 }
+
+.fg8, .fg9, .fg10, .fg11, .fg12, .fg13, .fg14, .fg15 {
+	font-weight: bold;
+}
+
+.nb {
+	font-weight: normal !important;
+}

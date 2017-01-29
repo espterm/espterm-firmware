@@ -76,24 +76,17 @@ static volatile int notifyLock = 0;
 						} while(0)
 
 /**
- * Reset a cell
- */
-static inline void
-cell_init(Cell *cell)
-{
-	cell->c = ' ';
-	cell->fg = SCREEN_DEF_FG;
-	cell->bg = SCREEN_DEF_BG;
-}
-
-/**
  * Clear range, inclusive
  */
 static inline void
 clear_range(unsigned int from, unsigned int to)
 {
+	Color fg = cursor.inverse ? cursor.bg : cursor.fg;
+	Color bg = cursor.inverse ? cursor.fg : cursor.bg;
 	for (unsigned int i = from; i <= to; i++) {
-		cell_init(&screen[i]);
+		screen[i].c = ' ';
+		screen[i].fg = fg;
+		screen[i].bg = bg;
 	}
 }
 
@@ -122,11 +115,7 @@ void ICACHE_FLASH_ATTR
 screen_init(void)
 {
 	NOTIFY_LOCK();
-	for (unsigned int i = 0; i < MAX_SCREEN_SIZE; i++) {
-		cell_init(&screen[i]);
-	}
-
-	cursor_reset();
+	screen_reset();
 	NOTIFY_DONE();
 }
 
@@ -137,8 +126,8 @@ void ICACHE_FLASH_ATTR
 screen_reset(void)
 {
 	NOTIFY_LOCK();
-	screen_clear(CLEAR_ALL);
 	cursor_reset();
+	screen_clear(CLEAR_ALL);
 	NOTIFY_DONE();
 }
 
