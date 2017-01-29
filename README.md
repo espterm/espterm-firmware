@@ -44,12 +44,9 @@ The screen size is adjustable up to 25x80 (via a special control sequence) and u
   
 - To resize the screen, send `\e]W<rows>;<cols>\a` (it's an OSC code, terminated by ST).
 
-- Buttons pressed in the browser UI send ASCII codes 1..5. Mouse clicks also send events to the server, 
-  but currently don't generate any output in the terminal, I still hadn't decided on the best encoding.
+- Buttons pressed in the browser UI send ASCII codes 1..5. Mouse clicks are sent as `\e[<row>;<col>M`.
 
-- By tapping the header on the terminal page, you'll open the WiFi config page. It's in essence the 
-  esphttpd's wifi config page, but re-styled and much improved. You can set AP SSID, channel, see the IP
-  address etc right there.
+- There's a built-in WiFi config page and a Help page with a list of all supported ANSI sequences etc.
 
 ## Development
 
