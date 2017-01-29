@@ -18,6 +18,7 @@
 #include <captdns.h>
 #include <espfs.h>
 #include <webpages-espfs.h>
+#include <cgiflash.h>
 #include "serial.h"
 #include "io.h"
 #include "screen.h"

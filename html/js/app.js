@@ -1286,7 +1286,7 @@ $._loader = function(vis) {
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('/wifi/scan', onScan);
+		$.get('http://'+_root+'/wifi/scan', onScan);
 	}
 
 	function rescan(time) {
@@ -1340,7 +1340,7 @@ $._loader = function(vis) {
 		var abortTmeo;
 
 		function getStatus() {
-			xhr.open("GET", "/wifi/connstatus");
+			xhr.open("GET", 'http://'+_root+"/wifi/connstatus");
 			xhr.onreadystatechange = function () {
 				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
 					clearTimeout(abortTmeo);

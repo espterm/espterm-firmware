@@ -894,6 +894,7 @@ $._loader = function(vis) {
 		var W, H;
 		var cursor = {a: false, x: 0, y: 0, suppress: false, hidden: false};
 		var screen = [];
+		var blinkIval;
 
 		/** Colors table */
 		var CLR = [// dark gray #2E3436
@@ -1071,7 +1072,8 @@ $._loader = function(vis) {
 			}
 
 			/* Cursor blinking */
-			setInterval(function() {
+			clearInterval(blinkIval);
+			blinkIval = setInterval(function() {
 				cursor.a = !cursor.a;
 				if (cursor.hidden) {
 					cursor.a = false;
@@ -1284,7 +1286,7 @@ $._loader = function(vis) {
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('/wifi/scan', onScan);
+		$.get('http://'+_root+'/wifi/scan', onScan);
 	}
 
 	function rescan(time) {
@@ -1338,7 +1340,7 @@ $._loader = function(vis) {
 		var abortTmeo;
 
 		function getStatus() {
-			xhr.open("GET", "/wifi/connstatus");
+			xhr.open("GET", 'http://'+_root+"/wifi/connstatus");
 			xhr.onreadystatechange = function () {
 				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
 					clearTimeout(abortTmeo);
