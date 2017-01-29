@@ -6,27 +6,25 @@
 #include "uart_driver.h"
 #include "screen.h"
 
-static volatile bool timer_running = false;
-static ETSTimer notifyTim;
+#define SOCK_BUF_LEN 2048
+static char sock_buff[SOCK_BUF_LEN];
 
 static void notifyTimCb(void *arg) {
-	timer_running = false;
-
 	void *data = NULL;
 
-	const int bufsiz = 1024;
-	char buff[bufsiz];
 	for (int i = 0; i < 20; i++) {
-		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &data);
+		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, &data);
 		int flg = 0;
 		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
 		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
-		cgiWebsockBroadcast(URL_WS_UPDATE, buff, (int) strlen(buff), flg);
+		cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), flg);
 		if (cont == HTTPD_CGI_DONE) break;
 	}
 
-	screenSerializeToBuffer(NULL, bufsiz, &data);
+	screenSerializeToBuffer(NULL, SOCK_BUF_LEN, &data);
 }
+
+static ETSTimer notifyTim;
 
 /**
  * Broadcast screen state to sockets.
@@ -35,9 +33,6 @@ static void notifyTimCb(void *arg) {
  */
 void ICACHE_FLASH_ATTR screen_notifyChange(void)
 {
-	if (timer_running) return;
-
-	timer_running = true;
 	os_timer_disarm(&notifyTim);
 	os_timer_setfn(&notifyTim, notifyTimCb, NULL);
 	os_timer_arm(&notifyTim, 20, 0);
