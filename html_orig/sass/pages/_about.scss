@@ -1,0 +1,63 @@
+.page-about {
+	.Box {
+		padding-left:dist(0);
+		padding-right:dist(0);
+
+		a {font-weight: bold;}
+	}
+
+	#logo {
+		float:right;
+		height: 130px;
+	}
+
+	// mobile friendly
+	#logo2 {
+		max-width: 100%;
+	}
+
+	td {
+		white-space: normal;
+	}
+}
+
+.colorprev {
+	margin-top: dist(-2);
+	margin-bottom: dist(-2);
+	span {
+		display: inline-block;
+		width: 2em;
+		padding: dist(-2) 0;
+		text-align: center;
+	}
+}
+
+.ansiref {
+	&,td,th{
+		border: 1px solid #666;
+	}
+
+	th,td {
+		white-space: normal;
+	}
+
+	th {
+		background-color: rgba(255,255,255,.1);
+	}
+
+	td:nth-child(1) {
+		font-family: monospace;
+	}
+
+	&.w100 {
+		width: 100%;
+
+		td:nth-child(1) {
+			width: 6em;
+		}
+
+		td:nth-child(2) {
+			width: 8em;
+		}
+	}
+}

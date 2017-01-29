@@ -64,6 +64,12 @@
 	<div id="ap-list" style="display:none"></div>
 </div>
 
+<nav id="botnav">
+	<a href="/">Terminal</a><!--
+		--><a href="/help">Help</a><!--
+		--><a href="/about">About</a>
+</nav>
+
 <div class="Modal hidden" id="psk-modal">
 	<div class="Dialog">
 		<form action="/wifi/connect" method="post" id="conn-form">

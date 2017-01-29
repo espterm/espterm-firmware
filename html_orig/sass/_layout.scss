@@ -103,7 +103,7 @@ h1 {
 h2 {
 	font-size: fsize(2);
 	margin-bottom: dist(-1);
-	&:first-child{margin-top:0}
+	//&:first-child{margin-top:0}
 }
 
 td, th {
@@ -151,5 +151,28 @@ tbody td {
 
 	&.show {
 		opacity:1;
+	}
+}
+
+ul > * {
+	padding-top: .1em;
+	padding-bottom: .1em;
+}
+
+#botnav {
+	padding-top: 1.5em;
+	text-align: center;
+
+	a {
+		padding: 0 dist(-2);
+		text-decoration: underline;
+
+		&, &:visited, &:link {
+			color: #2e4d6e;
+		}
+
+		&:hover {
+			color: #5abfff;
+		}
 	}
 }

@@ -24,6 +24,12 @@
 	</div>
 </div>
 
+<nav id="botnav">
+	<a href="/wifi">WiFi config</a><!--
+		--><a href="/help">Help</a><!--
+		--><a href="/about">About</a>
+</nav>
+
 <script>
 	_root = window.location.host;
 	termInit(%screenData%);

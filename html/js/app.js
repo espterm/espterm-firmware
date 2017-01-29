@@ -958,9 +958,10 @@ $._loader = function(vis) {
 			bg = inv ? cell.fg : cell.bg;
 			// Update
 			e.innerText = (cell.t+' ')[0];
-			e.style.color = colorHex(fg);
-			e.style.backgroundColor = colorHex(bg);
-			e.style.fontWeight = fg > 7 ? 'bold' : 'normal';
+			e.classList.className = 'fg'+fg+' bg'+bg;
+			// e.style.color = colorHex(fg);
+			// e.style.backgroundColor = colorHex(bg);
+			// e.style.fontWeight = fg > 7 ? 'bold' : 'normal';
 		}
 
 		/** Show entire screen */

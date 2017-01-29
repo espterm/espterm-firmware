@@ -39,3 +39,23 @@ $c-form-highlight-a: #2972ba;
 // import all our pages
 @import "pages/wifi";
 @import "pages/term";
+@import "pages/about";
+@import "term-colors";
+
+// media queries
+
+@include media($tablet-min) {
+	.mq-phone { display: none; }
+}
+
+@include media($phone) {
+	.mq-tablet-min { display: none; }
+}
+
+@include media($normal-min) {
+	.mq-tablet-max { display: none; }
+}
+
+@include media($tablet-max) {
+	.mq-normal-min { display: none; }
+}

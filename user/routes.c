@@ -27,6 +27,8 @@ HttpdBuiltInUrl routes[] = {
 
 	// --- Web pages ---
 	ROUTE_TPL_FILE("/", tplScreen, "/term.tpl"),
+	ROUTE_TPL_FILE("/about", tplAbout, "/about.tpl"),
+	ROUTE_FILE("/help", "/help.tpl"),
 
 	// --- Sockets ---
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),

@@ -8,25 +8,27 @@
 
 	#screen {
 		@include noselect();
-
 		font-family: monospace;
 		font-size: 16pt;
 		white-space: nowrap;
 		background: #111213;
 		padding: 6px;
 		display: inline-block;
-
-		border: 2px solid #3983CD;//#1bc249;
+		border: 2px solid #3983CD; //#1bc249;
 
 		span {
 			white-space: pre;
 			cursor: pointer;
 			&:hover {
-				outline: 1px solid rgba(#ffffff,0.4);
+				outline: 1px solid rgba(#ffffff, 0.4);
 				@include media($phone) {
 					outline: 0 none;
 				}
 			}
+		}
+
+		.fg8, .fg9, .fg10, .fg11, .fg12, .fg13, .fg14, .fg15 {
+			font-weight: bold;
 		}
 	}
 
