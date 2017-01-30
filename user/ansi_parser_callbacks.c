@@ -138,7 +138,6 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 				screen_clear_line(CLEAR_FROM_CURSOR);
 			} else {
 				screen_clear_line(CLEAR_ALL);
-				screen_cursor_set_x(0);
 			}
 			break;
 
@@ -164,13 +163,13 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			// DECTCEM cursor show hide
 		case 'l':
 			if (leadchar == '?' && n1 == 25) {
-				screen_cursor_enable(1);
+				screen_cursor_enable(0);
 			}
 			break;
 
 		case 'h':
 			if (leadchar == '?' && n1 == 25) {
-				screen_cursor_enable(0);
+				screen_cursor_enable(1);
 			}
 			break;
 
