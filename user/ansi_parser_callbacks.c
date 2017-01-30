@@ -156,7 +156,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			else if (n1 == 5) {
 				// Query device status - reply "Device is OK"
-				UART_WriteString(UART0, "\0330n", UART_TIMEOUT_US);
+				UART_WriteString(UART0, "\033[0n", UART_TIMEOUT_US);
 			}
 			break;
 
