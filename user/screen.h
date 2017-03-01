@@ -109,6 +109,9 @@ void screen_cursor_restore(bool withAttrs);
 /** Enable cursor display */
 void screen_cursor_enable(bool enable);
 
+/** Enable auto wrap */
+void screen_wrap_enable(bool enable);
+
 // --- Colors ---
 
 /** Set cursor foreground color */

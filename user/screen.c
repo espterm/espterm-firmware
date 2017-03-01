@@ -31,6 +31,7 @@ static struct {
 	int y;    //!< Y coordinate
 	bool visible;    //!< Visible
 	bool inverse;    //!< Inverse colors
+	bool autowrap;    //!< Wrapping when EOL
 	Color fg;        //!< Foreground color for writing
 	Color bg;        //!< Background color for writing
 } cursor;
@@ -102,6 +103,7 @@ cursor_reset(void)
 	cursor.bg = SCREEN_DEF_BG;
 	cursor.visible = 1;
 	cursor.inverse = 0;
+	cursor.autowrap = 1;
 }
 
 //endregion
@@ -397,6 +399,17 @@ screen_cursor_enable(bool enable)
 	NOTIFY_DONE();
 }
 
+/**
+ * Enable autowrap
+ */
+void ICACHE_FLASH_ATTR
+screen_wrap_enable(bool enable)
+{
+	NOTIFY_LOCK();
+	cursor.autowrap = enable;
+	NOTIFY_DONE();
+}
+
 //endregion
 
 //region Colors
@@ -492,7 +505,7 @@ screen_putchar(char ch)
 				cursor.x--;
 			} else {
 				// wrap around start of line
-				if (cursor.y>0) {
+				if (cursor.autowrap && cursor.y>0) {
 					cursor.x=W-1;
 					cursor.y--;
 				}
@@ -532,13 +545,17 @@ screen_putchar(char ch)
 	cursor.x++;
 	// X wrap
 	if (cursor.x >= W) {
-		cursor.x = 0;
-		cursor.y++;
-		// Y wrap
-		if (cursor.y > H-1) {
-			// Scroll up, so we have space for writing
-			screen_scroll_up(1);
-			cursor.y = H-1;
+		if (cursor.autowrap) {
+			cursor.x = 0;
+			cursor.y++;
+			// Y wrap
+			if (cursor.y > H - 1) {
+				// Scroll up, so we have space for writing
+				screen_scroll_up(1);
+				cursor.y = H - 1;
+			}
+		} else {
+			cursor.x = W - 1;
 		}
 	}
 

@@ -160,16 +160,25 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			break;
 
-			// DECTCEM cursor show hide
-		case 'l':
-			if (leadchar == '?' && n1 == 25) {
-				screen_cursor_enable(0);
+			// DECTCEM feature enable / disable
+
+		case 'h':
+			if (leadchar == '?') {
+				if (n1 == 25) {
+					screen_cursor_enable(1);
+				} else if (n1 == 7) {
+					screen_wrap_enable(1);
+				}
 			}
 			break;
 
-		case 'h':
-			if (leadchar == '?' && n1 == 25) {
-				screen_cursor_enable(1);
+		case 'l':
+			if (leadchar == '?') {
+				if (n1 == 25) {
+					screen_cursor_enable(0);
+				} else if (n1 == 7) {
+					screen_wrap_enable(0);
+				}
 			}
 			break;
 
