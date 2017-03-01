@@ -748,7 +748,7 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
 .ansiref.w100 {
   width: 100%; }
   .ansiref.w100 td:nth-child(1) {
-    width: 7em; }
+    width: 9em; }
   .ansiref.w100 td:nth-child(2) {
     width: 8em; }
 

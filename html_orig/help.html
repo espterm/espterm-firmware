@@ -29,7 +29,7 @@
 
 	<ul>
 		<li>Most ANSI escape sequences are supported.</li>
-		<li>The max screen size is 2000 characters (eg. <b>25x80</b>), default is <b>10x26</b>. Set using <code>\e]W?;?\a</code> with rows;cols.</li>
+		<li>The max screen size is 2000 characters (eg. <b>25x80</b>), default is <b>10x26</b>. Set using <code>\e]W&lt;rows&gt;;&lt;cols&gt;\a</code>.</li>
 		<li>The screen will automatically scroll, can be used for log output.</li>
 		<li>Display update is sent <b>after 20 ms of inactivity</b>.</li>
 		<li>The browser display needs WebSockets for the real-time updating. It may not work on really old phones / browsers.</li>
@@ -39,7 +39,7 @@
 <div class="Box">
 	<h2>Color Reference</h2>
 
-	<p>Color is set using <code>\e[?m</code> or <code>\e[?;?m</code> where "?" are numbers from the following tables:</p>
+	<p>Color is set using <code>\e[&lt;c&gt;m</code> or <code>\e[&lt;c&gt;;&lt;c&gt;m</code> where "&lt;c&gt;" are numbers from the following tables:</p>
 
 	<b>Foreground</b>
 
@@ -103,8 +103,8 @@
 	<p>The buttons under the screen send ASCII codes 1, 2, 3, 4, 5.</p>
 
 	<p>
-		<b>Mouse input</b> (click/tap) is sent as <code>\e?;?M</code> with row;column. You can use this for on-screen buttons, menu navigation etc.
-		<i>Please note this is a custom sequence, not supported by PuTTY or other terminals.</i>
+		<b>Mouse input</b> (click/tap) is sent as <code>\e[&lt;y&gt;;&lt;x&gt;M</code>. You can use this for on-screen buttons, menu navigation etc.
+		<i>Please note this is a custom escape sequence, not supported by PuTTY or other terminals.</i>
 	</p>
 </div>
 
@@ -167,42 +167,42 @@
 		</thead>
 		<tbody>
 		<tr>
-			<td>\e[?A</td>
+			<td>\e[&lt;n&gt;A</td>
 			<td>[count]</td>
 			<td>Move cursor up</td>
 		</tr>
 		<tr>
-			<td>\e[?B</td>
+			<td>\e[&lt;n&gt;B</td>
 			<td>[count]</td>
 			<td>Move cursor down</td>
 		</tr>
 		<tr>
-			<td>\e[?C</td>
+			<td>\e[&lt;n&gt;C</td>
 			<td>[count]</td>
 			<td>Move cursor forward (right)</td>
 		</tr>
 		<tr>
-			<td>\e[?D</td>
+			<td>\e[&lt;n&gt;D</td>
 			<td>[count]</td>
 			<td>Move cursor backward (left)</td>
 		</tr>
 		<tr>
-			<td>\e[?E</td>
+			<td>\e[&lt;n&gt;E</td>
 			<td>[count]</td>
 			<td>Go N line down, start of line</td>
 		</tr>
 		<tr>
-			<td>\e[?F</td>
+			<td>\e[&lt;n&gt;F</td>
 			<td>[count]</td>
 			<td>Go N lines up, start of line</td>
 		</tr>
 		<tr>
-			<td>\e[?G</td>
+			<td>\e[&lt;n&gt;G</td>
 			<td>column</td>
 			<td>Go to column</td>
 		</tr>
 		<tr>
-			<td>\e[?;?G</td>
+			<td>\e[&lt;y&gt;;&lt;x&gt;G</td>
 			<td>[row=1];[col=1]</td>
 			<td>Go to row and column</td>
 		</tr>
@@ -234,12 +234,22 @@
 		<tr>
 			<td>\e[?25l</td>
 			<td>--</td>
-			<td>Hide cursor (literal question mark, lowercase L!)</td>
+			<td>Hide cursor</td>
 		</tr>
 		<tr>
 			<td>\e[?25h</td>
 			<td>--</td>
-			<td>Show cursor (literal question mark!)</td>
+			<td>Show cursor</td>
+		</tr>
+		<tr>
+			<td>\e[?7l</td>
+			<td>--</td>
+			<td>Disable cursor auto-wrap & auto-scroll at end of screen</td>
+		</tr>
+		<tr>
+			<td>\e[?7h</td>
+			<td>--</td>
+			<td>Enable cursor auto-wrap & auto-scroll at end of screen</td>
 		</tr>
 		</tbody>
 	</table>
@@ -256,27 +266,27 @@
 		</thead>
 		<tbody>
 		<tr>
-			<td>\e[?J</td>
+			<td>\e[&lt;m&gt;J</td>
 			<td>[mode=0]</td>
 			<td>Clear screen. Mode: 0 - from cursor, 1 - to cursor, 2 - all</td>
 		</tr>
 		<tr>
-			<td>\e[?K</td>
+			<td>\e[&lt;m&gt;K</td>
 			<td>[mode=0]</td>
 			<td>Erase line. Mode: 0 - from cursor, 1 - to cursor, 2 - all</td>
 		</tr>
 		<tr>
-			<td>\e[?S</td>
+			<td>\e[&lt;n&gt;S</td>
 			<td>[lines]</td>
 			<td>Scroll screen content up, add empty line at the bottom</td>
 		</tr>
 		<tr>
-			<td>\e[?T</td>
+			<td>\e[&lt;n&gt;T</td>
 			<td>[lines]</td>
 			<td>Scroll screen content down, add empty line at the top</td>
 		</tr>
 		<tr>
-			<td>\e]W?;?\a</td>
+			<td>\e]W&lt;r&gt;;&lt;c&gt;\a</td>
 			<td>rows;cols</td>
 			<td>Set screen size, maximum 25x80 (resp. total 2000 characters). This also clears the screen.</td>
 		</tr>
