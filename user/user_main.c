@@ -24,6 +24,7 @@
 #include "screen.h"
 #include "routes.h"
 #include "user_main.h"
+#include "uart_driver.h"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -113,6 +114,10 @@ void ICACHE_FLASH_ATTR user_init(void)
 
 	// The terminal screen
 	screen_init();
+
+	// Print the CANCEL character to indicate the module has restarted
+	// Critically important for client application if any kind of screen persistence / content re-use is needed
+	UART_WriteChar(UART0, 24, UART_TIMEOUT_US); // 0x18 - 24 - CAN
 
 	info("Listening on UART0, 115200-8-N-1!");
 }
