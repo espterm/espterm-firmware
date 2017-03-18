@@ -25,6 +25,7 @@
 #include "routes.h"
 #include "user_main.h"
 #include "uart_driver.h"
+#include "ansi_parser_callbacks.h"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -92,6 +93,15 @@ void ICACHE_FLASH_ATTR user_init(void)
 	printf("\r\n");
 
 	ioInit();
+
+	// Change AP name if AI-THINKER found (means un-initialized device)
+	struct softap_config apconf;
+	wifi_softap_get_config(&apconf);
+	if (strstarts((char*)apconf.ssid, "AI-THINKER")) {
+		warn("Un-initialized device, performing factory reset.");
+		apars_handle_OSC_FactoryReset();
+		return;
+	}
 
 	// 0x40200000 is the base address for spi flash memory mapping, ESPFS_POS is the position
 	// where image is written in flash that is defined in Makefile.
