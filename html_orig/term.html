@@ -5,6 +5,15 @@
 	<title>ESP8266 Remote Terminal</title>
 	<meta name="viewport" content="width=device-width,shrink-to-fit=no,user-scalable=no,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0">
 
+	<script>
+		// Workaround for badly loaded page
+		setTimeout(function() {
+			if (typeof termInit == 'undefined' || typeof $ == 'undefined') {
+				location.reload(true);
+			}
+		}, 2000);
+	</script>
+
 	<link rel="stylesheet" href="/css/app.css">
 	<script src="/js/app.js"></script>
 </head>
@@ -31,8 +40,13 @@
 </nav>
 
 <script>
-	_root = window.location.host;
-	termInit(%screenData%);
+	try {
+		_root = window.location.host;
+		termInit(%screenData%);
+	} catch(e) {
+		console.error("Fail, reloading...");
+		location.reload(true);
+	}
 </script>
 
 </body>

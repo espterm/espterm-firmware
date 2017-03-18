@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Packing js..."
+
 cat jssrc/chibi.js \
 	jssrc/utils.js \
 	jssrc/modal.js \

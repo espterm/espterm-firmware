@@ -197,7 +197,10 @@
 		}
 
 		function onClose(evt) {
-			console.error("SOCKET CLOSED");
+			console.warn("SOCKET CLOSED, code "+evt.code+". Reconnecting...");
+			setTimeout(function() {
+				init();
+			}, 1000);
 		}
 
 		function onMessage(evt) {
@@ -208,10 +211,6 @@
 			} catch(e) {
 				console.error(e);
 			}
-		}
-
-		function onError(evt) {
-			console.error(evt.data);
 		}
 
 		function doSend(message) {
@@ -231,7 +230,6 @@
 			ws.onopen = onOpen;
 			ws.onclose = onClose;
 			ws.onmessage = onMessage;
-			ws.onerror = onError;
 
 			console.log("Opening socket.");
 		}

@@ -896,7 +896,8 @@ $._loader = function(vis) {
 		var screen = [];
 		var blinkIval;
 
-		/** Clear screen */
+/*
+		/!** Clear screen *!/
 		function cls() {
 			screen.forEach(function(cell, i) {
 				cell.t = ' ';
@@ -905,6 +906,7 @@ $._loader = function(vis) {
 				blit(cell);
 			});
 		}
+*/
 
 		/** Set text and color at XY */
 		function cellAt(y, x) {
@@ -916,14 +918,15 @@ $._loader = function(vis) {
 			return cellAt(cursor.y, cursor.x);
 		}
 
-		/** Enable or disable cursor visibility */
+/*
+		/!** Enable or disable cursor visibility *!/
 		function cursorEnable(enable) {
 			cursor.hidden = !enable;
 			cursor.a &= enable;
 			blit(cursorCell(), cursor.a);
 		}
 
-		/** Safely move cursor */
+		/!** Safely move cursor *!/
 		function cursorSet(y, x) {
 			// Hide and prevent from showing up during the move
 			cursor.suppress = true;
@@ -936,6 +939,7 @@ $._loader = function(vis) {
 			cursor.suppress = false;
 			blit(cursorCell(), cursor.a);
 		}
+*/
 
 		/** Update cell on display. inv = invert (for cursor) */
 		function blit(cell, inv) {
@@ -1081,7 +1085,10 @@ $._loader = function(vis) {
 		}
 
 		function onClose(evt) {
-			console.error("SOCKET CLOSED");
+			console.warn("SOCKET CLOSED, code "+evt.code+". Reconnecting...");
+			setTimeout(function() {
+				init();
+			}, 2000);
 		}
 
 		function onMessage(evt) {
@@ -1092,10 +1099,6 @@ $._loader = function(vis) {
 			} catch(e) {
 				console.error(e);
 			}
-		}
-
-		function onError(evt) {
-			console.error(evt.data);
 		}
 
 		function doSend(message) {
@@ -1115,7 +1118,6 @@ $._loader = function(vis) {
 			ws.onopen = onOpen;
 			ws.onclose = onClose;
 			ws.onmessage = onMessage;
-			ws.onerror = onError;
 
 			console.log("Opening socket.");
 		}
