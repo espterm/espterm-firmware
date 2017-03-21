@@ -18,9 +18,12 @@
 	<ul>
 		<li>Communication UART on pins <b>Rx, Tx</b> at 115200-8-1-N</li>
 		<li>Debug log on pin <b>GPIO2</b> at 115200-8-1-N</li>
-		<li>Use 3.3V logic, or 5V with protection resistors (10k)</li>
+		<li>Use 3.3V logic, or 5V with protection resistors (470R or more)</li>
+		<li>If the "LVD" LED on the ESP Term board lights up, the module doesn't get enough power. Check your connections.</li>
 		<li>Connect Rx and Tx with a piece of wire to test the terminal alone, you should see what you type in the browser.
-			NOTE: This won't work if your ESP8266 board has a built-in USB-serial.</li>
+			NOTE: This won't work if your ESP8266 board has a built-in USB-serial (like NodeMCU).</li>
+		<li>For best performance, use the module in the Client mode. In AP mode, check that the channel used is clear;
+			interference may cause lag in the terminal.</li>
 	</ul>
 </div>
 
@@ -32,6 +35,7 @@
 		<li>The max screen size is 2000 characters (eg. <b>25x80</b>), default is <b>10x26</b>. Set using <code>\e]W&lt;rows&gt;;&lt;cols&gt;\a</code>.</li>
 		<li>The screen will automatically scroll, can be used for log output.</li>
 		<li>Display update is sent <b>after 20 ms of inactivity</b>.</li>
+		<li>At most 4 clients can be connected at the same time.</li>
 		<li>The browser display needs WebSockets for the real-time updating. It may not work on really old phones / browsers.</li>
 	</ul>
 </div>
@@ -104,7 +108,6 @@
 
 	<p>
 		<b>Mouse input</b> (click/tap) is sent as <code>\e[&lt;y&gt;;&lt;x&gt;M</code>. You can use this for on-screen buttons, menu navigation etc.
-		<i>Please note this is a custom escape sequence, not supported by PuTTY or other terminals.</i>
 	</p>
 </div>
 

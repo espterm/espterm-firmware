@@ -10,6 +10,7 @@
 
 
 #include <esp8266.h>
+#include "ansi_parser_callbacks.h"
 
 #define BTNGPIO 0
 
@@ -17,16 +18,59 @@
 static bool enable_ap_button = false;
 
 static ETSTimer resetBtntimer;
+static ETSTimer blinkyTimer;
+
+static void ICACHE_FLASH_ATTR bootHoldIndicatorTimerCb(void *arg) {
+	static bool state = true;
+
+	if (GPIO_INPUT_GET(BTNGPIO)) {
+		// if user released, shut up
+		state = 1;
+	}
+
+	if (state) {
+		GPIO_OUTPUT_SET(1, 1);
+	} else {
+		GPIO_OUTPUT_SET(1, 0);
+	}
+
+	state = !state;
+}
 
 static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 	static int resetCnt=0;
 	if (enable_ap_button && !GPIO_INPUT_GET(BTNGPIO)) {
 		resetCnt++;
+
+		// indicating AP reset
+		if (resetCnt == 2) {
+			PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_GPIO1);
+			GPIO_OUTPUT_SET(1, 0); // GPIO 1 OFF
+
+			os_timer_disarm(&blinkyTimer);
+			os_timer_setfn(&blinkyTimer, bootHoldIndicatorTimerCb, NULL);
+			os_timer_arm(&blinkyTimer, 500, 1);
+		}
+
+		// indicating we'll perform a factory reset
+		if (resetCnt == 10) {
+			os_timer_disarm(&blinkyTimer);
+			os_timer_setfn(&blinkyTimer, bootHoldIndicatorTimerCb, NULL);
+			os_timer_arm(&blinkyTimer, 100, 1);
+		}
 	} else {
-		if (resetCnt>=6) { //3 sec pressed
+		// Switch Tx back to UART pin, so we can print our farewells
+		PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
+
+		if (resetCnt>=10) { //5 secs pressed - FR
+			info("BOOT-button triggered FACTORY RESET!");
+			apars_handle_OSC_FactoryReset();
+		}
+		else if (resetCnt>=2) { //1 sec pressed
 			wifi_station_disconnect();
 			wifi_set_opmode(STATIONAP_MODE); //reset to AP+STA mode
-			info("Reset to AP mode from GPIO0, Restarting system...");
+			info("BOOT-button triggered reset to AP mode, restarting...");
+
 			system_restart();
 		}
 		resetCnt=0;
