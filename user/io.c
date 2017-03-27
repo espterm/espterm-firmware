@@ -20,6 +20,10 @@ static bool enable_ap_button = false;
 static ETSTimer resetBtntimer;
 static ETSTimer blinkyTimer;
 
+// Holding BOOT pin triggers AP reset, then Factory Reset.
+// Indicate that by blinking the on-board LED.
+// -> ESP-01 has at at GPIO1, ESP-01S at GPIO2. We have to use both for compatibility.
+
 static void ICACHE_FLASH_ATTR bootHoldIndicatorTimerCb(void *arg) {
 	static bool state = true;
 
@@ -30,8 +34,10 @@ static void ICACHE_FLASH_ATTR bootHoldIndicatorTimerCb(void *arg) {
 
 	if (state) {
 		GPIO_OUTPUT_SET(1, 1);
+		GPIO_OUTPUT_SET(2, 1);
 	} else {
 		GPIO_OUTPUT_SET(1, 0);
+		GPIO_OUTPUT_SET(2, 0);
 	}
 
 	state = !state;
@@ -44,8 +50,13 @@ static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 
 		// indicating AP reset
 		if (resetCnt == 2) {
+			// LED pin as output (Normally UART output)
 			PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_GPIO1);
-			GPIO_OUTPUT_SET(1, 0); // GPIO 1 OFF
+			PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+
+			// LED on
+			GPIO_OUTPUT_SET(1, 0);
+			GPIO_OUTPUT_SET(2, 0);
 
 			os_timer_disarm(&blinkyTimer);
 			os_timer_setfn(&blinkyTimer, bootHoldIndicatorTimerCb, NULL);
@@ -59,8 +70,9 @@ static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 			os_timer_arm(&blinkyTimer, 100, 1);
 		}
 	} else {
-		// Switch Tx back to UART pin, so we can print our farewells
+		// Switch LED pins back to UART mode
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
+		PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
 
 		if (resetCnt>=10) { //5 secs pressed - FR
 			info("BOOT-button triggered FACTORY RESET!");
