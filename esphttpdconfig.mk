@@ -29,7 +29,8 @@ USE_HEATSHRINK = yes
 
 USE_OPENSDK = yes
 
-SDK_BASE=/opt/Espressif/esp_iot_sdk_v1.5.2
+# this ugly trick is needed to allow a relative path
+SDK_BASE=$(dir $(lastword $(MAKEFILE_LIST)))/esp_iot_sdk_v1.5.2/
 
 # combined / separate / ota
 OUTPUT_TYPE = combined
