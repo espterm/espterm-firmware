@@ -32,8 +32,8 @@
 		<tr class="x-hide-1">
 			<th><label for="channel">AP channel</label></th>
 			<td>
-				<form action="/wifi/setchannel" method="GET">
-					<input name="ch" id="channel" type="number" step=1 min=1 max=14 value="%WiFiChannel%"><!--
+				<form action="/wifi/set" method="GET">
+					<input name="ap_ch" id="channel" type="number" step=1 min=1 max=14 value="%WiFiChannel%"><!--
 					--><input type="submit" value="Set" class="narrow btn-green x-hide-3">
 				</form>
 			</td>
@@ -41,8 +41,8 @@
 		<tr class="x-hide-1">
 			<th><label for="channel">AP name</label></th>
 			<td>
-				<form action="/wifi/setname" method="GET">
-					<input name="name" type="text" value="%APName%"><!--
+				<form action="/wifi/set" method="GET">
+					<input name="ap_ssid" type="text" value="%APName%"><!--
 					--><input type="submit" value="Set" class="narrow btn-green">
 				</form>
 			</td>

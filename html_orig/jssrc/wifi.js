@@ -118,9 +118,9 @@
 		}
 
 		$('#modeswitch').html([
-			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>',
-			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>',
-			'<a class="button" href="/wifi/setmode?mode=1">Client only</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>'
+			'<a class="button" href="/wifi/set?opmode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/set?opmode=2">AP only</a>',
+			'<a class="button" href="/wifi/set?opmode=3">Client+AP</a>',
+			'<a class="button" href="/wifi/set?opmode=1">Client only</a>&nbsp;<a class="button" href="/wifi/set?opmode=2">AP only</a>'
 		][obj.mode-1]);
 	};
 

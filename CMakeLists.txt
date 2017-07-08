@@ -36,7 +36,6 @@ set(SOURCE_FILES
         libesphttpd/include/espmissingincludes.h
         libesphttpd/include/espfs.h
         libesphttpd/include/esp8266.h
-        libesphttpd/include/cgiwifi.h
         libesphttpd/include/cgiwebsocket.h
         libesphttpd/include/cgiflash.h
         libesphttpd/include/captdns.h
@@ -54,7 +53,6 @@ set(SOURCE_FILES
         libesphttpd/lib/heatshrink/heatshrink_decoder.c
         libesphttpd/lib/heatshrink/heatshrink.c
         libesphttpd/mkupgimg/mkupgimg.c
-        libesphttpd/util/cgiwifi.c
         libesphttpd/util/cgiwebsocket.c
         libesphttpd/util/cgiflash.c
         libesphttpd/util/captdns.c
@@ -93,6 +91,8 @@ set(SOURCE_FILES
         include/ets_sys_extra.h
         user/io.c
         user/io.h
+        user/cgi_wifi.c
+        user/cgi_wifi.h
         user/cgi_ping.c
         user/cgi_reset.c
         user/uart_driver.c
@@ -113,7 +113,7 @@ set(SOURCE_FILES
         user/cgi_sockets.h
         user/ansi_parser_callbacks.c
         user/ansi_parser_callbacks.h
-        user/user_main.h)
+        user/user_main.h user/wifi_manager.c user/wifi_manager.h)
 
 include_directories(include)
 include_directories(user)

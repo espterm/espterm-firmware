@@ -2,11 +2,10 @@
 #include <httpd.h>
 #include <cgiwebsocket.h>
 #include <httpdespfs.h>
-#include <cgiwifi.h>
 #include <auth.h>
 
 #include "routes.h"
-
+#include "cgi_wifi.h"
 #include "cgi_reset.h"
 #include "cgi_ping.h"
 #include "cgi_main.h"
@@ -48,9 +47,7 @@ HttpdBuiltInUrl routes[] = {
 	ROUTE_CGI("/wifi/connect", cgiWiFiConnect),
 	ROUTE_CGI("/wifi/connstatus", cgiWiFiConnStatus),
 	ROUTE_FILE("/wifi/connecting", "/wifi_conn.tpl"),
-	ROUTE_CGI("/wifi/setmode", cgiWiFiSetMode),
-	ROUTE_CGI("/wifi/setchannel", cgiWiFiSetChannel),
-	ROUTE_CGI("/wifi/setname", cgiWiFiSetSSID),
+	ROUTE_CGI("/wifi/set", cgiWiFiSetParams),
 
 	ROUTE_FILESYSTEM(),
 	ROUTE_END(),
