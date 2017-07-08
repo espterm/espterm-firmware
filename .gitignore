@@ -13,7 +13,6 @@ eagle.app.sym
 
 # Garbage added by CLion
 .idea/
-CMakeLists.txt
 cmake-build-debug/
 .sass-cache
 

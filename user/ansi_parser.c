@@ -246,7 +246,7 @@ execFuncs:
 				csi_n[i] = 0;
 			}
 
-			{cs = 3; goto _again;}
+			{cs = 3;goto _again;}
 		}
 	break;
 	case 2:
@@ -277,14 +277,14 @@ execFuncs:
 
 			apars_handle_CSI(csi_leading, csi_n, csi_char);
 
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 	case 6:
 /* #line 97 "user/ansi_parser.rl" */
 	{
 			apars_handle_badseq();
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 	case 7:
@@ -297,14 +297,14 @@ execFuncs:
 				csi_n[i] = 0;
 			}
 
-			{cs = 5; goto _again;}
+			{cs = 5;goto _again;}
 		}
 	break;
 	case 8:
 /* #line 125 "user/ansi_parser.rl" */
 	{
 			apars_handle_OSC_FactoryReset();
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 	case 9:
@@ -312,7 +312,7 @@ execFuncs:
 	{
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
 
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 	case 10:
@@ -320,21 +320,21 @@ execFuncs:
 	{
 			// Reset screen
 			apars_handle_RESET_cmd();
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 	case 11:
 /* #line 147 "user/ansi_parser.rl" */
 	{
 			apars_handle_saveCursorAttrs();
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 	case 12:
 /* #line 152 "user/ansi_parser.rl" */
 	{
 			apars_handle_restoreCursorAttrs();
-			{cs = 1; goto _again;}
+			{cs = 1;goto _again;}
 		}
 	break;
 /* #line 341 "user/ansi_parser.c" */
@@ -358,10 +358,12 @@ _again:
 /* #line 97 "user/ansi_parser.rl" */
 	{
 			apars_handle_badseq();
-			{cs = 1; goto _again;}
+			{cs = 1;	if ( p == pe )
+		goto _test_eof;
+goto _again;}
 		}
 	break;
-/* #line 365 "user/ansi_parser.c" */
+/* #line 367 "user/ansi_parser.c" */
 		}
 	}
 	}
