@@ -91,7 +91,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	// Prevent WiFi starting and connecting by default
 	// let wifi manager handle it
 	wifi_station_set_auto_connect(false);
-	wifi_set_opmode(NULL_MODE);
+	wifi_set_opmode(NULL_MODE); // save to flash if changed - this might avoid the current spike on startup?
 
 	printf("\r\n");
 	banner("====== ESP8266 Remote Terminal ======");

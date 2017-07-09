@@ -40,7 +40,7 @@ wifimgr_restore_defaults(void)
 	strcpy((char *) wificonf->sta_hostname, (char *) wificonf->ap_ssid); // use the same value for sta_hostname as AP name
 	wificonf->sta_dhcp_enable = true;
 
-	IP4_ADDR(&wificonf->sta_ip.ip, 192, 168, 0, (mac[5]==1?2:mac[5]));// avoid being the same as "default gw"
+	IP4_ADDR(&wificonf->sta_ip.ip, 192, 168, 0, (mac[5]==1?2:mac[5])); // avoid being the same as "default gw"
 	IP4_ADDR(&wificonf->sta_ip.netmask, 255, 255, 255, 0);
 	IP4_ADDR(&wificonf->sta_ip.gw, 192, 168, 0, 1);
 }
@@ -159,8 +159,15 @@ wifimgr_apply_settings(void)
 	info("[WiFi] Initializing...");
 
 	// Force wifi cycle
-	wifi_set_opmode(NULL_MODE);
-	wifi_set_opmode(wificonf->opmode);
+	// Disconnect - may not be needed?
+	WIFI_MODE opmode = wifi_get_opmode();
+	if (opmode == STATIONAP_MODE || opmode == STATION_MODE) {
+		wifi_station_disconnect();
+	}
+
+	// This should hopefully deinit everything
+	wifi_set_opmode_current(NULL_MODE);
+	wifi_set_opmode_current(wificonf->opmode);
 
 	// Configure the client
 	if (wificonf->opmode == STATIONAP_MODE || wificonf->opmode == STATION_MODE) {
