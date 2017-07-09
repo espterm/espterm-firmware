@@ -14,21 +14,21 @@
 #include "screen.h"
 
 typedef struct {
-	WiFiConfigBlock wificonf;
-	TerminalConfigBlock termconf;
+	WiFiConfigBundle wificonf;
+	TerminalConfigBundle termconf;
 	// ...
 	// other settings here
 	// ...
 	uint32_t checksum; // computed before write and tested on load. If it doesn't match, values are reset to hard defaults.
-} PersistBundle;
+} AppConfigBundle;
 
 typedef struct {
-	PersistBundle defaults; // defaults are stored here
-	PersistBundle current;  // settings persisted by user
-} FullPersistBlock;
+	AppConfigBundle defaults; // defaults are stored here
+	AppConfigBundle current;  // settings persisted by user
+} PersistBlock;
 
 // Persist holds the data currently loaded from the flash
-extern FullPersistBlock persist;
+extern PersistBlock persist;
 
 void persist_load(void);
 void persist_restore_hard_default(void);

@@ -1,26 +1,28 @@
 #include <esp8266.h>
 #include <httpd.h>
 #include "screen.h"
+#include "persist.h"
 
 //region Data structures
 
-TerminalConfigBlock termconf;
+TerminalConfigBundle * const termconf = &persist.current.termconf;
+TerminalConfigBundle termconf_scratch;
 
 /**
  * Restore hard defaults
  */
 void terminal_restore_defaults(void)
 {
-	termconf.default_bg = 0;
-	termconf.default_fg = 7;
-	termconf.width = 26;
-	termconf.height = 10;
-	sprintf(termconf.title, "ESP8266 Wireless Terminal");
-	sprintf(termconf.btn1, "1");
-	sprintf(termconf.btn2, "2");
-	sprintf(termconf.btn3, "3");
-	sprintf(termconf.btn4, "4");
-	sprintf(termconf.btn5, "5");
+	termconf->default_bg = 0;
+	termconf->default_fg = 7;
+	termconf->width = 26;
+	termconf->height = 10;
+	sprintf(termconf->title, "ESP8266 Wireless Terminal");
+	sprintf(termconf->btn1, "1");
+	sprintf(termconf->btn2, "2");
+	sprintf(termconf->btn3, "3");
+	sprintf(termconf->btn4, "4");
+	sprintf(termconf->btn5, "5");
 }
 
 /**
@@ -28,11 +30,12 @@ void terminal_restore_defaults(void)
  */
 void terminal_apply_settings(void)
 {
+	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
 	screen_init();
 }
 
-#define W termconf.width
-#define H termconf.height
+#define W termconf_scratch.width
+#define H termconf_scratch.height
 
 /**
  * Highest permissible value of the color attribute
@@ -119,8 +122,8 @@ cursor_reset(void)
 {
 	cursor.x = 0;
 	cursor.y = 0;
-	cursor.fg = termconf.default_fg;
-	cursor.bg = termconf.default_bg;
+	cursor.fg = termconf_scratch.default_fg;
+	cursor.bg = termconf_scratch.default_bg;
 	cursor.visible = 1;
 	cursor.inverse = 0;
 	cursor.autowrap = 1;
@@ -383,8 +386,8 @@ screen_cursor_save(bool withAttrs)
 		cursor_sav.bg = cursor.bg;
 		cursor_sav.inverse = cursor.inverse;
 	} else {
-		cursor_sav.fg = termconf.default_fg;
-		cursor_sav.bg = termconf.default_bg;
+		cursor_sav.fg = termconf_scratch.default_fg;
+		cursor_sav.bg = termconf_scratch.default_bg;
 		cursor_sav.inverse = 0;
 	}
 }

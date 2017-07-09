@@ -7,7 +7,7 @@
 #include "wifimgr.h"
 #include "screen.h"
 
-FullPersistBlock persist;
+PersistBlock persist;
 
 #define PERSIST_SECTOR_ID 0x3D
 
@@ -20,17 +20,17 @@ static void ICACHE_FLASH_ATTR
 load_settings_to_live(void)
 {
 	dbg("[Persist] Loading current settings to modules...");
-	memcpy(&wificonf, &persist.current.wificonf, sizeof(WiFiConfigBlock));
-	memcpy(&termconf, &persist.current.termconf, sizeof(TerminalConfigBlock));
+	memcpy(wificonf, &persist.current.wificonf, sizeof(WiFiConfigBundle));
+	memcpy(termconf, &persist.current.termconf, sizeof(TerminalConfigBundle));
 	// ...
 }
 
 static void ICACHE_FLASH_ATTR
-store_settings_from_live(void)
+store_all_settings_from_live(void)
 {
 	dbg("[Persist] Collecting live settings to persist block...");
-	memcpy(&persist.current.wificonf, &wificonf, sizeof(wificonf));
-	memcpy(&persist.current.termconf, &termconf, sizeof(termconf));
+	memcpy(&persist.current.wificonf, wificonf, sizeof(WiFiConfigBundle));
+	memcpy(&persist.current.termconf, termconf, sizeof(TerminalConfigBundle));
 	// ...
 }
 
@@ -86,9 +86,9 @@ calculateCRC32(const uint8_t *data, size_t length)
  * @return
  */
 static uint32_t ICACHE_FLASH_ATTR
-compute_checksum(PersistBundle *bundle)
+compute_checksum(AppConfigBundle *bundle)
 {
-	return calculateCRC32((uint8_t *) bundle, sizeof(PersistBundle) - 4);
+	return calculateCRC32((uint8_t *) bundle, sizeof(AppConfigBundle) - 4);
 }
 
 /**
@@ -102,7 +102,7 @@ persist_load(void)
 	bool hard_reset = false;
 
 	// Try to load
-	hard_reset |= !system_param_load(PERSIST_SECTOR_ID, 0, &persist, sizeof(persist));
+	hard_reset |= !system_param_load(PERSIST_SECTOR_ID, 0, &persist, sizeof(PersistBlock));
 
 	// Verify checksums
 	if (hard_reset ||
@@ -127,13 +127,13 @@ void ICACHE_FLASH_ATTR
 persist_store(void)
 {
 	info("[Persist] Storing all settings to FLASH...");
-	store_settings_from_live();
+	store_all_settings_from_live();
 
 	// Update checksums before write
 	persist.current.checksum = compute_checksum(&persist.current);
 	persist.defaults.checksum = compute_checksum(&persist.defaults);
 
-	if (!system_param_save_with_protect(PERSIST_SECTOR_ID, &persist, sizeof(persist))) {
+	if (!system_param_save_with_protect(PERSIST_SECTOR_ID, &persist, sizeof(PersistBlock))) {
 		error("[Persist] Store to flash failed!");
 	}
 	info("[Persist] All settings persisted.");
@@ -151,10 +151,10 @@ persist_restore_hard_default(void)
 	restore_live_settings_to_hard_defaults();
 
 	// Store live -> current
-	store_settings_from_live();
+	store_all_settings_from_live();
 
 	// Store current -> default
-	memcpy(&persist.defaults, &persist.current, sizeof(persist.current));
+	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 	persist_store();
 
 	info("[Persist] All settings restored to hard defaults.");
@@ -169,7 +169,7 @@ void ICACHE_FLASH_ATTR
 persist_restore_default(void)
 {
 	info("[Persist] Restoring live settings to stored defaults...");
-	memcpy(&persist.current, &persist.defaults, sizeof(persist.defaults));
+	memcpy(&persist.current, &persist.defaults, sizeof(AppConfigBundle));
 	load_settings_to_live();
 	apply_live_settings();
 	info("[Persist] Settings restored to stored defaults.");
@@ -183,8 +183,8 @@ persist_set_as_default(void)
 {
 	info("[Persist] Storing live settings as defaults..");
 
-	store_settings_from_live();
-	memcpy(&persist.defaults, &persist.current, sizeof(persist.current));
+	store_all_settings_from_live();
+	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 
 	persist_store();
 

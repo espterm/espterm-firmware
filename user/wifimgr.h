@@ -37,9 +37,9 @@ typedef struct {
 	bool sta_dhcp_enable;
 
 	struct ip_info sta_ip;
-} WiFiConfigBlock;
+} WiFiConfigBundle;
 
-extern WiFiConfigBlock wificonf;
+extern WiFiConfigBundle * const wificonf;
 
 void wifimgr_restore_defaults(void);
 

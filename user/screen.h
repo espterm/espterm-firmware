@@ -45,10 +45,16 @@ typedef struct {
 	char btn3[10];
 	char btn4[10];
 	char btn5[10];
-} TerminalConfigBlock;
+} TerminalConfigBundle;
 
 // Live config
-extern TerminalConfigBlock termconf;
+extern TerminalConfigBundle * const termconf;
+
+/**
+ * Transient live config with no persist, can be modified via esc sequences.
+ * terminal_apply_settings() copies termconf to this struct, erasing old scratch changes
+ */
+extern TerminalConfigBundle termconf_scratch;
 
 void terminal_restore_defaults(void);
 void terminal_apply_settings(void);
