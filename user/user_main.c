@@ -26,7 +26,8 @@
 #include "user_main.h"
 #include "uart_driver.h"
 #include "ansi_parser_callbacks.h"
-#include "wifi_manager.h"
+#include "wifimgr.h"
+#include "persist.h"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -47,9 +48,6 @@ CgiUploadFlashDef uploadParams={
 };
 #define INCLUDE_FLASH_FNS
 #endif
-
-static ETSTimer prHeapTimer;
-static ETSTimer userStartTimer;
 
 /** Periodically show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
@@ -79,42 +77,15 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 	cnt++;
 }
 
-static void user_start(void *unused)
-{
-	// TODO load persistent data, init wificonf
-
-	// Change AP name if AI-THINKER found (means un-initialized device)
-	struct softap_config apconf;
-	wifi_softap_get_config(&apconf);
-	if (strstarts((char*)apconf.ssid, "AI-THINKER")) {
-		warn("Un-initialized device, performing factory reset.");
-		apars_handle_OSC_FactoryReset();
-		return;
-	}
-
-	// Set up WiFi & connect
-	wifimgr_restore_defaults();
-	wifimgr_apply_settings();
-
-	// Captive portal
-	captdnsInit();
-
-	// Server
-	httpdInit(routes, 80);
-
-	// The terminal screen
-	screen_init();
-
-	// Print the CANCEL character to indicate the module has restarted
-	// Critically important for client application if any kind of screen persistence / content re-use is needed
-	UART_WriteChar(UART0, 24, UART_TIMEOUT_US); // 0x18 - 24 - CAN
-
-	info("Listening on UART0, 115200-8-N-1!");
-}
+// Deferred init
+static void user_start(void *unused);
 
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
 void ICACHE_FLASH_ATTR user_init(void)
 {
+	static ETSTimer userStartTimer;
+	static ETSTimer prHeapTimer;
+
 	serialInit();
 
 	// Prevent WiFi starting and connecting by default
@@ -147,10 +118,38 @@ void ICACHE_FLASH_ATTR user_init(void)
 	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
 	os_timer_arm(&prHeapTimer, 1000, 1);
 
-	// do later (some functions do not yet work if called from user_init)
+	// do later (some functions do not work if called from user_init)
 	os_timer_disarm(&userStartTimer);
 	os_timer_setfn(&userStartTimer, user_start, NULL);
 	os_timer_arm(&userStartTimer, 10, 0);
+}
+
+static void user_start(void *unused)
+{
+	// Change AP name if AI-THINKER found (means un-initialized device)
+//	struct softap_config apconf;
+//	wifi_softap_get_config(&apconf);
+//	if (strstarts((char *) apconf.ssid, "AI-THINKER")) {
+//		warn("Un-initialized device, performing factory reset.");
+//		apars_handle_OSC_FactoryReset();
+//		return;
+//	}
+
+	// Load and apply stored settings, or defaults if stored settings are invalid
+	persist_load();
+	// Captive portal (DNS redirector)
+	captdnsInit();
+	// Server
+	httpdInit(routes, 80);
+
+	// The terminal screen
+	screen_init();
+
+	// Print the CANCEL character to indicate the module has restarted
+	// Critically important for client application if any kind of screen persistence / content re-use is needed
+	UART_WriteChar(UART0, 24, UART_TIMEOUT_US); // 0x18 - 24 - CAN
+
+	info("Listening on UART0, 115200-8-N-1!");
 }
 
 // ---- unused funcs removed from sdk to save space ---

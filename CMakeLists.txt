@@ -113,7 +113,7 @@ set(SOURCE_FILES
         user/cgi_sockets.h
         user/ansi_parser_callbacks.c
         user/ansi_parser_callbacks.h
-        user/user_main.h user/wifi_manager.c user/wifi_manager.h)
+        user/user_main.h user/wifimgr.c user/wifimgr.h user/persist.c user/persist.h)
 
 include_directories(include)
 include_directories(user)

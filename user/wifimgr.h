@@ -17,28 +17,29 @@
  * This block can be used eg. for WiFi config backup.
  */
 typedef struct {
-	WIFI_MODE opmode : 32;
-	u8 sta_hostname[32];
-	u32 tpw;
+	WIFI_MODE opmode : 8;
+	u8 tpw;
 
 	// --- AP config ---
-	u32 ap_channel; // 32 for alignment, needs 8
+	u8 ap_channel;
 	u8 ap_ssid[32];
 	u8 ap_password[32];
-	u32 ap_hidden;
-	u32 ap_dhcp_lease_time; // in minutes
+	bool ap_hidden;
+	u16 ap_dhcp_lease_time; // in minutes
+	struct dhcps_lease ap_dhcp_range;
 
 	struct ip_info ap_ip;
 
 	// --- Client config ---
 	u8 sta_ssid[32];
 	u8 sta_password[64];
-	u32 sta_dhcp_enable;
+	u8 sta_hostname[32]; // hostname set via the API. This does not seem to have much effect.
+	bool sta_dhcp_enable;
 
 	struct ip_info sta_ip;
-} WiFiSettingsBlock;
+} WiFiConfigBlock;
 
-extern WiFiSettingsBlock wificonf;
+extern WiFiConfigBlock wificonf;
 
 void wifimgr_restore_defaults(void);
 

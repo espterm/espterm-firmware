@@ -1,0 +1,192 @@
+//
+// Created by MightyPork on 2017/07/09.
+//
+
+#include "persist.h"
+#include <esp8266.h>
+#include "wifimgr.h"
+#include "screen.h"
+
+FullPersistBlock persist;
+
+#define PERSIST_SECTOR_ID 0x3D
+
+//region Persist and restore individual modules
+
+/**
+ * Load persistent settings to live config structs
+ */
+static void ICACHE_FLASH_ATTR
+load_settings_to_live(void)
+{
+	dbg("[Persist] Loading current settings to modules...");
+	memcpy(&wificonf, &persist.current.wificonf, sizeof(WiFiConfigBlock));
+	memcpy(&termconf, &persist.current.termconf, sizeof(TerminalConfigBlock));
+	// ...
+}
+
+static void ICACHE_FLASH_ATTR
+store_settings_from_live(void)
+{
+	dbg("[Persist] Collecting live settings to persist block...");
+	memcpy(&persist.current.wificonf, &wificonf, sizeof(wificonf));
+	memcpy(&persist.current.termconf, &termconf, sizeof(termconf));
+	// ...
+}
+
+static void ICACHE_FLASH_ATTR
+apply_live_settings(void)
+{
+	dbg("[Persist] Applying live settings...");
+	terminal_apply_settings();
+	wifimgr_apply_settings();
+	// ...
+}
+
+static void ICACHE_FLASH_ATTR
+restore_live_settings_to_hard_defaults(void)
+{
+	wifimgr_restore_defaults();
+	terminal_restore_defaults();
+	// ...
+}
+
+//endregion
+
+/**
+ * Compute CRC32. Adapted from https://github.com/esp8266/Arduino
+ * @param data
+ * @param length
+ * @return crc32
+ */
+static uint32_t ICACHE_FLASH_ATTR
+calculateCRC32(const uint8_t *data, size_t length)
+{
+	uint32_t crc = 0xffffffff;
+	while (length--) {
+		uint8_t c = *data++;
+		for (uint32_t i = 0x80; i > 0; i >>= 1) {
+			bool bit = (bool) (crc & 0x80000000UL);
+			if (c & i) {
+				bit = !bit;
+			}
+			crc <<= 1;
+			if (bit) {
+				crc ^= 0x04c11db7UL;
+			}
+		}
+	}
+	return crc;
+}
+
+/**
+ * Compute a persist bundle checksum
+ *
+ * @param bundle
+ * @return
+ */
+static uint32_t ICACHE_FLASH_ATTR
+compute_checksum(PersistBundle *bundle)
+{
+	return calculateCRC32((uint8_t *) bundle, sizeof(PersistBundle) - 4);
+}
+
+/**
+ * Load, verify and apply persistent config
+ */
+void ICACHE_FLASH_ATTR
+persist_load(void)
+{
+	info("[Persist] Loading stored settings from FLASH...");
+
+	bool hard_reset = false;
+
+	// Try to load
+	hard_reset |= !system_param_load(PERSIST_SECTOR_ID, 0, &persist, sizeof(persist));
+
+	// Verify checksums
+	if (hard_reset ||
+		(compute_checksum(&persist.defaults) != persist.defaults.checksum) ||
+		(compute_checksum(&persist.current) != persist.current.checksum)) {
+		error("[Persist] Config block failed to load, restoring to hard defaults.");
+		hard_reset = true;
+	}
+
+	if (hard_reset) {
+		persist_restore_hard_default();
+		// this also stores them to flash and applies to modues
+	} else {
+		load_settings_to_live();
+		apply_live_settings();
+	}
+
+	info("[Persist] All settings loaded and applied.");
+}
+
+void ICACHE_FLASH_ATTR
+persist_store(void)
+{
+	info("[Persist] Storing all settings to FLASH...");
+	store_settings_from_live();
+
+	// Update checksums before write
+	persist.current.checksum = compute_checksum(&persist.current);
+	persist.defaults.checksum = compute_checksum(&persist.defaults);
+
+	if (!system_param_save_with_protect(PERSIST_SECTOR_ID, &persist, sizeof(persist))) {
+		error("[Persist] Store to flash failed!");
+	}
+	info("[Persist] All settings persisted.");
+}
+
+/**
+ * Restore to built-in defaults
+ */
+void ICACHE_FLASH_ATTR
+persist_restore_hard_default(void)
+{
+	info("[Persist] Restoring all settings to hard defaults...");
+
+	// Set live config to default values
+	restore_live_settings_to_hard_defaults();
+
+	// Store live -> current
+	store_settings_from_live();
+
+	// Store current -> default
+	memcpy(&persist.defaults, &persist.current, sizeof(persist.current));
+	persist_store();
+
+	info("[Persist] All settings restored to hard defaults.");
+
+	apply_live_settings(); // apply
+}
+
+/**
+ * Restore default settings & apply
+ */
+void ICACHE_FLASH_ATTR
+persist_restore_default(void)
+{
+	info("[Persist] Restoring live settings to stored defaults...");
+	memcpy(&persist.current, &persist.defaults, sizeof(persist.defaults));
+	load_settings_to_live();
+	apply_live_settings();
+	info("[Persist] Settings restored to stored defaults.");
+}
+
+/**
+ * Store current settings as defaults & write to flash
+ */
+void ICACHE_FLASH_ATTR
+persist_set_as_default(void)
+{
+	info("[Persist] Storing live settings as defaults..");
+
+	store_settings_from_live();
+	memcpy(&persist.defaults, &persist.current, sizeof(persist.current));
+
+	persist_store();
+
+	info("[Persist] Default settings updated.");
+}
