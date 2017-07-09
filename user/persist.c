@@ -11,28 +11,10 @@ PersistBlock persist;
 
 #define PERSIST_SECTOR_ID 0x3D
 
+// This is used to force-erase the config area (when it's changed)
+#define CHECKSUM_SALT 0x02
+
 //region Persist and restore individual modules
-
-/**
- * Load persistent settings to live config structs
- */
-static void ICACHE_FLASH_ATTR
-load_settings_to_live(void)
-{
-	dbg("[Persist] Loading current settings to modules...");
-	memcpy(wificonf, &persist.current.wificonf, sizeof(WiFiConfigBundle));
-	memcpy(termconf, &persist.current.termconf, sizeof(TerminalConfigBundle));
-	// ...
-}
-
-static void ICACHE_FLASH_ATTR
-store_all_settings_from_live(void)
-{
-	dbg("[Persist] Collecting live settings to persist block...");
-	memcpy(&persist.current.wificonf, wificonf, sizeof(WiFiConfigBundle));
-	memcpy(&persist.current.termconf, termconf, sizeof(TerminalConfigBundle));
-	// ...
-}
 
 static void ICACHE_FLASH_ATTR
 apply_live_settings(void)
@@ -88,7 +70,7 @@ calculateCRC32(const uint8_t *data, size_t length)
 static uint32_t ICACHE_FLASH_ATTR
 compute_checksum(AppConfigBundle *bundle)
 {
-	return calculateCRC32((uint8_t *) bundle, sizeof(AppConfigBundle) - 4);
+	return calculateCRC32((uint8_t *) bundle, sizeof(AppConfigBundle) - 4) ^ CHECKSUM_SALT;
 }
 
 /**
@@ -108,15 +90,16 @@ persist_load(void)
 	if (hard_reset ||
 		(compute_checksum(&persist.defaults) != persist.defaults.checksum) ||
 		(compute_checksum(&persist.current) != persist.current.checksum)) {
-		error("[Persist] Config block failed to load, restoring to hard defaults.");
+		dbg("[Persist] Checksum verification: FAILED");
 		hard_reset = true;
+	} else {
+		dbg("[Persist] Checksum verification: PASSED");
 	}
 
 	if (hard_reset) {
 		persist_restore_hard_default();
 		// this also stores them to flash and applies to modues
 	} else {
-		load_settings_to_live();
 		apply_live_settings();
 	}
 
@@ -127,7 +110,6 @@ void ICACHE_FLASH_ATTR
 persist_store(void)
 {
 	info("[Persist] Storing all settings to FLASH...");
-	store_all_settings_from_live();
 
 	// Update checksums before write
 	persist.current.checksum = compute_checksum(&persist.current);
@@ -150,9 +132,6 @@ persist_restore_hard_default(void)
 	// Set live config to default values
 	restore_live_settings_to_hard_defaults();
 
-	// Store live -> current
-	store_all_settings_from_live();
-
 	// Store current -> default
 	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 	persist_store();
@@ -170,7 +149,6 @@ persist_restore_default(void)
 {
 	info("[Persist] Restoring live settings to stored defaults...");
 	memcpy(&persist.current, &persist.defaults, sizeof(AppConfigBundle));
-	load_settings_to_live();
 	apply_live_settings();
 	info("[Persist] Settings restored to stored defaults.");
 }
@@ -183,7 +161,6 @@ persist_set_as_default(void)
 {
 	info("[Persist] Storing live settings as defaults..");
 
-	store_all_settings_from_live();
 	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 
 	persist_store();

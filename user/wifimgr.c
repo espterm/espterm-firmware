@@ -6,6 +6,7 @@
 #include "persist.h"
 
 WiFiConfigBundle * const wificonf = &persist.current.wificonf;
+WiFiConfChangeFlags wifi_change_flags;
 
 /**
  * Restore defaults in the WiFi config block.
@@ -25,24 +26,23 @@ wifimgr_restore_defaults(void)
 	wificonf->ap_password[0] = 0; // PSK2 always if password is not null.
 	wificonf->ap_hidden = false;
 
-	IP4_ADDR(&wificonf->ap_ip.ip, 192, 168, 4, 60);
-	IP4_ADDR(&wificonf->ap_ip.netmask, 255, 255, 255, 0);
-	wificonf->ap_ip.gw.addr = wificonf->ap_ip.gw.addr;
+	IP4_ADDR(&wificonf->ap_addr.ip, 192, 168, 4, 1);
+	IP4_ADDR(&wificonf->ap_addr.netmask, 255, 255, 255, 0);
+	wificonf->ap_addr.gw.addr = wificonf->ap_addr.gw.addr;
 
 	IP4_ADDR(&wificonf->ap_dhcp_range.start_ip, 192, 168, 4, 100);
 	IP4_ADDR(&wificonf->ap_dhcp_range.end_ip, 192, 168, 4, 200);
-	wificonf->ap_dhcp_range.enable = 1;
-	wificonf->ap_dhcp_lease_time = 120;
+	wificonf->ap_dhcp_range.enable = 1; // this will never get changed, idk why it's even there
+	wificonf->ap_dhcp_time = 120;
 
 	// --- Client config ---
 	wificonf->sta_ssid[0] = 0;
 	wificonf->sta_password[0] = 0;
-	strcpy((char *) wificonf->sta_hostname, (char *) wificonf->ap_ssid); // use the same value for sta_hostname as AP name
 	wificonf->sta_dhcp_enable = true;
 
-	IP4_ADDR(&wificonf->sta_ip.ip, 192, 168, 0, (mac[5]==1?2:mac[5])); // avoid being the same as "default gw"
-	IP4_ADDR(&wificonf->sta_ip.netmask, 255, 255, 255, 0);
-	IP4_ADDR(&wificonf->sta_ip.gw, 192, 168, 0, 1);
+	IP4_ADDR(&wificonf->sta_addr.ip, 192, 168, 0, (mac[5] == 1 ? 2 : mac[5])); // avoid being the same as "default gw"
+	IP4_ADDR(&wificonf->sta_addr.netmask, 255, 255, 255, 0);
+	IP4_ADDR(&wificonf->sta_addr.gw, 192, 168, 0, 1);
 }
 
 static void ICACHE_FLASH_ATTR
@@ -57,25 +57,23 @@ configure_station(void)
 	conf.bssid[0] = 0;
 	wifi_station_disconnect();
 	wifi_station_set_config_current(&conf);
-	dbg("[WiFi] Hostname = %s", wificonf->sta_hostname);
-	wifi_station_set_hostname((char*)wificonf->sta_hostname);
 
 	if (wificonf->sta_dhcp_enable) {
 		dbg("[WiFi] Starting DHCP...");
 		if (!wifi_station_dhcpc_start()) {
-			error("[WiFi] DHCp failed to start!");
+			error("[WiFi] DHCP failed to start!");
 			return;
 		}
 	}
 	else {
 		info("[WiFi] Setting up static IP...");
-		dbg("[WiFi] Client.ip   = "IPSTR, GOOD_IP2STR(wificonf->sta_ip.ip.addr));
-		dbg("[WiFi] Client.mask = "IPSTR, GOOD_IP2STR(wificonf->sta_ip.netmask.addr));
-		dbg("[WiFi] Client.gw   = "IPSTR, GOOD_IP2STR(wificonf->sta_ip.gw.addr));
+		dbg("[WiFi] Client.ip   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
+		dbg("[WiFi] Client.mask = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
+		dbg("[WiFi] Client.gw   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
 
 		wifi_station_dhcpc_stop();
 		// Load static IP config
-		if (!wifi_set_ip_info(STATION_IF, &wificonf->sta_ip)) {
+		if (!wifi_set_ip_info(STATION_IF, &wificonf->sta_addr)) {
 			error("[WiFi] Error setting static IP!");
 			return;
 		}
@@ -113,14 +111,14 @@ configure_ap(void)
 
 	// Set IP
 	info("[WiFi] Configuring SoftAP local IP...");
-	dbg("[WiFi] SoftAP.ip   = "IPSTR, GOOD_IP2STR(wificonf->ap_ip.ip.addr));
-	dbg("[WiFi] SoftAP.mask = "IPSTR, GOOD_IP2STR(wificonf->ap_ip.netmask.addr));
-	dbg("[WiFi] SoftAP.gw   = "IPSTR, GOOD_IP2STR(wificonf->ap_ip.gw.addr));
+	dbg("[WiFi] SoftAP.ip   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.ip.addr));
+	dbg("[WiFi] SoftAP.mask = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.netmask.addr));
+	dbg("[WiFi] SoftAP.gw   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.gw.addr));
 
 	wifi_softap_dhcps_stop();
 
 	// Configure DHCP
-	if (!wifi_set_ip_info(SOFTAP_IF, &wificonf->ap_ip)) {
+	if (!wifi_set_ip_info(SOFTAP_IF, &wificonf->ap_addr)) {
 		error("[WiFi] IP set fail!");
 		return;
 	}
@@ -128,14 +126,14 @@ configure_ap(void)
 	info("[WiFi] Configuring SoftAP DHCP server...");
 	dbg("[WiFi] DHCP.start = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
 	dbg("[WiFi] DHCP.end   = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
-	dbg("[WiFi] DHCP.lease = %d minutes", wificonf->ap_dhcp_lease_time);
+	dbg("[WiFi] DHCP.lease = %d minutes", wificonf->ap_dhcp_time);
 
 	if (!wifi_softap_set_dhcps_lease(&wificonf->ap_dhcp_range)) {
 		error("[WiFi] DHCP address range set fail!");
 		return;
 	}
 
-	if (!wifi_softap_set_dhcps_lease_time(wificonf->ap_dhcp_lease_time)) {
+	if (!wifi_softap_set_dhcps_lease_time(wificonf->ap_dhcp_time)) {
 		error("[WiFi] DHCP lease time set fail!");
 		return;
 	}
@@ -161,23 +159,34 @@ wifimgr_apply_settings(void)
 	// Force wifi cycle
 	// Disconnect - may not be needed?
 	WIFI_MODE opmode = wifi_get_opmode();
-	if (opmode == STATIONAP_MODE || opmode == STATION_MODE) {
-		wifi_station_disconnect();
+
+	bool is_sta = wificonf->opmode & STATION_MODE;
+	bool is_ap = wificonf->opmode & SOFTAP_MODE;
+
+	if ((wificonf->opmode & STATION_MODE) && !(opmode & STATION_MODE)) {
+		wifi_change_flags.sta = true;
 	}
 
-	// This should hopefully deinit everything
-	wifi_set_opmode_current(NULL_MODE);
-	wifi_set_opmode_current(wificonf->opmode);
+	if ((wificonf->opmode & SOFTAP_MODE) && !(opmode & SOFTAP_MODE)) {
+		wifi_change_flags.ap = true;
+	}
+
+	if (opmode != wificonf->opmode) {
+		wifi_set_opmode_current(wificonf->opmode);
+	}
 
 	// Configure the client
-	if (wificonf->opmode == STATIONAP_MODE || wificonf->opmode == STATION_MODE) {
+	if (is_sta && wifi_change_flags.sta) {
 		configure_station();
 	}
 
 	// Configure the AP
-	if (wificonf->opmode == STATIONAP_MODE || wificonf->opmode == SOFTAP_MODE) {
+	if (is_ap && wifi_change_flags.ap) {
 		configure_ap();
 	}
+
+	wifi_change_flags.ap = false;
+	wifi_change_flags.sta = false;
 
 	info("[WiFi] WiFi settings applied.");
 }

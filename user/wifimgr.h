@@ -10,6 +10,9 @@
 #include <esp8266.h>
 #include "cgi_wifi.h"
 
+#define SSID_LEN 32
+#define PASSWORD_LEN 64
+
 /**
  * A structure holding all configured WiFi parameters
  * and the active state.
@@ -22,22 +25,28 @@ typedef struct {
 
 	// --- AP config ---
 	u8 ap_channel;
-	u8 ap_ssid[32];
-	u8 ap_password[32];
+	u8 ap_ssid[SSID_LEN];
+	u8 ap_password[PASSWORD_LEN];
 	bool ap_hidden;
-	u16 ap_dhcp_lease_time; // in minutes
+	u16 ap_dhcp_time; // in minutes
 	struct dhcps_lease ap_dhcp_range;
 
-	struct ip_info ap_ip;
+	struct ip_info ap_addr;
 
 	// --- Client config ---
-	u8 sta_ssid[32];
-	u8 sta_password[64];
-	u8 sta_hostname[32]; // hostname set via the API. This does not seem to have much effect.
+	u8 sta_ssid[SSID_LEN];
+	u8 sta_password[PASSWORD_LEN];
 	bool sta_dhcp_enable;
 
-	struct ip_info sta_ip;
+	struct ip_info sta_addr;
 } WiFiConfigBundle;
+
+typedef struct  {
+	bool sta;
+	bool ap;
+} WiFiConfChangeFlags;
+
+extern WiFiConfChangeFlags wifi_change_flags;
 
 extern WiFiConfigBundle * const wificonf;
 

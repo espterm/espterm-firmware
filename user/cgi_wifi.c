@@ -19,6 +19,11 @@ Cgi/template routines for the /wifi url.
 
 #include <esp8266.h>
 #include "cgi_wifi.h"
+#include "wifimgr.h"
+#include "persist.h"
+
+// strcpy that adds 0 at the end of the buffer. Returns void.
+#define strncpy_safe(dst, src, n) do { strncpy((char *)(dst), (char *)(src), (n)); dst[(n)-1]=0; } while (0)
 
 /** WiFi access point data */
 typedef struct {
@@ -52,28 +57,6 @@ static ConnTry connTryStatus = CONNTRY_IDLE;
 
 /** Connection to AP periodic check timer */
 static os_timer_t staCheckTimer;
-
-/** reset_later() timer */
-static ETSTimer resetTmr;
-
-/**
- * Callback for reset_later()
- */
-static void ICACHE_FLASH_ATTR resetTmrCb(void *arg)
-{
-	system_restart();
-}
-
-/**
- * Schedule a reset
- * @param ms reset delay (milliseconds)
- */
-static void ICACHE_FLASH_ATTR reset_later(int ms)
-{
-	os_timer_disarm(&resetTmr);
-	os_timer_setfn(&resetTmr, resetTmrCb, NULL);
-	os_timer_arm(&resetTmr, ms, false);
-}
 
 /**
  * Calculate approximate signal strength % from RSSI
@@ -278,9 +261,6 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData)
 	}
 }
 
-/** Temp store for new ap info. */
-static struct station_config stconf;
-
 /**
  * This routine is ran some time after a connection attempt to an access point. If
  * the connect succeeds, this gets the module in STA-only mode.
@@ -305,23 +285,29 @@ static void ICACHE_FLASH_ATTR staCheckConnStatus(void *arg)
 }
 
 /**
- * Actually connect to a station. This routine is timed because I had problems
- * with immediate connections earlier. It probably was something else that caused it,
- * but I can't be arsed to put the code back :P
+ * Delayed connect callback
  */
 static void ICACHE_FLASH_ATTR cgiWiFiConnect_do(void *arg)
 {
 	int x;
+	struct station_config cfg;
+
 	dbg("Try to connect to AP...");
 
+	strncpy_safe(cfg.password, wificonf->sta_password, PASSWORD_LEN);
+	strncpy_safe(cfg.ssid, wificonf->sta_ssid, SSID_LEN);
+	cfg.bssid_set = 0;
+
 	wifi_station_disconnect();
-	wifi_station_set_config(&stconf);
+	wifi_station_set_config(&cfg);
 	wifi_station_connect();
 
 	x = wifi_get_opmode();
 	connTryStatus = CONNTRY_WORKING;
+	// Assumption:
+	// if we're in station mode, no need to check: the browser will be disconnected
+	// and the user finds out whether it succeeded or not by checking if they can connect
 	if (x != STATION_MODE) {
-		//Schedule check
 		os_timer_disarm(&staCheckTimer);
 		os_timer_setfn(&staCheckTimer, staCheckConnStatus, NULL);
 		os_timer_arm(&staCheckTimer, 15000, 0); //time out after 15 secs of trying to connect
@@ -338,8 +324,8 @@ static void ICACHE_FLASH_ATTR cgiWiFiConnect_do(void *arg)
  */
 httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnect(HttpdConnData *connData)
 {
-	char essid[128];
-	char passwd[128];
+	char ssid[100];
+	char password[100];
 	static os_timer_t reassTimer;
 
 	if (connData->conn == NULL) {
@@ -347,26 +333,26 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnect(HttpdConnData *connData)
 		return HTTPD_CGI_DONE;
 	}
 
-	int ssilen = httpdFindArg(connData->post->buff, "essid", essid, sizeof(essid));
-	int passlen = httpdFindArg(connData->post->buff, "passwd", passwd, sizeof(passwd));
+	int ssilen = httpdFindArg(connData->post->buff, "sta_ssid", ssid, sizeof(ssid));
+	int passlen = httpdFindArg(connData->post->buff, "sta_password", password, sizeof(password));
 
 	if (ssilen == -1 || passlen == -1) {
-		error("Not rx needed args!");
+		error("Did not receive the required arguments!");
 		httpdRedirect(connData, "/wifi");
 	}
 	else {
-		strncpy((char *) stconf.ssid, essid, 32);
-		strncpy((char *) stconf.password, passwd, 64);
-		info("Try to connect to AP %s pw %s", essid, passwd);
+		strncpy_safe(wificonf->sta_ssid, ssid, SSID_LEN);
+		strncpy_safe(wificonf->sta_password, password, PASSWORD_LEN);
+		info("Try to connect to AP \"%s\" pw \"%s\".", ssid, password);
 
 		//Schedule disconnect/connect
 		os_timer_disarm(&reassTimer);
 		os_timer_setfn(&reassTimer, cgiWiFiConnect_do, NULL);
 		// redirect & start connecting a little bit later
-		os_timer_arm(&reassTimer, 2000, 0); // was 500, increased so the connecting page has time to load
+		os_timer_arm(&reassTimer, 1000, 0); // was 500, increased so the connecting page has time to load
 
 		connTryStatus = CONNTRY_IDLE;
-		httpdRedirect(connData, "/wifi/connecting");
+		httpdRedirect(connData, "/wifi/connecting"); // this page is meant to show progress
 	}
 	return HTTPD_CGI_DONE;
 }
@@ -413,59 +399,83 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnStatus(HttpdConnData *connData)
 	return HTTPD_CGI_DONE;
 }
 
+/** reset_later() timer */
+
+/**
+ * Callback for async timer
+ */
+static void ICACHE_FLASH_ATTR applyWifiSettingsLaterCb(void *arg)
+{
+	wifimgr_apply_settings();
+}
+
 /**
  * Universal CGI endpoint to set WiFi params.
  * Note that some may cause a (delayed) restart.
- *
- * Args:
- * - ap_ch = channel 1-14
- * - ap_ssid = SSID name for AP mode
- * - opmode = WiFi mode (resets device)
- * - hostname = set client hostname
- * - tpw = set transmit power
- * - sta_dhcp_lt = DHCP server lease time
- * - sta_ip   = station mode static IP
- * - sta_mask = station mode static IP mask (apply only if 'ip' is also sent)
- * - sta_gw   = station mode default gateway (apply only if 'ip' is also sent)
- *              (can be left out, then 0.0.0.0 is used and outbound connections won't work -
- *              but we're normally not making any)
- * - dhcp = enable or disable DHCP on the station interface
  */
 httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 {
-	int len, len2, len3;
-	char buff[50];
-	char buff2[50];
-	char buff3[50];
+	static ETSTimer timer;
 
-	// TODO change so that settings are not applied immediately, but persisted first
-	// TODO apply temporary changes like static IP in wifi event CBs
+	char buff[50];
+
+	char redir_url_buf[300];
+	char *redir_url = redir_url_buf;
+	redir_url += sprintf(redir_url, "/wifi?err=");
+	// we'll test if anything was printed by looking for \0 in failed_keys_buf
 
 	if (connData->conn == NULL) {
 		//Connection aborted. Clean up.
 		return HTTPD_CGI_DONE;
 	}
 
-	// AP channel (applies in AP-only mode)
-	len = httpdFindArg(connData->getArgs, "ap_ch", buff, sizeof(buff));
-	if (len > 0) {
-		info("Setting WiFi channel for AP-only mode to: %s", buff);
-		int channel = atoi(buff);
-		if (channel > 0 && channel < 15) {
-			dbg("Setting channel=%d", channel);
+#define GET_ARG(key) (httpdFindArg(connData->getArgs, key, buff, sizeof(buff)) > 0)
 
-			struct softap_config wificfg;
-			wifi_softap_get_config(&wificfg);
-			wificfg.channel = (uint8) channel;
-			wifi_softap_set_config(&wificfg);
+	// ---- WiFi opmode ----
+
+	if (GET_ARG("opmode")) {
+		dbg("Setting WiFi opmode to: %s", buff);
+		int mode = atoi(buff);
+		if (mode > NULL_MODE && mode < MAX_MODE) {
+			wificonf->opmode = (WIFI_MODE) mode;
 		} else {
-			warn("Bad channel value %s, allowed 1-14", buff);
+			warn("Bad opmode value \"%s\"", buff);
+			redir_url += sprintf(redir_url, "opmode,");
 		}
 	}
 
-	// SSID name in AP mode
-	len = httpdFindArg(connData->getArgs, "ap_ssid", buff, sizeof(buff));
-	if (len > 0) {
+	// ---- AP transmit power ----
+
+	if (GET_ARG("tpw")) {
+		dbg("Setting AP power to: %s", buff);
+		int tpw = atoi(buff);
+		if (tpw >= 0 && tpw <= 82) { // 0 actually isn't 0 but quite low. 82 is very strong
+			wificonf->tpw = (u8) tpw;
+			wifi_change_flags.ap = true;
+		} else {
+			warn("tpw %s out of allowed range 0-82.", buff);
+			redir_url += sprintf(redir_url, "tpw,");
+		}
+	}
+
+	// ---- AP channel (applies in AP-only mode) ----
+
+	if (GET_ARG("ap_channel")) {
+		info("ap_channel = %s", buff);
+		int channel = atoi(buff);
+		if (channel > 0 && channel < 15) {
+			wificonf->ap_channel = (u8) channel;
+			wifi_change_flags.ap = true;
+		} else {
+			warn("Bad channel value \"%s\", allowed 1-14", buff);
+			redir_url += sprintf(redir_url, "ap_channel,");
+		}
+	}
+
+	// ---- SSID name in AP mode ----
+
+	if (GET_ARG("ap_ssid")) {
+		// Replace all invalid ASCII with underscores
 		int i;
 		for (i = 0; i < 32; i++) {
 			char c = buff[i];
@@ -474,103 +484,198 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		}
 		buff[i] = 0;
 
-		info("Setting SSID to %s", buff);
-
-		struct softap_config wificfg;
-		wifi_softap_get_config(&wificfg);
-		sprintf((char *) wificfg.ssid, buff);
-		wificfg.ssid_len = strlen((char *) wificfg.ssid);
-		wifi_softap_set_config(&wificfg);
-	}
-
-	// WiFi mode
-	len = httpdFindArg(connData->getArgs, "opmode", buff, sizeof(buff));
-	if (len > 0) {
-		dbg("Setting WiFi opmode to: %s", buff);
-		int mode = atoi(buff);
-		if (mode > NULL_MODE && mode < MAX_MODE) {
-			wifi_set_opmode(mode);
-			reset_later(200);
+		if (strlen(buff) > 0) {
+			info("Setting SSID to \"%s\"", buff);
+			strncpy_safe(wificonf->ap_ssid, buff, SSID_LEN);
+			wifi_change_flags.ap = true;
 		} else {
-			warn("Bad opmode value %s", buff);
+			warn("Bad SSID len.");
+			redir_url += sprintf(redir_url, "ap_ssid,");
 		}
 	}
 
-	// Hostname in station mode (for DHCP)
-	len = httpdFindArg(connData->getArgs, "hostname", buff, sizeof(buff));
-	if (len > 0) {
-		dbg("Setting station sta_hostname to: %s", buff);
-		wifi_station_set_hostname(buff);
-		// TODO persistency, re-apply on boot
-	}
+	// ---- AP password ----
 
-	// Hostname in station mode (for DHCP)
-	len = httpdFindArg(connData->getArgs, "tpw", buff, sizeof(buff));
-	if (len > 0) {
-		dbg("Setting AP power to: %s", buff);
-		int tpw = atoi(buff);
-		// min tpw to avoid user locking themselves out TODO verify
-		if (tpw >= 0 && tpw <= 82) {
-			// TODO persistency, re-apply on boot
-			system_phy_set_max_tpw(tpw);
+	if (GET_ARG("ap_password")) {
+		// Users are free to use any stupid shit in ther password,
+		// but it may lock them out.
+		if (strlen(buff) == 0 || (strlen(buff) >= 8 && strlen(buff) < PASSWORD_LEN-1)) {
+			info("Setting AP password to \"%s\"", buff);
+			strncpy_safe(wificonf->ap_password, buff, PASSWORD_LEN);
+			wifi_change_flags.ap = true;
 		} else {
-			warn("tpw %s out of allowed range 0-82.", buff);
+			warn("Bad password len.");
+			redir_url += sprintf(redir_url, "ap_password,");
 		}
 	}
 
-	// DHCP server lease time
-	len = httpdFindArg(connData->getArgs, "ap_dhcp_lt", buff, sizeof(buff));
-	if (len > 0) {
+	// ---- Hide AP network (do not announce) ----
+
+	if (GET_ARG("ap_hidden")) {
+		dbg("AP hidden = %s", buff);
+		int hidden = atoi(buff);
+		wificonf->ap_hidden = (hidden != 0);
+		wifi_change_flags.ap = true;
+	}
+
+	// ---- AP DHCP server lease time ----
+
+	if (GET_ARG("ap_dhcp_time")) {
 		dbg("Setting DHCP lease time to: %s min.", buff);
 		int min = atoi(buff);
 		if (min >= 1 && min <= 2880) {
-			// TODO persistency, re-apply on boot
-			// TODO set only if we're in the right opmode
-			wifi_softap_set_dhcps_lease_time(min);
+			wificonf->ap_dhcp_time = (u16) min;
+			wifi_change_flags.ap = true;
 		} else {
 			warn("Lease time %s out of allowed range 1-2880.", buff);
+			redir_url += sprintf(redir_url, "ap_dhcp_time,");
 		}
 	}
+
+	// ---- AP DHCP start and end IP ----
+
+	if (GET_ARG("ap_dhcp_range_start")) {
+		dbg("Setting DHCP range start IP to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0) {
+			wificonf->ap_dhcp_range.start_ip.addr = ip;
+			wifi_change_flags.ap = true;
+		} else {
+			warn("Bad IP: %s", buff);
+			redir_url += sprintf(redir_url, "ap_dhcp_range_start,");
+		}
+	}
+
+	if (GET_ARG("ap_dhcp_range_end")) {
+		dbg("Setting DHCP range end IP to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0) {
+			wificonf->ap_dhcp_range.end_ip.addr = ip;
+			wifi_change_flags.ap = true;
+		} else {
+			warn("Bad IP: %s", buff);
+			redir_url += sprintf(redir_url, "ap_dhcp_range_end,");
+		}
+	}
+
+	// ---- AP local address & config ----
+
+	if (GET_ARG("ap_addr_ip")) {
+		dbg("Setting AP local IP to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0) {
+			wificonf->ap_addr.ip.addr = ip;
+			wificonf->ap_addr.gw.addr = ip; // always the same, we're the router here
+			wifi_change_flags.ap = true;
+		} else {
+			warn("Bad IP: %s", buff);
+			redir_url += sprintf(redir_url, "ap_addr_ip,");
+		}
+	}
+
+	if (GET_ARG("ap_addr_mask")) {
+		dbg("Setting AP local IP netmask to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0) {
+			// ideally this should be checked to match the IP.
+			// Let's hope users know what they're doing
+			wificonf->ap_addr.netmask.addr = ip;
+			wifi_change_flags.ap = true;
+		} else {
+			warn("Bad IP mask: %s", buff);
+			redir_url += sprintf(redir_url, "ap_addr_mask,");
+		}
+	}
+
+	// ---- Station SSID (to connect to) ----
+
+	if (GET_ARG("sta_ssid")) {
+		// No verification needed, at worst it fails to connect
+		info("Setting station SSID to: \"%s\"", buff);
+		strncpy_safe(wificonf->sta_ssid, buff, SSID_LEN);
+		wifi_change_flags.sta = true;
+	}
+
+	// ---- Station password (empty for none is allowed) ----
+
+	if (GET_ARG("sta_password")) {
+		// No verification needed, at worst it fails to connect
+		info("Setting station password to: \"%s\"", buff);
+		strncpy_safe(wificonf->sta_password, buff, PASSWORD_LEN);
+		wifi_change_flags.sta = true;
+	}
+
+	// ---- Station enable/disable DHCP ----
 
 	// DHCP enable / disable (disable means static IP is enabled)
-	len = httpdFindArg(connData->getArgs, "sta_dhcp", buff, sizeof(buff));
-	if (len > 0) {
-		dbg("DHCP enable =  %s", buff);
+	if (GET_ARG("sta_dhcp_enable")) {
+		dbg("DHCP enable = %s", buff);
 		int enable = atoi(buff);
-		if (enable != 0) {
-			wifi_station_dhcpc_stop();
+		wificonf->sta_dhcp_enable = (enable != 0);
+		wifi_change_flags.sta = true;
+	}
+
+	// ---- Station IP config (Static IP) ----
+
+	if (GET_ARG("sta_addr_ip")) {
+		dbg("Setting Station mode static IP to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0) {
+			wificonf->sta_addr.ip.addr = ip;
+			wifi_change_flags.sta = true;
 		} else {
-			wifi_station_dhcpc_start();
+			warn("Bad IP: %s", buff);
+			redir_url += sprintf(redir_url, "sta_addr_ip,");
 		}
-		// TODO persistency
 	}
 
-	// Static IP
-	len = httpdFindArg(connData->getArgs, "sta_ip", buff, sizeof(buff));
-	len2 = httpdFindArg(connData->getArgs, "sta_mask", buff2, sizeof(buff2));
-	len3 = httpdFindArg(connData->getArgs, "sta_gw", buff3, sizeof(buff3));
-	if (len > 0) {
-		// TODO set only if we're in the right opmode
-		// TODO persistency
-		dbg("Setting static IP = %s", buff);
-		struct ip_info ipinfo;
-		ipinfo.ip.addr = ipaddr_addr(buff);
-		ipinfo.netmask.addr = IPADDR_NONE;
-		ipinfo.gw.addr = IPADDR_NONE;
-		if (len2 > 0) {
-			dbg("Netmask = %s", buff2);
-			ipinfo.netmask.addr = ipaddr_addr(buff2);
+	if (GET_ARG("sta_addr_mask")) {
+		dbg("Setting Station mode static IP netmask to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0 && ip != 0xFFFFFFFFUL) {
+			wificonf->sta_addr.netmask.addr = ip;
+			wifi_change_flags.sta = true;
+		} else {
+			warn("Bad IP mask: %s", buff);
+			redir_url += sprintf(redir_url, "sta_addr_mask,");
 		}
-		if (len3 > 0) {
-			dbg("Gateway = %s", buff3);
-			ipinfo.gw.addr = ipaddr_addr(buff3);
-		}
-		// TODO ...
-		wifi_station_dhcpc_stop();
-		wifi_set_ip_info(STATION_IF, &ipinfo);
 	}
 
-	httpdRedirect(connData, "/wifi");
+	if (GET_ARG("sta_addr_gw")) {
+		dbg("Setting Station mode static IP default gateway to: \"%s\"", buff);
+		u32 ip = ipaddr_addr(buff);
+		if (ip != 0) {
+			wificonf->sta_addr.gw.addr = ip;
+			wifi_change_flags.sta = true;
+		} else {
+			warn("Bad gw IP: %s", buff);
+			redir_url += sprintf(redir_url, "sta_addr_gw,");
+		}
+	}
+
+	if (redir_url_buf[10] == 0) {
+		// All was OK
+		info("Set WiFi params - success, applying in 1000 ms");
+
+		// Settings are applied only if all was OK
+		//
+		// This is so that options that consist of multiple keys sent together are not applied
+		// only partially if set wrong, which could lead to eg. user losing access and having
+		// to reset to defaults.
+		persist_store();
+
+		// Delayed settings apply, so the response page has a chance to load.
+		// If user connects via the Station IF, they may not even notice the connection reset.
+		os_timer_disarm(&timer);
+		os_timer_setfn(&timer, applyWifiSettingsLaterCb, NULL);
+		os_timer_arm(&timer, 1000, false);
+
+		httpdRedirect(connData, "/wifi");
+	} else {
+		warn("Some WiFi settings did not validate, asking for correction");
+		// Some errors, appended to the URL as ?err=
+		httpdRedirect(connData, redir_url_buf);
+	}
 	return HTTPD_CGI_DONE;
 }
 
@@ -578,37 +683,88 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 //Template code for the WLAN page.
 httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, void **arg)
 {
-	char buff[500];
+	char buff[100];
 	int x;
 	int connectStatus;
-	static struct station_config stconf;
-	static struct softap_config apconf;
 
 	if (token == NULL) {
 		// We're done
 		return HTTPD_CGI_DONE;
 	}
 
-	wifi_station_get_config(&stconf);
-	wifi_softap_get_config(&apconf);
+	strcpy(buff, ""); // fallback
 
-
-	strcpy(buff, "Unknown");
-	if (streq(token, "WiFiMode")) {
+	if (streq(token, "opmode_name")) {
+		strcpy(buff, opmode2str(wificonf->opmode));
+	}
+	else if (streq(token, "opmode")) {
+		sprintf(buff, "%d", wificonf->opmode);
+	}
+	else if (streq(token, "tpw")) {
+		sprintf(buff, "%d", wificonf->tpw);
+	}
+	else if (streq(token, "ap_channel")) {
+		sprintf(buff, "%d", wificonf->ap_channel);
+	}
+	else if (streq(token, "ap_ssid")) {
+		sprintf(buff, "%s", wificonf->ap_ssid);
+	}
+	else if (streq(token, "ap_password")) {
+		sprintf(buff, "%s", wificonf->ap_password);
+	}
+	else if (streq(token, "ap_hidden")) {
+		sprintf(buff, "%d", wificonf->ap_hidden);
+	}
+	else if (streq(token, "ap_dhcp_time")) {
+		sprintf(buff, "%d", wificonf->ap_dhcp_time);
+	}
+	else if (streq(token, "ap_dhcp_range_start")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
+	}
+	else if (streq(token, "ap_dhcp_range_end")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
+	}
+	else if (streq(token, "ap_addr_ip")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_addr.ip.addr));
+	}
+	else if (streq(token, "ap_addr_mask")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_addr.netmask.addr));
+	}
+	else if (streq(token, "sta_ssid")) {
+		sprintf(buff, "%s", wificonf->sta_ssid);
+	}
+	else if (streq(token, "sta_password")) {
+		sprintf(buff, "%s", wificonf->sta_password);
+	}
+	else if (streq(token, "sta_dhcp_enable")) {
+		sprintf(buff, "%d", wificonf->sta_dhcp_enable);
+	}
+	else if (streq(token, "sta_addr_ip")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
+	}
+	else if (streq(token, "ap_addr_mask")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
+	}
+	else if (streq(token, "ap_addr_gw")) {
+		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
+	}
+	else if (streq(token, "sta_rssi")) {
+		sprintf(buff, "%d", wifi_station_get_rssi());
+	}
+	else if (streq(token, "sta_active_ssid")) {
+		// For display of our current SSID
+		connectStatus = wifi_station_get_connect_status();
 		x = wifi_get_opmode();
-		strcpy(buff, opmode2str(x));
+		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP) {
+			strcpy(buff, "");
+		}
+		else {
+			struct station_config staconf;
+			wifi_station_get_config(&staconf);
+			strcpy(buff, (char *) staconf.ssid);
+		}
 	}
-	else if (streq(token, "WiFiModeNum")) {
-		x = wifi_get_opmode();
-		sprintf(buff, "%d", x);
-	}
-	else if (streq(token, "WiFiChannel")) {
-		sprintf(buff, "%d", apconf.channel);
-	}
-	else if (streq(token, "APName")) {
-		sprintf(buff, "%s", apconf.ssid);
-	}
-	else if (streq(token, "StaIP")) {
+	else if (streq(token, "sta_active_ip")) {
 		x = wifi_get_opmode();
 		connectStatus = wifi_station_get_connect_status();
 
@@ -618,37 +774,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 		else {
 			struct ip_info info;
 			wifi_get_ip_info(STATION_IF, &info);
-			sprintf(buff, IPSTR, GOOD_IP2STR(info.ip.addr));
+			sprintf(buff, "ip: "IPSTR", mask: "IPSTR", gw: "IPSTR,
+					GOOD_IP2STR(info.ip.addr),
+					GOOD_IP2STR(info.netmask.addr),
+					GOOD_IP2STR(info.gw.addr));
 		}
 	}
-	else if (streq(token, "StaSSID")) {
-		connectStatus = wifi_station_get_connect_status();
-		x = wifi_get_opmode();
-		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP) {
-			strcpy(buff, "");
-		}
-		else {
-			strcpy(buff, (char *) stconf.ssid);
-		}
-	}
-	else if (streq(token, "WiFiPasswd")) {
-		strcpy(buff, (char *) stconf.password);
-	}
-	else if (streq(token, "WiFiapwarn")) {
-		// TODO get rid of this
-		x = wifi_get_opmode();
-		if (x == SOFTAP_MODE) { // 2
-			strcpy(buff, "<a href=\"/wifi/setmode?mode=3\">Enable client</a> for scanning.");
-		}
-		else if (x == STATIONAP_MODE) { // 3
-			strcpy(buff,
-				   "Switch: <a href=\"/wifi/setmode?mode=1\">Client only</a>, <a href=\"/wifi/setmode?mode=2\">AP only</a>");
-		}
-		else { // 1
-			strcpy(buff,
-				   "Switch: <a href=\"/wifi/setmode?mode=3\">Client+AP</a>, <a href=\"/wifi/setmode?mode=2\">AP only</a>");
-		}
-	}
+
 	httpdSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }

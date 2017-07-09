@@ -24,7 +24,7 @@ typedef struct {
 
 typedef struct {
 	AppConfigBundle defaults; // defaults are stored here
-	AppConfigBundle current;  // settings persisted by user
+	AppConfigBundle current;     // active settings adjusted by the user
 } PersistBlock;
 
 // Persist holds the data currently loaded from the flash
