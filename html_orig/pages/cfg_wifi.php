@@ -1,6 +1,10 @@
 <form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="POST">
 	<h2><?= tr('box.ap') ?></h2>
 
+	<div class="Row buttons mq-phone">
+		<input type="submit" value="<?= tr('wifi.submit') ?>">
+	</div>
+
 	<div class="Row checkbox">
 		<label><?= tr('wifi.enable') ?></label><!--
 		--><span class="box"></span>
@@ -28,7 +32,7 @@
 			<span class="display x-disp1 mq-phone"></span>
 		</label>
 		<input type="range" name="tpw" id="tpw" step=1 min=0 max=82 value="%tpw%">
-		<span class="display x-disp2 mq-tablet-min"></span>
+		<span class="display x-disp2 mq-no-phone"></span>
 	</div>
 
 	<div class="Row checkbox">
@@ -37,13 +41,17 @@
 		<input type="hidden" name="ap_hidden" value="%ap_hidden%">
 	</div>
 
-	<div class="Row buttons">
+	<div class="Row buttons mq-no-phone">
 		<input type="submit" value="<?= tr('wifi.submit') ?>">
 	</div>
 </form>
 
 <form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="POST">
 	<h2><?= tr('box.sta') ?></h2>
+
+	<div class="Row buttons mq-phone">
+		<input type="submit" value="<?= tr('wifi.submit') ?>">
+	</div>
 
 	<div class="Row checkbox">
 		<label><?= tr('wifi.enable') ?></label><!--
@@ -56,7 +64,7 @@
 
 	<div class="Row sta-info">
 		<label><?= tr('wifi.sta_info') ?></label>
-		<div class="AP-preview" id="sta-nw">
+		<div class="AP-preview hidden" id="sta-nw">
 			<div class="wrap">
 				<div class="inner">
 					<div class="essid"></div>
@@ -66,9 +74,12 @@
 				<a class="forget" id="forget-sta">×</a>
 			</div>
 		</div>
+		<div class="AP-preview-nil" id="sta-nw-nil">
+			<?= tr('wifi.sta_none') ?>
+		</div>
 	</div>
 
-	<div class="Row buttons">
+	<div class="Row buttons mq-no-phone">
 		<input type="submit" value="<?= tr('wifi.submit') ?>">
 	</div>
 </form>
@@ -111,7 +122,17 @@
 		});
 	});
 
+	$('#forget-sta').on('click', function() {
+		$('#sta_ssid').val('');
+		$('#sta_password').val('');
+
+		wifiShowSelected('', '', '');
+	});
+
 	function wifiShowSelected(name, password, ip) {
+		$('#sta-nw').toggleClass('hidden', name.length == 0);
+		$('#sta-nw-nil').toggleClass('hidden', name.length > 0);
+
 		$('#sta-nw .essid').html(e(name));
 		var nopw = undef(password) || password.length == 0;
 		$('#sta-nw .passwd').html(e(password)).toggleClass('hidden', nopw);

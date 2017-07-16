@@ -21,16 +21,21 @@
 		margin-bottom: dist(0);
 	}
 
+	h2 {
+		font-size: fsize(3);
+		margin-bottom: dist(-1);
+	}
+
 	@include media($phone) {
 		h1 {
 			font-size: fsize(5);
 			margin-bottom: dist(-1);
 		}
-	}
 
-	h2 {
-		font-size: fsize(3);
-		margin-bottom: dist(-1);
+		h2 {
+			font-size: fsize(2);
+			margin-bottom: dist(-1);
+		}
 	}
 
 	td, th {

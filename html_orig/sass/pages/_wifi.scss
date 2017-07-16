@@ -110,6 +110,13 @@
 	}
 }
 
+.AP-preview-nil {
+	padding: dist(-2) dist(-1);
+	background: rgba(black, .1);
+	border-radius: 3px;
+	border: 2px dashed black;
+}
+
 .AP-preview {
 	.wrap {
 		@extend %ap-inner;

@@ -36,21 +36,16 @@
 
 	&.str {
 		position: relative;
-
-		.Row.buttons {
+		.Row.mq-phone {
 			position: absolute;
 			right: dist(0);
-			top: 2.7em;
-			margin: 12px auto;
+			margin: 1rem auto;
 		}
-
-		@include media($tablet-min) {
-			.Row.buttons {
-				//position: absolute;
-				right: 0;
-				top: 0;
-				//margin: 12px auto;
-			}
+		.Row.mq-no-phone {
+			position: absolute;
+			right: 0;
+			top: 0;
+			margin-top: dist(-1);
 		}
 	}
 }
@@ -60,6 +55,7 @@
 		h2 {
 			position: relative;
 			cursor: pointer;
+			padding-right: 1.3rem;
 
 			&::after {
 				position: absolute;

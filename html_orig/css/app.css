@@ -449,13 +449,16 @@ a:hover {
     font-size: 2.2807em;
     margin-top: 0;
     margin-bottom: 1rem; }
-  @media screen and (max-width: 544px) {
-    #content h1 {
-      font-size: 1.80203em;
-      margin-bottom: 0.61805rem; } }
   #content h2 {
     font-size: 1.42383em;
     margin-bottom: 0.61805rem; }
+  @media screen and (max-width: 544px) {
+    #content h1 {
+      font-size: 1.80203em;
+      margin-bottom: 0.61805rem; }
+    #content h2 {
+      font-size: 1.26563em;
+      margin-bottom: 0.61805rem; } }
   #content td, #content th {
     padding: 0.38198rem; }
   #content tbody th {
@@ -497,20 +500,21 @@ a:hover {
     max-width: 1200px; }
   .Box.str {
     position: relative; }
-    .Box.str .Row.buttons {
+    .Box.str .Row.mq-phone {
       position: absolute;
       right: 1rem;
-      top: 2.7em;
-      margin: 12px auto; }
-    @media screen and (min-width: 545px) {
-      .Box.str .Row.buttons {
-        right: 0;
-        top: 0; } }
+      margin: 1rem auto; }
+    .Box.str .Row.mq-no-phone {
+      position: absolute;
+      right: 0;
+      top: 0;
+      margin-top: 0.61805rem; }
 
 @media screen and (max-width: 544px) {
   .Box.mobcol h2 {
     position: relative;
     cursor: pointer;
+    padding-right: 1.3rem;
     margin-bottom: 0 !important; }
     .Box.mobcol h2::after {
       position: absolute;
@@ -899,6 +903,12 @@ form span.required {
     white-space: nowrap;
     word-wrap: normal; }
 
+.AP-preview-nil {
+  padding: 0.38198rem 0.61805rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  border: 2px dashed black; }
+
 .AP-preview .wrap {
   flex-direction: row;
   background: #eee !important;
@@ -1128,15 +1138,15 @@ body.term #botnav {
 
 @media screen and (min-width: 545px) {
   .mq-phone {
-    display: none; } }
+    display: none !important; } }
 @media screen and (max-width: 544px) {
-  .mq-tablet-min {
-    display: none; } }
+  .mq-tablet-min, .mq-no-phone {
+    display: none !important; } }
 @media screen and (min-width: 1001px) {
   .mq-tablet-max {
-    display: none; } }
+    display: none !important; } }
 @media screen and (max-width: 1000px) {
   .mq-normal-min {
-    display: none; } }
+    display: none !important; } }
 
 /*# sourceMappingURL=app.css.map */

@@ -36,17 +36,17 @@ $c-form-highlight-a: #2ea1f9;
 // media queries
 
 @include media($tablet-min) {
-	.mq-phone { display: none; }
+	.mq-phone { display: none!important; }
 }
 
 @include media($phone) {
-	.mq-tablet-min { display: none; }
+	.mq-tablet-min, .mq-no-phone { display: none !important; }
 }
 
 @include media($normal-min) {
-	.mq-tablet-max { display: none; }
+	.mq-tablet-max { display: none !important; }
 }
 
 @include media($tablet-max) {
-	.mq-normal-min { display: none; }
+	.mq-normal-min { display: none !important; }
 }

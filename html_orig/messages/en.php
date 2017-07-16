@@ -11,7 +11,7 @@ return [
 	'menu.term' => 'Back to Terminal',
 
 	'box.ap' => 'Built-in Access Point',
-	'box.sta' => 'Client Mode',
+	'box.sta' => 'Connect to External Network',
 
 	'wifi.enable' => 'Enabled:',
 	'wifi.tpw' => 'Transmit Power:',
@@ -24,7 +24,7 @@ return [
 	'wifi.sta_ssid' => 'Network SSID:',
 	'wifi.sta_password' => 'Password:',
 	'wifi.not_conn' => 'Not connected.',
-	'wifi.forget' => '',
+	'wifi.sta_none' => 'None',
 
 	'wifi.submit' => 'Apply!',
 
