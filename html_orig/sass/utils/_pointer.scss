@@ -1,0 +1,26 @@
+
+@mixin click-through() {
+	pointer-events: none;
+}
+
+
+// Disallow text selection
+@mixin noselect() {
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+
+// Allow text selection
+@mixin can-select() {
+	-webkit-user-select: text;
+	-khtml-user-select: text;
+	-moz-user-select: text;
+	-ms-user-select: text;
+	user-select: text;
+
+	cursor: text;
+}

@@ -444,14 +444,38 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		}
 	}
 
+	if (GET_ARG("ap_enable")) {
+		dbg("Enable AP: %s", buff);
+		int enable = atoi(buff);
+
+		if (enable) {
+			wificonf->opmode |= SOFTAP_MODE;
+		} else {
+			wificonf->opmode &= ~SOFTAP_MODE;
+		}
+	}
+
+	if (GET_ARG("sta_enable")) {
+		dbg("Enable STA: %s", buff);
+		int enable = atoi(buff);
+
+		if (enable) {
+			wificonf->opmode |= STATION_MODE;
+		} else {
+			wificonf->opmode &= ~STATION_MODE;
+		}
+	}
+
 	// ---- AP transmit power ----
 
 	if (GET_ARG("tpw")) {
 		dbg("Setting AP power to: %s", buff);
 		int tpw = atoi(buff);
 		if (tpw >= 0 && tpw <= 82) { // 0 actually isn't 0 but quite low. 82 is very strong
-			wificonf->tpw = (u8) tpw;
-			wifi_change_flags.ap = true;
+			if (wificonf->tpw != tpw) {
+				wificonf->tpw = (u8) tpw;
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("tpw %s out of allowed range 0-82.", buff);
 			redir_url += sprintf(redir_url, "tpw,");
@@ -464,8 +488,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		info("ap_channel = %s", buff);
 		int channel = atoi(buff);
 		if (channel > 0 && channel < 15) {
-			wificonf->ap_channel = (u8) channel;
-			wifi_change_flags.ap = true;
+			if (wificonf->ap_channel != channel) {
+				wificonf->ap_channel = (u8) channel;
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad channel value \"%s\", allowed 1-14", buff);
 			redir_url += sprintf(redir_url, "ap_channel,");
@@ -485,9 +511,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		buff[i] = 0;
 
 		if (strlen(buff) > 0) {
-			info("Setting SSID to \"%s\"", buff);
-			strncpy_safe(wificonf->ap_ssid, buff, SSID_LEN);
-			wifi_change_flags.ap = true;
+			if (!streq(wificonf->ap_ssid, buff)) {
+				info("Setting SSID to \"%s\"", buff);
+				strncpy_safe(wificonf->ap_ssid, buff, SSID_LEN);
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad SSID len.");
 			redir_url += sprintf(redir_url, "ap_ssid,");
@@ -500,9 +528,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		// Users are free to use any stupid shit in ther password,
 		// but it may lock them out.
 		if (strlen(buff) == 0 || (strlen(buff) >= 8 && strlen(buff) < PASSWORD_LEN-1)) {
-			info("Setting AP password to \"%s\"", buff);
-			strncpy_safe(wificonf->ap_password, buff, PASSWORD_LEN);
-			wifi_change_flags.ap = true;
+			if (!streq(wificonf->ap_password, buff)) {
+				info("Setting AP password to \"%s\"", buff);
+				strncpy_safe(wificonf->ap_password, buff, PASSWORD_LEN);
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad password len.");
 			redir_url += sprintf(redir_url, "ap_password,");
@@ -514,8 +544,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	if (GET_ARG("ap_hidden")) {
 		dbg("AP hidden = %s", buff);
 		int hidden = atoi(buff);
-		wificonf->ap_hidden = (hidden != 0);
-		wifi_change_flags.ap = true;
+		if (hidden != wificonf->ap_hidden) {
+			wificonf->ap_hidden = (hidden != 0);
+			wifi_change_flags.ap = true;
+		}
 	}
 
 	// ---- AP DHCP server lease time ----
@@ -524,8 +556,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		dbg("Setting DHCP lease time to: %s min.", buff);
 		int min = atoi(buff);
 		if (min >= 1 && min <= 2880) {
-			wificonf->ap_dhcp_time = (u16) min;
-			wifi_change_flags.ap = true;
+			if (wificonf->ap_dhcp_time != min) {
+				wificonf->ap_dhcp_time = (u16) min;
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Lease time %s out of allowed range 1-2880.", buff);
 			redir_url += sprintf(redir_url, "ap_dhcp_time,");
@@ -534,27 +568,31 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 
 	// ---- AP DHCP start and end IP ----
 
-	if (GET_ARG("ap_dhcp_range_start")) {
+	if (GET_ARG("ap_dhcp_start")) {
 		dbg("Setting DHCP range start IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
-			wificonf->ap_dhcp_range.start_ip.addr = ip;
-			wifi_change_flags.ap = true;
+			if (wificonf->ap_dhcp_range.start_ip.addr != ip) {
+				wificonf->ap_dhcp_range.start_ip.addr = ip;
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad IP: %s", buff);
-			redir_url += sprintf(redir_url, "ap_dhcp_range_start,");
+			redir_url += sprintf(redir_url, "ap_dhcp_start,");
 		}
 	}
 
-	if (GET_ARG("ap_dhcp_range_end")) {
+	if (GET_ARG("ap_dhcp_end")) {
 		dbg("Setting DHCP range end IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
-			wificonf->ap_dhcp_range.end_ip.addr = ip;
-			wifi_change_flags.ap = true;
+			if (wificonf->ap_dhcp_range.end_ip.addr != ip) {
+				wificonf->ap_dhcp_range.end_ip.addr = ip;
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad IP: %s", buff);
-			redir_url += sprintf(redir_url, "ap_dhcp_range_end,");
+			redir_url += sprintf(redir_url, "ap_dhcp_end,");
 		}
 	}
 
@@ -564,9 +602,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		dbg("Setting AP local IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
-			wificonf->ap_addr.ip.addr = ip;
-			wificonf->ap_addr.gw.addr = ip; // always the same, we're the router here
-			wifi_change_flags.ap = true;
+			if (wificonf->ap_addr.ip.addr != ip) {
+				wificonf->ap_addr.ip.addr = ip;
+				wificonf->ap_addr.gw.addr = ip; // always the same, we're the router here
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad IP: %s", buff);
 			redir_url += sprintf(redir_url, "ap_addr_ip,");
@@ -577,10 +617,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		dbg("Setting AP local IP netmask to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
-			// ideally this should be checked to match the IP.
-			// Let's hope users know what they're doing
-			wificonf->ap_addr.netmask.addr = ip;
-			wifi_change_flags.ap = true;
+			if (wificonf->ap_addr.netmask.addr != ip) {
+				// ideally this should be checked to match the IP.
+				// Let's hope users know what they're doing
+				wificonf->ap_addr.netmask.addr = ip;
+				wifi_change_flags.ap = true;
+			}
 		} else {
 			warn("Bad IP mask: %s", buff);
 			redir_url += sprintf(redir_url, "ap_addr_mask,");
@@ -590,19 +632,23 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	// ---- Station SSID (to connect to) ----
 
 	if (GET_ARG("sta_ssid")) {
-		// No verification needed, at worst it fails to connect
-		info("Setting station SSID to: \"%s\"", buff);
-		strncpy_safe(wificonf->sta_ssid, buff, SSID_LEN);
-		wifi_change_flags.sta = true;
+		if (!streq(wificonf->sta_ssid, buff)) {
+			// No verification needed, at worst it fails to connect
+			info("Setting station SSID to: \"%s\"", buff);
+			strncpy_safe(wificonf->sta_ssid, buff, SSID_LEN);
+			wifi_change_flags.sta = true;
+		}
 	}
 
 	// ---- Station password (empty for none is allowed) ----
 
 	if (GET_ARG("sta_password")) {
-		// No verification needed, at worst it fails to connect
-		info("Setting station password to: \"%s\"", buff);
-		strncpy_safe(wificonf->sta_password, buff, PASSWORD_LEN);
-		wifi_change_flags.sta = true;
+		if (!streq(wificonf->sta_password, buff)) {
+			// No verification needed, at worst it fails to connect
+			info("Setting station password to: \"%s\"", buff);
+			strncpy_safe(wificonf->sta_password, buff, PASSWORD_LEN);
+			wifi_change_flags.sta = true;
+		}
 	}
 
 	// ---- Station enable/disable DHCP ----
@@ -611,8 +657,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	if (GET_ARG("sta_dhcp_enable")) {
 		dbg("DHCP enable = %s", buff);
 		int enable = atoi(buff);
-		wificonf->sta_dhcp_enable = (enable != 0);
-		wifi_change_flags.sta = true;
+		if (wificonf->sta_dhcp_enable != enable) {
+			wificonf->sta_dhcp_enable = (bool)enable;
+			wifi_change_flags.sta = true;
+		}
 	}
 
 	// ---- Station IP config (Static IP) ----
@@ -621,8 +669,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		dbg("Setting Station mode static IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
-			wificonf->sta_addr.ip.addr = ip;
-			wifi_change_flags.sta = true;
+			if (wificonf->sta_addr.ip.addr != ip) {
+				wificonf->sta_addr.ip.addr = ip;
+				wifi_change_flags.sta = true;
+			}
 		} else {
 			warn("Bad IP: %s", buff);
 			redir_url += sprintf(redir_url, "sta_addr_ip,");
@@ -633,8 +683,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		dbg("Setting Station mode static IP netmask to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0 && ip != 0xFFFFFFFFUL) {
-			wificonf->sta_addr.netmask.addr = ip;
-			wifi_change_flags.sta = true;
+			if (wificonf->sta_addr.netmask.addr != ip) {
+				wificonf->sta_addr.netmask.addr = ip;
+				wifi_change_flags.sta = true;
+			}
 		} else {
 			warn("Bad IP mask: %s", buff);
 			redir_url += sprintf(redir_url, "sta_addr_mask,");
@@ -645,8 +697,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		dbg("Setting Station mode static IP default gateway to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
-			wificonf->sta_addr.gw.addr = ip;
-			wifi_change_flags.sta = true;
+			if (wificonf->sta_addr.gw.addr != ip) {
+				wificonf->sta_addr.gw.addr = ip;
+				wifi_change_flags.sta = true;
+			}
 		} else {
 			warn("Bad gw IP: %s", buff);
 			redir_url += sprintf(redir_url, "sta_addr_gw,");
@@ -700,6 +754,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 	else if (streq(token, "opmode")) {
 		sprintf(buff, "%d", wificonf->opmode);
 	}
+	else if (streq(token, "sta_enable")) {
+		sprintf(buff, "%d", (wificonf->opmode & STATION_MODE) != 0);
+	}
+	else if (streq(token, "ap_enable")) {
+		sprintf(buff, "%d", (wificonf->opmode & SOFTAP_MODE) != 0);
+	}
 	else if (streq(token, "tpw")) {
 		sprintf(buff, "%d", wificonf->tpw);
 	}
@@ -718,10 +778,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 	else if (streq(token, "ap_dhcp_time")) {
 		sprintf(buff, "%d", wificonf->ap_dhcp_time);
 	}
-	else if (streq(token, "ap_dhcp_range_start")) {
+	else if (streq(token, "ap_dhcp_start")) {
 		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
 	}
-	else if (streq(token, "ap_dhcp_range_end")) {
+	else if (streq(token, "ap_dhcp_end")) {
 		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
 	}
 	else if (streq(token, "ap_addr_ip")) {

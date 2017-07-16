@@ -20,7 +20,7 @@
 		// clear the AP list
 		var $list = $('#ap-list');
 		// remove old APs
-		$('.AP').remove();
+		$('#ap-list .AP').remove();
 
 		$list.toggle(done);
 		$('#ap-loader').toggle(!done);

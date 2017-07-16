@@ -1,3 +1,3 @@
 #!/bin/bash
 
-xterm -e "php -S localhost:2000"
+xterm -e "php -S 0.0.0.0:2000"

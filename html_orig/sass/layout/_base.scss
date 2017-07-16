@@ -1,0 +1,31 @@
+html {
+	font-family: Arial, sans-serif;
+	color: #D0D0D0;
+	background: #131315;
+}
+
+html, body {
+	@include naked();
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+a, a:visited, a:link {
+	cursor: pointer;
+	color: #5abfff;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #5abfff;
+	text-decoration: underline;
+}
+
+.hidden {
+	display: none !important;
+}
+
+[onclick] {
+	cursor: pointer;
+}

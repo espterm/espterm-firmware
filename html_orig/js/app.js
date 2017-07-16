@@ -393,8 +393,9 @@
 			return cb;
 		};
 		// Toggle class
-		cb.toggleClass = function (classes) {
-			classHelper(classes, 'toggle', nodes);
+		cb.toggleClass = function (classes, set) {
+			var method = ((typeof set === 'undefined') ? 'toggle' : (+set ? 'add' : 'remove'));
+			classHelper(classes, method, nodes);
 			return cb;
 		};
 		// Has class
@@ -795,6 +796,18 @@ String.prototype.format = function () {
 	return out;
 };
 
+function e(str) {
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function undef(x) {
+	return typeof x == 'undefined';
+}
 /** Module for toggling a modal overlay */
 (function () {
 	var modal = {};
@@ -1088,7 +1101,7 @@ $._loader = function(vis) {
 			console.warn("SOCKET CLOSED, code "+evt.code+". Reconnecting...");
 			setTimeout(function() {
 				init();
-			}, 2000);
+			}, 1000);
 		}
 
 		function onMessage(evt) {
@@ -1211,7 +1224,7 @@ $._loader = function(vis) {
 		// clear the AP list
 		var $list = $('#ap-list');
 		// remove old APs
-		$('.AP').remove();
+		$('#ap-list .AP').remove();
 
 		$list.toggle(done);
 		$('#ap-loader').toggle(!done);
@@ -1309,9 +1322,9 @@ $._loader = function(vis) {
 		}
 
 		$('#modeswitch').html([
-			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>',
-			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>',
-			'<a class="button" href="/wifi/setmode?mode=1">Client only</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>'
+			'<a class="button" href="/wifi/set?opmode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/set?opmode=2">AP only</a>',
+			'<a class="button" href="/wifi/set?opmode=3">Client+AP</a>',
+			'<a class="button" href="/wifi/set?opmode=1">Client only</a>&nbsp;<a class="button" href="/wifi/set?opmode=2">AP only</a>'
 		][obj.mode-1]);
 	};
 

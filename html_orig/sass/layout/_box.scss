@@ -1,0 +1,91 @@
+.Box {
+	display: block;
+	max-width: 900px;
+
+	margin-top: dist(0);
+	padding: dist(-1) dist(0);
+
+	@include media($phone) {
+		margin-top: dist(-1);
+	}
+
+	h1 + & {
+		margin-top: 0;
+	}
+
+	h2 {
+		margin-top: 0;
+	}
+
+	border-radius: 3px;
+	background-color: rgba(white, .07);
+
+	&.wide {
+		width: initial;
+		max-width: initial;
+	}
+
+	&.medium {
+		max-width: 1200px;
+	}
+
+	//.Valfield {
+	//	display: inline-block;
+	//	min-width: 10em;
+	//}
+
+	&.str {
+		position: relative;
+
+		.Row.buttons {
+			position: absolute;
+			right: dist(0);
+			top: 2.7em;
+			margin: 12px auto;
+		}
+
+		@include media($tablet-min) {
+			.Row.buttons {
+				//position: absolute;
+				right: 0;
+				top: 0;
+				//margin: 12px auto;
+			}
+		}
+	}
+}
+
+@include media($phone) {
+	.Box.mobcol {
+		h2 {
+			position: relative;
+			cursor: pointer;
+
+			&::after {
+				position: absolute;
+				right: 0;
+				content: '▸';
+
+				top:50%;
+				font-size: 120%;
+				font-weight: bold;
+				transform: translate(0,-50%) rotate(90deg);
+			}
+
+			margin-bottom: 0 !important;
+		}
+
+		&.expanded h2::after {
+			transform: translate(-25%,-50%) rotate(-90deg);
+			margin-bottom: dist(0);
+		}
+
+		.Row {
+			display: none;
+		}
+
+		&.expanded .Row {
+			display: flex;
+		}
+	}
+}

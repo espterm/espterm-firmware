@@ -393,8 +393,9 @@
 			return cb;
 		};
 		// Toggle class
-		cb.toggleClass = function (classes) {
-			classHelper(classes, 'toggle', nodes);
+		cb.toggleClass = function (classes, set) {
+			var method = ((typeof set === 'undefined') ? 'toggle' : (+set ? 'add' : 'remove'));
+			classHelper(classes, method, nodes);
 			return cb;
 		};
 		// Has class

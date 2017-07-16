@@ -93,3 +93,15 @@ String.prototype.format = function () {
 	return out;
 };
 
+function e(str) {
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function undef(x) {
+	return typeof x == 'undefined';
+}

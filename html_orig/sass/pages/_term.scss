@@ -1,4 +1,4 @@
-.page-term {
+body.term {
 	h1 {
 		font-size: fsize(5);
 		@include media($phone) {
@@ -40,6 +40,24 @@
 			min-width: initial;
 			cursor: pointer;
 			font-weight: bold;
+		}
+	}
+
+	#botnav {
+		padding-top: 1.5em;
+		text-align: center;
+
+		a {
+			padding: 0 dist(-2);
+			text-decoration: underline;
+
+			&, &:visited, &:link {
+				color: #2e4d6e;
+			}
+
+			&:hover {
+				color: #5abfff;
+			}
 		}
 	}
 }

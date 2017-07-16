@@ -6,15 +6,15 @@
 
 @import "utils";
 
-$form-label-w: 130px;
+$form-label-w: 160px;
 $form-label-gap: 8px;
 $form-field-w: 250px;
 
 $c-form-label-fg: white;
-$c-form-field-bg: #303030;
+$c-form-field-bg: #3c3c3c;
 $c-form-field-fg: white;
-$c-form-highlight: #214e7a;
-$c-form-highlight-a: #2972ba;
+$c-form-highlight: #2972ba;
+$c-form-highlight-a: #2ea1f9;
 
 @function dist($x) {
 	@return modular-scale($x, 1rem, $golden);
@@ -24,16 +24,7 @@ $c-form-highlight-a: #2972ba;
 	@return modular-scale($x, 1em, $major-second);
 }
 
-.hidden {
-	display: none !important;
-}
-
-[onclick] {
-	cursor: pointer;
-}
-
-@import "modal";
-@import "layout";
+@import "layout/index";
 @import "form/index";
 
 // import all our pages

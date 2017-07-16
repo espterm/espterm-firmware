@@ -1,0 +1,68 @@
+
+// Utilities for background tiling
+
+// Use a tile as background (w, h - size of time)
+@mixin tile_xy($w, $h, $x, $y) {
+	background-position: (-$x*$w) (-$y*$h);
+}
+
+
+// Use a square tile as background (size - w & h of time)
+@mixin tile($size, $x, $y) {
+	@include tile_xy($size, $size, $x, $y);
+}
+
+
+// Button with sprite-sheet
+// A       B
+// B:hover B:hover
+@mixin tile_btn_h($w, $h, $x) {
+	@include tile_xy($w, $h, $x, 0);
+	&:hover {
+		@include tile_xy($w, $h, $x, 1);
+	}
+}
+
+// active the same as hover
+@mixin tile_btn_h_act($w, $h, $x) {
+	@include tile_xy($w, $h, $x, 0);
+	&:hover, &.active {
+		@include tile_xy($w, $h, $x, 1);
+	}
+}
+
+
+
+// Button with sprite-sheet
+// A A:hover
+// B B:hover
+@mixin tile_btn_v($w, $h, $y) {
+	@include tile_xy($w, $h, 0, $y);
+	&:hover {
+		@include tile_xy($w, $h, 1, $y);
+	}
+}
+
+// active the same as hover
+@mixin tile_btn_v_act($w, $h, $y) {
+	@include tile_xy($w, $h, 0, $y);
+	&:hover, &.active {
+		@include tile_xy($w, $h, 1, $y);
+	}
+}
+
+@mixin inset-shadow-top($w, $c) {
+	box-shadow: inset 0 $w ($w*2) (-$w) $c;
+}
+
+@mixin inset-shadow-bottom($w, $c) {
+	box-shadow: inset 0 (-$w) ($w*2) (-$w) $c;
+}
+
+@mixin inset-shadow-left($w, $c) {
+	box-shadow: inset $w 0 ($w*2) (-$w) $c;
+}
+
+@mixin inset-shadow-right($w, $c) {
+	box-shadow: inset (-$w) 0 ($w*2) (-$w) $c;
+}

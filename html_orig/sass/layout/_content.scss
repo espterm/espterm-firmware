@@ -1,0 +1,45 @@
+#content {
+	flex-grow: 1;
+	position: relative;
+
+	padding: dist(0);
+	@include media($phone) {
+		padding: dist(-1);
+	}
+
+	overflow-y: auto;
+
+	& > * {
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	h1 {
+		text-align: center;
+		font-size: fsize(7);
+		margin-top: 0;
+		margin-bottom: dist(0);
+	}
+
+	@include media($phone) {
+		h1 {
+			font-size: fsize(5);
+			margin-bottom: dist(-1);
+		}
+	}
+
+	h2 {
+		font-size: fsize(3);
+		margin-bottom: dist(-1);
+	}
+
+	td, th {
+		padding: dist(-2);
+	}
+
+	tbody th {
+		text-align: right;
+		width: $form-label-w;
+		color: $c-form-label-fg;
+	}
+}
