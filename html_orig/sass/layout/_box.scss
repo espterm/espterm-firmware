@@ -80,8 +80,18 @@
 			display: none;
 		}
 
-		&.expanded .Row {
-			display: flex;
+		#ap-box {
+			display: none;
+		}
+
+		&.expanded {
+			.Row {
+				display: flex;
+			}
+
+			#ap-box {
+				display: block;
+			}
 		}
 	}
 }

@@ -21,9 +21,11 @@ return [
 	'%ap_ssid%' => 'ESP-123456',
 	'%ap_password%' => 'Passw0rd!',
 	'%ap_hidden%' => '0',
-	'%sta_ssid%' => 'LibraryFreeWifi',
+	'%sta_ssid%' => 'Chlivek',
 	'%sta_password%' => 'windows XP is The Best',
-	'%sta_active_ip%' => '',
+	'%sta_active_ip%' => '1.2.3.4',
+	'%sta_active_ssid%' => 'Chlivek',
 
-	'%sta_enable%' => '0',
+	'%sta_enable%' => '1',
+	'%opmode%' => '3',
 ];

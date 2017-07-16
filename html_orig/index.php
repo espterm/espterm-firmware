@@ -19,7 +19,7 @@ define('BODYCLASS', $_pages[CUR_PAGE]->bodyclass);
 /** URL (dev or production) */
 function url($name, $root=false) {
 	global $_pages;
-	if ($root) return LIVE_ROOT . $_pages[$name]->path;
+	if ($root) return $_pages[$name]->path;
 
 	if (DEBUG) return "/index.php?page=$name";
 	else return $_pages[$name]->path;

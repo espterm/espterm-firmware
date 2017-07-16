@@ -529,8 +529,12 @@ a:hover {
     margin-bottom: 1rem; }
   .Box.mobcol .Row {
     display: none; }
+  .Box.mobcol #ap-box {
+    display: none; }
   .Box.mobcol.expanded .Row {
-    display: flex; } }
+    display: flex; }
+  .Box.mobcol.expanded #ap-box {
+    display: block; } }
 .Modal {
   position: fixed;
   width: 100%;
@@ -847,7 +851,12 @@ form span.required {
   font-weight: bold; }
 
 #ap-box {
-  padding-bottom: 0.38198rem; }
+  padding-top: 0.38198rem; }
+  #ap-box label {
+    display: block;
+    color: white;
+    font-weight: bold;
+    margin-bottom: 0.23608rem; }
 
 #psk-modal form {
   display: flex;
@@ -905,13 +914,12 @@ form span.required {
 
 .AP-preview-nil {
   padding: 0.38198rem 0.61805rem;
-  background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
   border: 2px dashed black; }
 
 .AP-preview .wrap {
   flex-direction: row;
-  background: #eee !important;
+  background: #ddd !important;
   cursor: default;
   top: 0 !important;
   overflow: hidden; }
@@ -944,7 +952,7 @@ form span.required {
       padding-top: calc(0.61805rem + 1px); }
   .AP-preview .wrap .essid, .AP-preview .wrap .passwd {
     padding-bottom: 0; }
-  .AP-preview .wrap .passwd {
+  .AP-preview .wrap .x-passwd {
     font-family: monospace; }
 
 body.term h1 {

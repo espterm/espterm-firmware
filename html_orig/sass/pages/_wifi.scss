@@ -25,7 +25,14 @@
 }
 
 #ap-box {
-	padding-bottom: dist(-2);
+	padding-top: dist(-2);
+
+	label {
+		display: block;
+		color: white;
+		font-weight: bold;
+		margin-bottom: dist(-3);
+	}
 }
 
 #psk-modal form {
@@ -112,7 +119,6 @@
 
 .AP-preview-nil {
 	padding: dist(-2) dist(-1);
-	background: rgba(black, .1);
 	border-radius: 3px;
 	border: 2px dashed black;
 }
@@ -122,7 +128,7 @@
 		@extend %ap-inner;
 
 		flex-direction: row;
-		background: #eee !important; // override the hover effect #43de81
+		background: #ddd !important; // override the hover effect #43de81
 		cursor: default;
 		top: 0 !important; // no click effect
 		overflow: hidden;
@@ -169,7 +175,7 @@
 			padding-bottom: 0;
 		}
 
-		.passwd {
+		.x-passwd {
 			font-family: monospace;
 		}
 	}

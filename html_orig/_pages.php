@@ -20,6 +20,7 @@ pg('help', 'cfg', '/help');
 pg('term', 'term', '/');
 
 // technical
-pg('wifi_set', '', '/cfg/wifi/set');
+pg('wifi_set', '', '/wifi/set');//'/cfg/wifi/set');
+pg('wifi_scan', '', '/wifi/scan');//'/cfg/wifi/scan');
 
 return $pages;

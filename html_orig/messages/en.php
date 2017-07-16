@@ -19,17 +19,22 @@ return [
 	'wifi.ap_ssid' => 'AP SSID:',
 	'wifi.ap_password' => 'Password:',
 	'wifi.ap_hidden' => 'Hide SSID:',
-	'wifi.sta_info' => 'Selected Network:',
+	'wifi.sta_info' => 'Selected:',
 
 	'wifi.sta_ssid' => 'Network SSID:',
 	'wifi.sta_password' => 'Password:',
 	'wifi.not_conn' => 'Not connected.',
 	'wifi.sta_none' => 'None',
+	'wifi.sta_active_pw' => '🔒',
 
 	'wifi.submit' => 'Apply!',
+	'wifi.scanning' => 'Scanning',
+	'wifi.cant_scan_no_sta' => 'Can\'t scan with Client mode disabled.',
+	'wifi.select_ssid' => 'Available networks:',
 
 	'enabled' => 'Enabled',
 	'disabled' => 'Disabled',
 	'yes' => 'Yes',
 	'no' => 'No',
+	'confirm' => 'OK',
 ];
