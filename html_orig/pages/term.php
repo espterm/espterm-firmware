@@ -22,7 +22,7 @@
 </div>
 
 <nav id="botnav">
-	<a href="<?= url('cfg_wifi_simple') ?>"><?= tr('menu.cfg_wifi') ?></a><!--
+	<a href="<?= url('cfg_wifi') ?>"><?= tr('menu.cfg_wifi') ?></a><!--
 		--><a href="<?= url('help') ?>">Help</a><!--
 		--><a href="<?= url('about') ?>">About</a>
 </nav>
