@@ -1,12 +1,8 @@
 <form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
-	<h2><?= tr('box.ap') ?></h2>
+	<h2><?= tr('wifi.ap') ?></h2>
 
-	<div class="Row buttons mq-phone">
-		<input type="submit" value="<?= tr('wifi.submit') ?>">
-	</div>
-
-	<div class="Row buttons mq-no-phone">
-		<input type="submit" value="<?= tr('wifi.submit') ?>">
+	<div class="Row buttons">
+		<input type="submit" value="<?= tr('apply') ?>">
 	</div>
 
 	<div class="Row checkbox">
@@ -47,14 +43,10 @@
 </form>
 
 <form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
-	<h2><?= tr('box.sta') ?></h2>
+	<h2><?= tr('wifi.sta') ?></h2>
 
-	<div class="Row buttons mq-phone">
-		<input type="submit" value="<?= tr('wifi.submit') ?>">
-	</div>
-
-	<div class="Row buttons mq-no-phone">
-		<input type="submit" value="<?= tr('wifi.submit') ?>">
+	<div class="Row buttons">
+		<input type="submit" value="<?= tr('apply') ?>">
 	</div>
 
 	<div class="Row checkbox">

@@ -7,7 +7,7 @@
 	}, 2000);
 </script>
 
-<h1 onclick="location.href='<?= e(url('cfg_wifi_simple')) ?>'">%term_title%</h1>
+<h1>%term_title%</h1>
 
 <div id="termwrap">
 	<div id="screen"></div>

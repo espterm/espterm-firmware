@@ -6,7 +6,7 @@
 	foreach($_pages as $k => $page) {
 		if (strpos($page->bodyclass, 'cfg') === false) continue;
 
-		$sel = (CUR_PAGE == $k) ? ' class="selected"' : '';
+		$sel = ($_GET['page'] == $k) ? ' class="selected"' : '';
 		$text = $page->label;
 		$url = e(url($k));
 		echo "<a href=\"$url\"$sel>$text</a>";

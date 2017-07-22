@@ -39,4 +39,15 @@ return [
 	'%vers_httpd%' => '4.5.6',
 	'%vers_sdk%' => '1.52',
 	'%githubrepo%' => 'https://github.com/MightyPork/esp-vt100-firmware',
+
+	'%ap_dhcp_time%' => '120',
+	'%ap_dhcp_start%' => '192.168.4.100',
+	'%ap_dhcp_end%' => '192.168.4.200',
+	'%ap_addr_ip%' => '192.168.4.1',
+	'%ap_addr_mask%' => '255.255.255.0',
+
+	'%sta_dhcp_enable%' => '1',
+	'%sta_addr_ip%' => '192.168.0.33',
+	'%sta_addr_mask%' => '255.255.255.0',
+	'%sta_addr_gw%' => '192.168.0.1',
 ];
