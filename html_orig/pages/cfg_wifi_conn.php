@@ -6,48 +6,46 @@
 </div>
 
 <script>
-	(function() {
-		var xhr = new XMLHttpRequest();
-		var abortTmeo;
+	var xhr = new XMLHttpRequest();
+	var abortTmeo;
 
-		var messages = <?= json_encode([
-			'idle' => tr('wifi.conn.idle'),
-			'success' => tr('wifi.conn.success'),
-			'working' => tr('wifi.conn.working'),
-			'fail' => tr('wifi.conn.fail'),
-		]) ?>;
+	var messages = <?= json_encode([
+		'idle' => tr('wifi.conn.idle'),
+		'success' => tr('wifi.conn.success'),
+		'working' => tr('wifi.conn.working'),
+		'fail' => tr('wifi.conn.fail'),
+	]) ?>;
 
-		function getStatus() {
-			xhr.open("GET", 'http://'+_root+'<?= url('wifi_connstatus', true) ?>');
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
-					clearTimeout(abortTmeo);
-					var data = JSON.parse(xhr.responseText);
-					var done = false;
-					var msg = messages[data.status] || '...';
-					if (data.status == 'success') msg += data.ip;
+	function getStatus() {
+		xhr.open("GET", 'http://'+_root+'<?= url('wifi_connstatus', true) ?>');
+		xhr.onreadystatechange = function () {
+			if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
+				clearTimeout(abortTmeo);
+				var data = JSON.parse(xhr.responseText);
+				var done = false;
+				var msg = messages[data.status] || '...';
+				if (data.status == 'success') msg += data.ip;
 
-					$("#status").html(msg);
+				$("#status").html(msg);
 
-					if (done) {
+				if (done) {
 //						$('#backbtn').removeClass('hidden');
-						$('.anim-dots').addClass('hidden');
-					} else {
-						window.setTimeout(getStatus, 1000);
-					}
+					$('.anim-dots').addClass('hidden');
+				} else {
+					window.setTimeout(getStatus, 1000);
 				}
-			};
+			}
+		};
 
-			abortTmeo = setTimeout(function () {
-				xhr.abort();
-				$("#status").html(<?= json_encode(tr('wifi.conn.telemetry_lost')) ?>);
+		abortTmeo = setTimeout(function () {
+			xhr.abort();
+			$("#status").html(<?= json_encode(tr('wifi.conn.telemetry_lost')) ?>);
 //				$('#backbtn').removeClass('hidden');
-				$('.anim-dots').addClass('hidden');
-			}, 4000);
+			$('.anim-dots').addClass('hidden');
+		}, 4000);
 
-			xhr.send();
-		}
+		xhr.send();
+	}
 
-		getStatus();
-	})();
+	getStatus();
 </script>

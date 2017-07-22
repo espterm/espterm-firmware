@@ -13,7 +13,7 @@
 	margin: 0 (- dist(-3));
 }
 
-#ap-loader, #ap-noscan {
+#ap-loader, #ap-noscan, #ap-scan {
 	background: rgba(white, .1);
 	border-radius: 5px;
 	padding: dist(-2);
@@ -118,9 +118,11 @@
 }
 
 .AP-preview-nil {
-	padding: dist(-2) dist(-1);
-	border-radius: 3px;
-	border: 2px dashed black;
+	padding: 8px;
+	border-radius: 5px;
+	border: 1px dashed #ddd;
+	width: 250px;
+	height: 94px;
 }
 
 .AP-preview {

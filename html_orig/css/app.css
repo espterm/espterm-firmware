@@ -845,7 +845,7 @@ form span.required {
     #ap-list {
       column-count: 1; } }
 
-#ap-loader, #ap-noscan {
+#ap-loader, #ap-noscan, #ap-scan {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 5px;
   padding: 0.38198rem;
@@ -917,9 +917,11 @@ form span.required {
     word-wrap: normal; }
 
 .AP-preview-nil {
-  padding: 0.38198rem 0.61805rem;
-  border-radius: 3px;
-  border: 2px dashed black; }
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px dashed #ddd;
+  width: 250px;
+  height: 94px; }
 
 .AP-preview .wrap {
   flex-direction: row;

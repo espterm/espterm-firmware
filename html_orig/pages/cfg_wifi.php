@@ -85,7 +85,8 @@
 
 	<div id="ap-box">
 		<label><?= tr('wifi.select_ssid') ?></label>
-		<div id="ap-loader"><?= tr('wifi.scanning') ?><span class="anim-dots">.</span></div>
+		<div id="ap-scan"><a onclick="startScanning(); return false"><?= tr('wifi.scan_now') ?></a></div>
+		<div id="ap-loader" class="hidden"><?= tr('wifi.scanning') ?><span class="anim-dots">.</span></div>
 		<div id="ap-noscan" class="hidden"><?= tr('wifi.cant_scan_no_sta') ?></div>
 		<div id="ap-list" class="hidden"></div>
 	</div>
@@ -238,6 +239,13 @@
 		});
 	}
 
+	function startScanning() {
+		$('#ap-loader').removeClass('hidden');
+		$('#ap-scan').addClass('hidden');
+		$('#ap-loader .anim-dots').html('.');
+		scanAPs();
+	}
+
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
 		$.get('http://'+_root+'<?= url('wifi_scan', true) ?>', onScan);
@@ -263,12 +271,12 @@
 		obj.mode = +obj.mode;
 
 		$('#ap-noscan').toggleClass('hidden', obj.mode != 2);
-		$('#ap-loader').toggleClass('hidden', obj.mode == 2);
+		$('#ap-scan').toggleClass('hidden', obj.mode == 2);
 
-		// scan if not AP
-		if (obj.mode != 2) {
-			scanAPs();
-		}
+//		// scan if not AP
+//		if (obj.mode != 2) {
+//			scanAPs();
+//		}
 	}
 
 	wifiInit({mode: '%opmode%'});

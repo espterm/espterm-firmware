@@ -30,6 +30,7 @@ return [
 
 	'wifi.submit' => 'Apply!',
 	'wifi.scanning' => 'Scanning',
+	'wifi.scan_now' => 'Start scanning!',
 	'wifi.cant_scan_no_sta' => 'Can\'t scan with Client mode disabled.',
 	'wifi.select_ssid' => 'Available networks:',
 
