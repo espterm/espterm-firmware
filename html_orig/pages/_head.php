@@ -7,13 +7,13 @@
 	<title><?= PAGE_TITLE ?></title>
 	<link href="/css/app.css" rel="stylesheet">
 	<script src="/js/app.js"></script>
-	<script>var _root = <?= json_encode(LIVE_ROOT) ?>;</script>
+	<script>var _root = <?= JS_WEB_ROOT ?>;</script>
 </head>
 <body class="<?= BODYCLASS ?>">
 <div id="outer">
 <?php
 $cfg = false;
-if ($_pages[CUR_PAGE]->bodyclass == 'cfg') {
+if (strpos($_pages[CUR_PAGE]->bodyclass, 'cfg') !== false) {
 	$cfg = true;
 	require __DIR__ . '/_cfg_menu.php';
 }

@@ -705,18 +705,14 @@
 function mk(e) {return document.createElement(e)}
 
 /** Find one by query */
-function qq(s) {return document.querySelector(s)}
+function qs(s) {return document.querySelector(s)}
 
 /** Find all by query */
-function qa(s) {return document.querySelectorAll(s)}
+function qsa(s) {return document.querySelectorAll(s)}
 
 /** Convert any to bool safely */
 function bool(x) {
 	return (x === 1 || x === '1' || x === true || x === 'true');
-}
-
-function intval(x) {
-	return parseInt(x);
 }
 
 /** Extend an objects with options */
@@ -739,23 +735,23 @@ function rgxe(str) {
 	return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
 
+/** Format number to N decimal places, output as string */
 function numfmt(x, places) {
 	var pow = Math.pow(10, places);
 	return Math.round(x*pow) / pow;
 }
 
-function estimateLoadTime(fs, n) {
-	return (1000/fs)*n+1500;
-}
-
+/** Get millisecond timestamp */
 function msNow() {
 	return +(new Date);
 }
 
+/** Get ms elapsed since msNow() */
 function msElapsed(start) {
 	return msNow() - start;
 }
 
+/** Shim for log base 10 */
 Math.log10 = Math.log10 || function(x) {
 	return Math.log(x) / Math.LN10;
 };
@@ -796,17 +792,24 @@ String.prototype.format = function () {
 	return out;
 };
 
+/** HTML escape */
 function e(str) {
-	return String(str)
-		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+	return $.htmlEscape(str);
 }
 
+/** Check for undefined */
 function undef(x) {
 	return typeof x == 'undefined';
+}
+
+/** Safe json parse */
+function jsp() {
+	try {
+		return JSON.parse(e);
+	} catch(e) {
+		console.error(e);
+		return null;
+	}
 }
 /** Module for toggling a modal overlay */
 (function () {
@@ -851,6 +854,27 @@ function undef(x) {
 })();
 /** Global generic init */
 $.ready(function () {
+	// Checkbox UI (checkbox CSS and hidden input with int value)
+	$('.Row.checkbox').forEach(function(x) {
+		var inp = x.querySelector('input');
+		var box = x.querySelector('.box');
+
+		$(box).toggleClass('checked', inp.value);
+
+		$(x).on('click', function() {
+			inp.value = 1 - inp.value;
+			$(box).toggleClass('checked', inp.value)
+		});
+	});
+
+	// Expanding boxes on mobile
+	$('.Box.mobcol').forEach(function(x) {
+		var h = x.querySelector('h2');
+		$(h).on('click', function() {
+			$(x).toggleClass('expanded');
+		});
+	});
+
 	// loader dots...
 	setInterval(function () {
 		$('.anim-dots').each(function (x) {
@@ -863,12 +887,13 @@ $.ready(function () {
 
 	// flipping number boxes with the mouse wheel
 	$('input[type=number]').on('mousewheel', function(e) {
-		var val = +$(this).val();
+		var $this = $(this);
+		var val = +$this.val();
 		if (isNaN(val)) val = 1;
 
-		var step = +($(this).attr('step') || 1);
-		var min = +$(this).attr('min');
-		var max = +$(this).attr('max');
+		var step = +($this.attr('step') || 1);
+		var min = +$this.attr('min');
+		var max = +$this.attr('max');
 		if(e.wheelDelta > 0) {
 			val += step;
 		} else {
@@ -877,14 +902,14 @@ $.ready(function () {
 
 		if (typeof min != 'undefined') val = Math.max(val, +min);
 		if (typeof max != 'undefined') val = Math.min(val, +max);
-		$(this).val(val);
+		$this.val(val);
 
 		if ("createEvent" in document) {
 			var evt = document.createEvent("HTMLEvents");
 			evt.initEvent("change", false, true);
-			$(this)[0].dispatchEvent(evt);
+			$this[0].dispatchEvent(evt);
 		} else {
-			$(this)[0].fireEvent("onchange");
+			$this[0].fireEvent("onchange");
 		}
 
 		e.preventDefault();
@@ -894,10 +919,7 @@ $.ready(function () {
 });
 
 $._loader = function(vis) {
-	if(vis)
-		$('#loader').addClass('show');
-	else
-		$('#loader').removeClass('show');
+	$('#loader').toggleClass('show', vis);
 };
 (function() {
 	/**
@@ -1036,7 +1058,7 @@ $._loader = function(vis) {
 			H = obj.h;
 
 			/* Build screen & show */
-			var e, cell, scr = qq('#screen');
+			var e, cell, scr = qs('#screen');
 
 			// Empty the screen node
 			while (scr.firstChild) scr.removeChild(scr.firstChild);
@@ -1182,7 +1204,7 @@ $._loader = function(vis) {
 				}
 			});
 
-			qa('#buttons button').forEach(function(s) {
+			qsa('#buttons button').forEach(function(s) {
 				s.addEventListener('click', function() {
 					sendBtnMsg(+this.dataset['n']);
 				});
@@ -1201,182 +1223,4 @@ $._loader = function(vis) {
 		Conn.init();
 		Input.init();
 	}
-})();
-/** Wifi page */
-(function () {
-	var authStr = ['Open', 'WEP', 'WPA', 'WPA2', 'WPA/WPA2'];
-	var curSSID;
-
-	/** Update display for received response */
-	function onScan(resp, status) {
-		if (status != 200) {
-			// bad response
-			rescan(5000); // wait 5sm then retry
-			return;
-		}
-
-		resp = JSON.parse(resp);
-
-		var done = !bool(resp.result.inProgress) && (resp.result.APs.length > 0);
-		rescan(done ? 15000 : 1000);
-		if (!done) return; // no redraw yet
-
-		// clear the AP list
-		var $list = $('#ap-list');
-		// remove old APs
-		$('#ap-list .AP').remove();
-
-		$list.toggle(done);
-		$('#ap-loader').toggle(!done);
-
-		// scan done
-		resp.result.APs.sort(function (a, b) {
-				return b.rssi - a.rssi;
-			}).forEach(function (ap) {
-				ap.enc = intval(ap.enc);
-
-				if (ap.enc > 4) return; // hide unsupported auths
-
-				var item = document.createElement('div');
-
-				var $item = $(item)
-					.data('ssid', ap.essid)
-					.data('pwd', ap.enc != 0)
-					.addClass('AP');
-
-				// mark current SSID
-				if (ap.essid == curSSID) {
-					$item.addClass('selected');
-				}
-
-				var inner = document.createElement('div');
-				$(inner).addClass('inner')
-					.htmlAppend('<div class="rssi">{0}</div>'.format(ap.rssi_perc))
-					.htmlAppend('<div class="essid" title="{0}">{0}</div>'.format($.htmlEscape(ap.essid)))
-					.htmlAppend('<div class="auth">{0}</div>'.format(authStr[ap.enc]));
-
-				$item.on('click', function () {
-					var $th = $(this);
-
-					// populate the form
-					$('#conn-essid').val($th.data('ssid'));
-					$('#conn-passwd').val(''); // clear
-
-					if ($th.data('pwd')) {
-						// this AP needs a password
-						Modal.show('#psk-modal');
-					} else {
-						Modal.show('#reset-modal');
-						$('#conn-form').submit();
-					}
-				});
-
-
-				item.appendChild(inner);
-				$list[0].appendChild(item);
-			});
-	}
-
-	/** Ask the CGI what APs are visible (async) */
-	function scanAPs() {
-		$.get('http://'+_root+'/wifi/scan', onScan);
-	}
-
-	function rescan(time) {
-		setTimeout(scanAPs, time);
-	}
-
-	/** Set up the WiFi page */
-	window.wifiInit = function (obj) {
-		//var ap_json = {
-		//	"result": {
-		//		"inProgress": "0",
-		//		"APs": [
-		//			{"essid": "Chlivek", "bssid": "88:f7:c7:52:b3:99", "rssi": "204", "enc": "4", "channel": "1"},
-		//			{"essid": "TyNikdy", "bssid": "5c:f4:ab:0d:f1:1b", "rssi": "164", "enc": "3", "channel": "1"},
-		//		]
-		//	}
-		//};
-
-		// Hide what should be hidden in this mode
-		$('.x-hide-'+obj.mode).addClass('hidden');
-		obj.mode = +obj.mode;
-
-		// Channel writable only in AP mode
-		if (obj.mode != 2) $('#channel').attr('readonly', 1);
-
-		curSSID = obj.staSSID;
-
-		// add SSID to the opmode field
-		if (curSSID) {
-			var box = $('#opmodebox');
-			box.html(box.html() + ' (' + curSSID + ')');
-		}
-
-		// hide IP if IP not received
-		if (!obj.staIP) $('.x-hide-noip').addClass('hidden');
-
-		// scan if not AP
-		if (obj.mode != 2) {
-			scanAPs();
-		}
-
-		$('#modeswitch').html([
-			'<a class="button" href="/wifi/set?opmode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/set?opmode=2">AP only</a>',
-			'<a class="button" href="/wifi/set?opmode=3">Client+AP</a>',
-			'<a class="button" href="/wifi/set?opmode=1">Client only</a>&nbsp;<a class="button" href="/wifi/set?opmode=2">AP only</a>'
-		][obj.mode-1]);
-	};
-
-	window.wifiConn = function () {
-		var xhr = new XMLHttpRequest();
-		var abortTmeo;
-
-		function getStatus() {
-			xhr.open("GET", 'http://'+_root+"/wifi/connstatus");
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
-					clearTimeout(abortTmeo);
-					var data = JSON.parse(xhr.responseText);
-					var done = false;
-					var msg = '...';
-
-					if (data.status == "idle") {
-						msg = "Preparing to connect";
-					}
-					else if (data.status == "success") {
-						msg = "Connected! Received IP " + data.ip + ".";
-						done = true;
-					}
-					else if (data.status == "working") {
-						msg = "Connecting to selected AP";
-					}
-					else if (data.status == "fail") {
-						msg = "Connection failed, check your password and try again.";
-						done = true;
-					}
-
-					$("#status").html(msg);
-
-					if (done) {
-						$('#backbtn').removeClass('hidden');
-						$('.anim-dots').addClass('hidden');
-					} else {
-						window.setTimeout(getStatus, 1000);
-					}
-				}
-			};
-
-			abortTmeo = setTimeout(function () {
-				xhr.abort();
-				$("#status").html("Telemetry lost, try reconnecting to the AP.");
-				$('#backbtn').removeClass('hidden');
-				$('.anim-dots').addClass('hidden');
-			}, 4000);
-
-			xhr.send();
-		}
-
-		getStatus();
-	};
 })();

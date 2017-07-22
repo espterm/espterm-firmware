@@ -4,7 +4,8 @@
 	<?php
 	// generate the menu
 	foreach($_pages as $k => $page) {
-		if ($page->bodyclass !== 'cfg') continue;
+		if (strpos($page->bodyclass, 'cfg') === false) continue;
+
 		$sel = (CUR_PAGE == $k) ? ' class="selected"' : '';
 		$text = $page->label;
 		$url = e(url($k));

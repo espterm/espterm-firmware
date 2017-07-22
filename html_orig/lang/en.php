@@ -7,8 +7,9 @@ return [
 	'menu.cfg_network' => 'Network Configuration',
 	'menu.cfg_term' => 'Terminal Settings',
 	'menu.about' => 'About ESPTerm',
-	'menu.help' => 'Help',
+	'menu.help' => 'Terminal Help',
 	'menu.term' => 'Back to Terminal',
+	'menu.cfg_wifi_conn' => 'Connecting to External Network',
 
 	'box.ap' => 'Built-in Access Point',
 	'box.sta' => 'Connect to External Network',
@@ -31,6 +32,15 @@ return [
 	'wifi.scanning' => 'Scanning',
 	'wifi.cant_scan_no_sta' => 'Can\'t scan with Client mode disabled.',
 	'wifi.select_ssid' => 'Available networks:',
+
+	'wifi.conn.status' => 'Status:',
+	'wifi.conn.back_to_config' => 'Back to WiFi config',
+	'wifi.conn.telemetry_lost' => 'Telemetry lost, something went wrong. Try again...',
+
+	'wifi.conn.idle' =>"Preparing to connect",
+	'wifi.conn.success' => "Connected! Received IP ",
+	'wifi.conn.working' => "Connecting to selected AP",
+	'wifi.conn.fail' => "Connection failed, check your password and try again.",
 
 	'enabled' => 'Enabled',
 	'disabled' => 'Disabled',

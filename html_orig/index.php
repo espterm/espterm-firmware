@@ -1,15 +1,19 @@
 <?php
 
+if (! file_exists('_env.php')) {
+	die("Copy <b>_env.php.example</b> to <b>_env.php</b> and check the settings inside!");
+}
 require '_env.php';
+
 $prod = defined('STDIN');
 define ('DEBUG', !$prod);
-$root = DEBUG ? ESP_IP : '';
-define ('LIVE_ROOT', $root);
+$root = DEBUG ? json_encode(ESP_IP) : 'window.location.href';
+define ('JS_WEB_ROOT', $root);
 
 define('CUR_PAGE', $_GET['page'] ?: 'term');
 define('LOCALE', $_GET['locale'] ?: 'en');
 
-$_messages = require(__DIR__ . '/messages/' . LOCALE . '.php');
+$_messages = require(__DIR__ . '/lang/' . LOCALE . '.php');
 $_pages = require('_pages.php');
 
 define('APP_NAME', 'ESPTerm');
@@ -17,9 +21,9 @@ define('PAGE_TITLE', $_pages[CUR_PAGE]->label . ' :: ' . APP_NAME);
 define('BODYCLASS', $_pages[CUR_PAGE]->bodyclass);
 
 /** URL (dev or production) */
-function url($name, $root=false) {
+function url($name, $relative=false) {
 	global $_pages;
-	if ($root) return $_pages[$name]->path;
+	if ($relative) return $_pages[$name]->path;
 
 	if (DEBUG) return "/index.php?page=$name";
 	else return $_pages[$name]->path;

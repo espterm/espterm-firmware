@@ -2,18 +2,14 @@
 function mk(e) {return document.createElement(e)}
 
 /** Find one by query */
-function qq(s) {return document.querySelector(s)}
+function qs(s) {return document.querySelector(s)}
 
 /** Find all by query */
-function qa(s) {return document.querySelectorAll(s)}
+function qsa(s) {return document.querySelectorAll(s)}
 
 /** Convert any to bool safely */
 function bool(x) {
 	return (x === 1 || x === '1' || x === true || x === 'true');
-}
-
-function intval(x) {
-	return parseInt(x);
 }
 
 /** Extend an objects with options */
@@ -36,23 +32,23 @@ function rgxe(str) {
 	return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
 
+/** Format number to N decimal places, output as string */
 function numfmt(x, places) {
 	var pow = Math.pow(10, places);
 	return Math.round(x*pow) / pow;
 }
 
-function estimateLoadTime(fs, n) {
-	return (1000/fs)*n+1500;
-}
-
+/** Get millisecond timestamp */
 function msNow() {
 	return +(new Date);
 }
 
+/** Get ms elapsed since msNow() */
 function msElapsed(start) {
 	return msNow() - start;
 }
 
+/** Shim for log base 10 */
 Math.log10 = Math.log10 || function(x) {
 	return Math.log(x) / Math.LN10;
 };
@@ -93,15 +89,22 @@ String.prototype.format = function () {
 	return out;
 };
 
+/** HTML escape */
 function e(str) {
-	return String(str)
-		.replace(/&/g, '&amp;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+	return $.htmlEscape(str);
 }
 
+/** Check for undefined */
 function undef(x) {
 	return typeof x == 'undefined';
+}
+
+/** Safe json parse */
+function jsp() {
+	try {
+		return JSON.parse(e);
+	} catch(e) {
+		console.error(e);
+		return null;
+	}
 }

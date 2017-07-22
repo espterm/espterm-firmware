@@ -11,9 +11,9 @@
 			return;
 		}
 
-		resp = JSON.parse(resp);
+		resp = jsp(resp);
 
-		var done = !bool(resp.result.inProgress) && (resp.result.APs.length > 0);
+		var done = resp && !bool(resp.result.inProgress) && (resp.result.APs.length > 0);
 		rescan(done ? 15000 : 1000);
 		if (!done) return; // no redraw yet
 
@@ -29,7 +29,7 @@
 		resp.result.APs.sort(function (a, b) {
 				return b.rssi - a.rssi;
 			}).forEach(function (ap) {
-				ap.enc = intval(ap.enc);
+				ap.enc = parseInt(ap.enc);
 
 				if (ap.enc > 4) return; // hide unsupported auths
 
@@ -124,55 +124,5 @@
 		][obj.mode-1]);
 	};
 
-	window.wifiConn = function () {
-		var xhr = new XMLHttpRequest();
-		var abortTmeo;
 
-		function getStatus() {
-			xhr.open("GET", 'http://'+_root+"/wifi/connstatus");
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
-					clearTimeout(abortTmeo);
-					var data = JSON.parse(xhr.responseText);
-					var done = false;
-					var msg = '...';
-
-					if (data.status == "idle") {
-						msg = "Preparing to connect";
-					}
-					else if (data.status == "success") {
-						msg = "Connected! Received IP " + data.ip + ".";
-						done = true;
-					}
-					else if (data.status == "working") {
-						msg = "Connecting to selected AP";
-					}
-					else if (data.status == "fail") {
-						msg = "Connection failed, check your password and try again.";
-						done = true;
-					}
-
-					$("#status").html(msg);
-
-					if (done) {
-						$('#backbtn').removeClass('hidden');
-						$('.anim-dots').addClass('hidden');
-					} else {
-						window.setTimeout(getStatus, 1000);
-					}
-				}
-			};
-
-			abortTmeo = setTimeout(function () {
-				xhr.abort();
-				$("#status").html("Telemetry lost, try reconnecting to the AP.");
-				$('#backbtn').removeClass('hidden');
-				$('.anim-dots').addClass('hidden');
-			}, 4000);
-
-			xhr.send();
-		}
-
-		getStatus();
-	};
 })();

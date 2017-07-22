@@ -1,4 +1,4 @@
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="POST">
+<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
 	<h2><?= tr('box.ap') ?></h2>
 
 	<div class="Row buttons mq-phone">
@@ -46,7 +46,7 @@
 	</div>
 </form>
 
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="POST">
+<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
 	<h2><?= tr('box.sta') ?></h2>
 
 	<div class="Row buttons mq-phone">
@@ -103,27 +103,6 @@
 </div>
 
 <script>
-	// Magic checkbox
-	$('.Row.checkbox').forEach(function(x) {
-		var inp = x.querySelector('input');
-		var box = x.querySelector('.box');
-
-		$(box).toggleClass('checked', inp.value);
-
-		$(x).on('click', function() {
-			inp.value = 1 - inp.value;
-			$(box).toggleClass('checked', inp.value)
-		});
-	});
-
-	// Expanding boxes on mobile
-	$('.Box.mobcol').forEach(function(x) {
-		var h = x.querySelector('h2');
-		$(h).on('click', function() {
-			$(x).toggleClass('expanded');
-		});
-	});
-
 	// Get XX % for a slider input
 	function rangePt(inp) {
 		return Math.round(((inp.value / inp.max)*100)) + '%';
@@ -213,7 +192,7 @@
 		resp.result.APs.sort(function (a, b) {
 			return b.rssi - a.rssi;
 		}).forEach(function (ap) {
-			ap.enc = intval(ap.enc);
+			ap.enc = parseInt(ap.enc);
 
 			if (ap.enc > 4) return; // hide unsupported auths
 

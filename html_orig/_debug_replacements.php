@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Those replacements are done by the development server to test it locally
+ * without esphttpd. This is needed mainly for places where the replacements
+ * are given to JavaScript, to avoid syntax errors with %%
+ */
 return [
 	'%term_title%' => 'ESP8266 Wireless Terminal',
 
@@ -28,4 +33,10 @@ return [
 
 	'%sta_enable%' => '1',
 	'%opmode%' => '3',
+	'%vers_fw%' => '1.2.3',
+	'%date%' => date('Y-m-d'),
+	'%time%' => date('G:i'),
+	'%vers_httpd%' => '4.5.6',
+	'%vers_sdk%' => '1.52',
+	'%githubrepo%' => 'https://github.com/MightyPork/esp-vt100-firmware',
 ];

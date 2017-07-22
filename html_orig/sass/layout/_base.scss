@@ -29,3 +29,8 @@ a:hover {
 [onclick] {
 	cursor: pointer;
 }
+
+ul > * {
+	padding-top: .2em;
+	padding-bottom: .2em;
+}
