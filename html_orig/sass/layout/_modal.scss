@@ -43,17 +43,18 @@
 // "toast"
 .NotifyMsg {
 	position: fixed;
-	bottom: dist(2);
+	top: dist(1);
+	right: dist(2);
 	padding: dist(-1) dist(0);
 
 	// center horizontally
-	left: 50%;
-	@include translate(-50%,0);
+	//left: 50%;
+	//@include translate(-50%,0);
 	// hack to remove blur in chrome
 	-webkit-font-smoothing: subpixel-antialiased;
 	-webkit-transform: translateZ(0) scale(1.0, 1.0);
 
-	background: #37a349;
+	background: #3887d0;
 	&.error {
 		background: #d03e42;
 	}

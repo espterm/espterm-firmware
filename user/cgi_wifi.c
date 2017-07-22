@@ -13,17 +13,13 @@ Cgi/template routines for the /wifi url.
  * File adapted and improved by Ondřej Hruška <ondra@ondrovo.com>
  */
 
-// TODO convert to work with WiFi Manager
-// TODO make changes write to wificonf and apply when a different CGI is run (/wifi/apply or something)
-// TODO (connection will trigger this immediately, with some delayto show the connecting page. Then polling cna proceed as usual)
-
 #include <esp8266.h>
 #include "cgi_wifi.h"
 #include "wifimgr.h"
 #include "persist.h"
 
 // strcpy that adds 0 at the end of the buffer. Returns void.
-#define strncpy_safe(dst, src, n) do { strncpy((char *)(dst), (char *)(src), (n)); dst[(n)-1]=0; } while (0)
+#define strncpy_safe(dst, src, n) do { strncpy((char *)(dst), (char *)(src), (n)); (dst)[(n)-1]=0; } while (0)
 
 /** WiFi access point data */
 typedef struct {
@@ -419,9 +415,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 
 	char buff[50];
 
+#define REDIR_BASE_URL "/wifi?err="
+
 	char redir_url_buf[300];
 	char *redir_url = redir_url_buf;
-	redir_url += sprintf(redir_url, "/wifi?err=");
+	redir_url += sprintf(redir_url, REDIR_BASE_URL);
 	// we'll test if anything was printed by looking for \0 in failed_keys_buf
 
 	if (connData->conn == NULL) {
@@ -707,7 +705,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		}
 	}
 
-	if (redir_url_buf[10] == 0) {
+	if (redir_url_buf[strlen(REDIR_BASE_URL)] == 0) {
 		// All was OK
 		info("Set WiFi params - success, applying in 1000 ms");
 

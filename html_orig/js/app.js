@@ -852,6 +852,38 @@ function jsp() {
 
 	window.Modal = modal;
 })();
+(function (nt) {
+	var sel = '#notif';
+
+	var hideTmeo1; // timeout to start hiding (transition)
+	var hideTmeo2; // timeout to add the hidden class
+
+	nt.show = function (message, timeout) {
+		$(sel).html(message);
+		Modal.show(sel);
+
+		clearTimeout(hideTmeo1);
+		clearTimeout(hideTmeo2);
+
+		if (undef(timeout)) timeout = 2500;
+
+		hideTmeo1 = setTimeout(nt.hide, timeout);
+	};
+
+	nt.hide = function () {
+		var $m = $(sel);
+		$m.removeClass('visible');
+		hideTmeo2 = setTimeout(function () {
+			$m.addClass('hidden');
+		}, 250); // transition time
+	};
+
+	nt.init = function() {
+		$(sel).on('click', function() {
+			nt.hide(this);
+		});
+	};
+})(window.Notify = {});
 /** Global generic init */
 $.ready(function () {
 	// Checkbox UI (checkbox CSS and hidden input with int value)
@@ -915,7 +947,26 @@ $.ready(function () {
 		e.preventDefault();
 	});
 
+	var errAt = location.search.indexOf('err=');
+	if (errAt !== -1 && qs('.Box.errors')) {
+		var errs = location.search.substr(errAt+4).split(',');
+		var hres = [];
+		errs.forEach(function(er) {
+			var lbl = qs('label[for="'+er+'"]');
+			if (lbl) {
+				lbl.classList.add('error');
+				hres.push(lbl.childNodes[0].textContent.trim().replace(/: ?$/, ''));
+			} else {
+				hres.push(er);
+			}
+		});
+
+		qs('.Box.errors .list').innerHTML = hres.join(', ');
+		qs('.Box.errors').classList.remove('hidden');
+	}
+
 	Modal.init();
+	Notify.init();
 });
 
 $._loader = function(vis) {

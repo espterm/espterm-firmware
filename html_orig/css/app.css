@@ -579,17 +579,12 @@ ul > * {
 
 .NotifyMsg {
   position: fixed;
-  bottom: 2.61792rem;
+  top: 1.618rem;
+  right: 2.61792rem;
   padding: 0.61805rem 1rem;
-  left: 50%;
-  -webkit-transform: translate(-50%, 0);
-  -moz-transform: translate(-50%, 0);
-  -ms-transform: translate(-50%, 0);
-  -o-transform: translate(-50%, 0);
-  transform: translate(-50%, 0);
   -webkit-font-smoothing: subpixel-antialiased;
   -webkit-transform: translateZ(0) scale(1, 1);
-  background: #37a349;
+  background: #3887d0;
   color: white;
   text-shadow: 0 0 2px black;
   box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.6);
@@ -740,6 +735,12 @@ input[type="number"], input[type="password"], input[type="text"], textarea, sele
 input[type="number"] {
   width: 125px; }
 
+.Box.errors .list {
+  color: crimson;
+  font-weight: bold; }
+.Box.errors .lead {
+  color: white; }
+
 form .Row {
   vertical-align: middle;
   margin: 12px auto;
@@ -794,6 +795,8 @@ form .Row {
     user-select: none;
     white-space: nowrap;
     word-wrap: normal; }
+  form .Row label.error {
+    color: crimson; }
   form .Row input[type="range"] {
     width: 200px; }
   @media screen and (max-width: 544px) {

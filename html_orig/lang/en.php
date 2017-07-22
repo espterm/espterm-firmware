@@ -13,11 +13,12 @@ return [
 
 	'title.term' => 'Terminal',
 
-	'net.ap' => 'Access Point DHCP Config',
-	'net.sta' => 'Client IP Config',
+	'net.ap' => 'DHCP Server',
+	'net.sta' => 'DHCP Client',
 
 	'net.explain_sta' => '
-		Those settings affect the built-in DHCP client. Switching it off
+		Those settings affect the built-in DHCP client used for 
+		connecting to an external network. Switching DHCP (dynamic IP) off
 		makes ESPTerm use the configured static IP. Please double-check
 		those settings before submitting, setting them incorrectly may
 		make it hard to access ESPTerm via the external network.',
@@ -33,7 +34,7 @@ return [
 	'net.ap_addr_ip' => 'Own IP address',
 	'net.ap_addr_mask' => 'Subnet mask',
 
-	'net.sta_dhcp_enable' => 'Enable DHCP',
+	'net.sta_dhcp_enable' => 'Use dynamic IP',
 	'net.sta_addr_ip' => 'ESPTerm static IP',
 	'net.sta_addr_mask' => 'Subnet mask',
 	'net.sta_addr_gw' => 'Gateway IP',
@@ -77,4 +78,5 @@ return [
 	'yes' => 'Yes',
 	'no' => 'No',
 	'confirm' => 'OK',
+	'form_errors' => 'Validation errors for:',
 ];

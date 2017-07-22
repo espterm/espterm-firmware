@@ -23,4 +23,9 @@ if (strpos($_GET['BODYCLASS'], 'cfg') !== false) {
 <img src="/img/loader.gif" alt="Loading…" id="loader">
 <?php if ($cfg): ?>
 <h1><?= tr('menu.' . $_GET['page']) ?></h1>
+
+<div class="Box errors hidden">
+	<span class="lead"><?= tr('form_errors') ?></span>&nbsp;<span class="list"></span>
+</div>
+
 <?php endif; ?>

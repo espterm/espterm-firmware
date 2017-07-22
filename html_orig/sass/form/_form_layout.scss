@@ -9,6 +9,17 @@ input[type="number"] {
 	width: $form-field-w/2;
 }
 
+.Box.errors {
+	.list {
+		color: crimson;
+		font-weight: bold;
+	}
+
+	.lead {
+		color: white;
+	}
+}
+
 form .Row {
 	vertical-align: middle;
 	margin: 12px auto;
@@ -87,6 +98,10 @@ form .Row {
 
 		@include noselect;
 		@include nowrap;
+	}
+
+	label.error {
+		color: crimson;
 	}
 
 	//.checkbox-wrap {

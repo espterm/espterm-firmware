@@ -61,7 +61,26 @@ $.ready(function () {
 		e.preventDefault();
 	});
 
+	var errAt = location.search.indexOf('err=');
+	if (errAt !== -1 && qs('.Box.errors')) {
+		var errs = location.search.substr(errAt+4).split(',');
+		var hres = [];
+		errs.forEach(function(er) {
+			var lbl = qs('label[for="'+er+'"]');
+			if (lbl) {
+				lbl.classList.add('error');
+				hres.push(lbl.childNodes[0].textContent.trim().replace(/: ?$/, ''));
+			} else {
+				hres.push(er);
+			}
+		});
+
+		qs('.Box.errors .list').innerHTML = hres.join(', ');
+		qs('.Box.errors').classList.remove('hidden');
+	}
+
 	Modal.init();
+	Notify.init();
 });
 
 $._loader = function(vis) {
