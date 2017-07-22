@@ -504,15 +504,17 @@ ul > * {
     max-width: 1200px; }
   .Box.str {
     position: relative; }
-    .Box.str .Row.mq-phone {
-      position: absolute;
-      right: 1rem;
-      margin: 1rem auto; }
-    .Box.str .Row.mq-no-phone {
-      position: absolute;
-      right: 0;
-      top: 0;
-      margin-top: 0.61805rem; }
+    .Box.str .Row.buttons {
+      position: absolute; }
+      @media screen and (max-width: 544px) {
+        .Box.str .Row.buttons {
+          right: 1rem;
+          margin: 1rem auto; } }
+      @media screen and (min-width: 545px) {
+        .Box.str .Row.buttons {
+          right: 0;
+          top: 0;
+          margin-top: 0.61805rem; } }
 
 @media screen and (max-width: 544px) {
   .Box.mobcol h2 {
@@ -956,7 +958,7 @@ form span.required {
     .AP-preview .wrap .forget:active {
       position: relative;
       padding-top: calc(0.61805rem + 1px); }
-  .AP-preview .wrap .essid, .AP-preview .wrap .passwd {
+  .AP-preview .wrap .essid, .AP-preview .wrap .passwd, .AP-preview .wrap .nopasswd {
     padding-bottom: 0; }
   .AP-preview .wrap .x-passwd {
     font-family: monospace; }

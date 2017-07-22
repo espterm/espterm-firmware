@@ -73,6 +73,7 @@
 				<div class="inner">
 					<div class="essid"></div>
 					<div class="passwd"><?= tr('wifi.sta_active_pw') ?>&nbsp;<span class="x-passwd"></span></div>
+					<div class="nopasswd"><?= tr('wifi.sta_active_nopw') ?></div>
 					<div class="ip"></div>
 				</div>
 				<a class="forget" id="forget-sta">×</a>
@@ -141,7 +142,8 @@
 		var nopw = undef(password) || password.length == 0;
 		$('#sta-nw .x-passwd').html(e(password));
 		$('#sta-nw .passwd').toggleClass('hidden', nopw);
-		$('#sta-nw .ip').html(ip.length>0 ? 'IP = '+ip : '<?=tr('wifi.not_conn')?>');
+		$('#sta-nw .nopasswd').toggleClass('hidden', !nopw);
+		$('#sta-nw .ip').html(ip.length>0 ? '<?=tr('wifi.connected_ip_is')?>'+ip : '<?=tr('wifi.not_conn')?>');
 	}
 
 	selectSta('%sta_ssid%', '%sta_password%', '%sta_active_ip%');
@@ -149,12 +151,15 @@
 	var authStr = ['Open', 'WEP', 'WPA', 'WPA2', 'WPA/WPA2'];
 	var curSSID = '%sta_active_ssid%';
 
-	function submitPskModal(e) {
+	function submitPskModal(e, open) {
 		var passwd = $('#conn-passwd').val();
 		var ssid = $('#conn-ssid').val();
-		$('#sta_password').val(passwd);
-		$('#sta_ssid').val(ssid);
-		selectSta(ssid, passwd, '');
+
+		if (open || passwd.length) {
+			$('#sta_password').val(passwd);
+			$('#sta_ssid').val(ssid);
+			selectSta(ssid, passwd, '');
+		}
 
 		if (e) e.preventDefault();
 		Modal.hide('#psk-modal');
@@ -229,7 +234,7 @@
 					$('#conn-passwd')[0].focus();
 				} else {
 					//Modal.show('#reset-modal');
-					submitPskModal();
+					submitPskModal(null, true);
 				}
 			});
 

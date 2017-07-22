@@ -27,6 +27,8 @@ return [
 	'wifi.not_conn' => 'Not connected.',
 	'wifi.sta_none' => 'None',
 	'wifi.sta_active_pw' => '🔒',
+	'wifi.sta_active_nopw' => '🔓 Open access',
+	'wifi.connected_ip_is' => 'Connected, IP is ',
 
 	'wifi.submit' => 'Apply!',
 	'wifi.scanning' => 'Scanning',

@@ -34,18 +34,22 @@
 	//	min-width: 10em;
 	//}
 
+	// Submit Top Right
 	&.str {
 		position: relative;
-		.Row.mq-phone {
+		.Row.buttons {
 			position: absolute;
-			right: dist(0);
-			margin: 1rem auto;
-		}
-		.Row.mq-no-phone {
-			position: absolute;
-			right: 0;
-			top: 0;
-			margin-top: dist(-1);
+
+			@include media($phone) {
+				right: dist(0);
+				margin: 1rem auto;
+			}
+
+			@include media($tablet-min) {
+				right: 0;
+				top: 0;
+				margin-top: dist(-1);
+			}
 		}
 	}
 }
