@@ -11,9 +11,6 @@ PersistBlock persist;
 
 #define PERSIST_SECTOR_ID 0x3D
 
-// This is used to force-erase the config area (when it's changed)
-#define CHECKSUM_SALT 0x02
-
 //region Persist and restore individual modules
 
 static void ICACHE_FLASH_ATTR
@@ -81,6 +78,11 @@ persist_load(void)
 {
 	info("[Persist] Loading stored settings from FLASH...");
 
+	dbg("sizeof(AppConfigBundle)      = %d bytes", sizeof(AppConfigBundle));
+	dbg("sizeof(PersistBlock)         = %d bytes", sizeof(PersistBlock));
+	dbg("sizeof(WiFiConfigBundle)     = %d bytes", sizeof(WiFiConfigBundle));
+	dbg("sizeof(TerminalConfigBundle) = %d bytes", sizeof(TerminalConfigBundle));
+
 	bool hard_reset = false;
 
 	// Try to load
@@ -90,15 +92,15 @@ persist_load(void)
 	if (hard_reset ||
 		(compute_checksum(&persist.defaults) != persist.defaults.checksum) ||
 		(compute_checksum(&persist.current) != persist.current.checksum)) {
-		dbg("[Persist] Checksum verification: FAILED");
+		error("[Persist] Checksum verification: FAILED");
 		hard_reset = true;
 	} else {
-		dbg("[Persist] Checksum verification: PASSED");
+		info("[Persist] Checksum verification: PASSED");
 	}
 
 	if (hard_reset) {
 		persist_restore_hard_default();
-		// this also stores them to flash and applies to modues
+		// this also stores them to flash and applies to modules
 	} else {
 		apply_live_settings();
 	}
@@ -161,8 +163,8 @@ persist_set_as_default(void)
 {
 	info("[Persist] Storing live settings as defaults..");
 
+	// current -> defaults
 	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
-
 	persist_store();
 
 	info("[Persist] Default settings updated.");

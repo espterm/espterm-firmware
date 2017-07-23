@@ -2,6 +2,39 @@
 $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 ?>
 
+<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET" id="form-2">
+	<h2 tabindex=0><?= tr('net.sta') ?></h2>
+
+	<div class="Row explain">
+		<?= tr('net.explain_sta') ?>
+	</div>
+
+	<div class="Row checkbox x-static-toggle" >
+		<label><?= tr('net.sta_dhcp_enable') ?></label><!--
+		--><span class="box" tabindex=0 role=checkbox></span>
+		<input type="hidden" name="sta_dhcp_enable" value="%sta_dhcp_enable%">
+	</div>
+
+	<div class="Row x-static">
+		<label for="sta_addr_ip"><?= tr('net.sta_addr_ip') ?></label>
+		<input type="text" name="sta_addr_ip" id="sta_addr_ip" value="%sta_addr_ip%" <?=$ipmask?> required>
+	</div>
+
+	<div class="Row x-static">
+		<label for="sta_addr_mask"><?= tr('net.sta_addr_mask') ?></label>
+		<input type="text" name="sta_addr_mask" id="sta_addr_mask" value="%sta_addr_mask%" <?=$ipmask?> required>
+	</div>
+
+	<div class="Row x-static">
+		<label for="sta_addr_gw"><?= tr('net.sta_addr_gw') ?></label>
+		<input type="text" name="sta_addr_gw" id="sta_addr_gw" value="%sta_addr_gw%" <?=$ipmask?> required>
+	</div>
+
+	<div class="Row buttons">
+		<a class="button icn-ok" href="#" onclick="qs('#form-2').submit()"><?= tr('apply') ?></a>
+	</div>
+</form>
+
 <form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET" id="form-1">
 	<h2 tabindex=0><?= tr('net.ap') ?></h2>
 
@@ -40,39 +73,6 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 	</div>
 </form>
 
-<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET" id="form-2">
-	<h2 tabindex=0><?= tr('net.sta') ?></h2>
-
-	<div class="Row explain">
-		<?= tr('net.explain_sta') ?>
-	</div>
-
-	<div class="Row checkbox">
-		<label><?= tr('net.sta_dhcp_enable') ?></label><!--
-		--><span class="box" tabindex=0 role=checkbox></span>
-		<input type="hidden" name="sta_dhcp_enable" value="%sta_dhcp_enable%">
-	</div>
-
-	<div class="Row">
-		<label for="sta_addr_ip"><?= tr('net.sta_addr_ip') ?></label>
-		<input type="text" name="sta_addr_ip" id="sta_addr_ip" value="%sta_addr_ip%" <?=$ipmask?> required>
-	</div>
-
-	<div class="Row">
-		<label for="sta_addr_mask"><?= tr('net.sta_addr_mask') ?></label>
-		<input type="text" name="sta_addr_mask" id="sta_addr_mask" value="%sta_addr_mask%" <?=$ipmask?> required>
-	</div>
-
-	<div class="Row">
-		<label for="sta_addr_gw"><?= tr('net.sta_addr_gw') ?></label>
-		<input type="text" name="sta_addr_gw" id="sta_addr_gw" value="%sta_addr_gw%" <?=$ipmask?> required>
-	</div>
-
-	<div class="Row buttons">
-		<a class="button icn-ok" href="#" onclick="qs('#form-2').submit()"><?= tr('apply') ?></a>
-	</div>
-</form>
-
 <div class="Box mobcol">
 	<h2><?= tr('net.details') ?></h2>
 
@@ -83,3 +83,13 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 		<label><?= tr('net.ap_mac') ?></label><input type="text" readonly value="%ap_mac%">
 	</div>
 </div>
+
+<script>
+	function updateStaticDisp() {
+		$('.x-static').toggleClass('hidden', $('#sta_dhcp_enable').val());
+	}
+	$('.x-static-toggle').on('click', function() {
+		updateStaticDisp();
+	});
+	updateStaticDisp();
+</script>

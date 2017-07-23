@@ -231,10 +231,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplNetwork(HttpdConnData *connData, char *toke
 	else if (streq(token, "sta_addr_ip")) {
 		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
 	}
-	else if (streq(token, "ap_addr_mask")) {
+	else if (streq(token, "sta_addr_mask")) {
 		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
 	}
-	else if (streq(token, "ap_addr_gw")) {
+	else if (streq(token, "sta_addr_gw")) {
 		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
 	}
 	else if (streq(token, "sta_mac")) {

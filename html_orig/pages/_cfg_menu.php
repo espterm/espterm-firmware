@@ -1,5 +1,6 @@
 <nav id="menu">
 	<div id="brand" tabindex=0><?= tr('appname') ?></div>
+	<a href="<?= e(url('term')) ?>" class="icn-back"><?= tr('menu.term') ?></a>
 	<?php
 	// generate the menu
 	foreach ($_pages as $k => $page) {
@@ -10,7 +11,7 @@
 		$url = e(url($k));
 		echo "<a href=\"$url\" class=\"$page->icon $sel\">$text</a>";
 	}
-	?><a href="<?= e(url('term')) ?>" class="icn-back"><?= tr('menu.term') ?></a>
+	?>
 </nav>
 
 <script>

@@ -19,4 +19,7 @@
  */
 #define GET_ARG(key) (httpdFindArg(connData->getArgs, key, buff, sizeof(buff)) > 0)
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 #endif //ESP_VT100_FIRMWARE_HELPERS_H

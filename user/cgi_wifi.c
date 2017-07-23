@@ -571,10 +571,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 		else {
 			struct ip_info info;
 			wifi_get_ip_info(STATION_IF, &info);
-			sprintf(buff, "ip: "IPSTR", mask: "IPSTR", gw: "IPSTR,
-					GOOD_IP2STR(info.ip.addr),
-					GOOD_IP2STR(info.netmask.addr),
-					GOOD_IP2STR(info.gw.addr));
+			sprintf(buff, IPSTR, GOOD_IP2STR(info.ip.addr));
+
+//			sprintf(buff, "ip: "IPSTR", mask: "IPSTR", gw: "IPSTR,
+//					GOOD_IP2STR(info.ip.addr),
+//					GOOD_IP2STR(info.netmask.addr),
+//					GOOD_IP2STR(info.gw.addr));
 		}
 	}
 

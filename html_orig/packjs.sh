@@ -7,4 +7,6 @@ cat jssrc/chibi.js \
 	jssrc/modal.js \
 	jssrc/notif.js \
 	jssrc/appcommon.js \
+	jssrc/lang.js \
+	jssrc/wifi.js \
 	jssrc/term.js > js/app.js

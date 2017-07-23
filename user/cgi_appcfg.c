@@ -8,13 +8,14 @@ Cgi/template routines for configuring non-wifi settings
 #include "screen.h"
 #include "helpers.h"
 
-#define SET_REDIR_SUC "/cfg/term"
+#define SET_REDIR_SUC "/cfg/app"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
 
 /**
  * Universal CGI endpoint to set Terminal params.
  */
-httpd_cgi_state ICACHE_FLASH_ATTR cgiAppCfgSet(HttpdConnData *connData)
+httpd_cgi_state ICACHE_FLASH_ATTR
+cgiAppCfgSetParams(HttpdConnData *connData)
 {
 	char buff[50];
 
@@ -49,7 +50,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiAppCfgSet(HttpdConnData *connData)
 					redir_url += sprintf(redir_url, "term_width,");
 				}
 			} else {
-				warn("Missing height arg", buff);
+				warn("Missing height arg!");
 				// this wont happen normally when the form is used
 				redir_url += sprintf(redir_url, "term_width,term_height,");
 			}
@@ -115,6 +116,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiAppCfgSet(HttpdConnData *connData)
 		// All was OK
 		info("Set app params - success, saving...");
 
+		terminal_apply_settings();
 		persist_store();
 
 		httpdRedirect(connData, SET_REDIR_SUC);
@@ -127,7 +129,8 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiAppCfgSet(HttpdConnData *connData)
 }
 
 
-httpd_cgi_state ICACHE_FLASH_ATTR tplAppCfg(HttpdConnData *connData, char *token, void **arg)
+httpd_cgi_state ICACHE_FLASH_ATTR
+tplAppCfg(HttpdConnData *connData, char *token, void **arg)
 {
 #define BUFLEN 100
 	char buff[BUFLEN];
@@ -149,7 +152,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplAppCfg(HttpdConnData *connData, char *token
 		sprintf(buff, "%d", termconf->default_bg);
 	}
 	else if (streq(token, "default_fg")) {
-		sprintf(buff, "%d", termconf->default_bg);
+		sprintf(buff, "%d", termconf->default_fg);
 	}
 	else if (streq(token, "term_title")) {
 		strncpy_safe(buff, termconf->title, BUFLEN);

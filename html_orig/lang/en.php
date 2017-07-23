@@ -12,6 +12,8 @@ return [
 	'menu.cfg_admin' => 'Reset & Restore',
 	'menu.cfg_wifi_conn' => 'Connecting to External Network',
 
+	'menu.settings' => 'Settings',
+
 	'title.term' => 'Terminal',
 
 	'net.ap' => 'DHCP Server (AP)',

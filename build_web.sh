@@ -14,7 +14,8 @@ cd ..
 
 cp html_orig/js/app.js html/js/
 
-sass --sourcemap=none html_orig/sass/app.scss html/css/app.css
+sass html_orig/sass/app.scss html/css/app.css
+rm html/css/app.css.map
 
 cp html_orig/img/* html/img/
-
+cp html_orig/favicon.ico html/favicon.ico

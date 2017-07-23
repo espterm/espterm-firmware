@@ -299,5 +299,5 @@
 		Term.init(obj);
 		Conn.init();
 		Input.init();
-	}
+	};
 })();

@@ -31,7 +31,7 @@
 				$("#status").html(msg);
 
 				if (done) {
-//						$('#backbtn').removeClass('hidden');
+//					$('#backbtn').removeClass('hidden');
 					$('.anim-dots').addClass('hidden');
 				} else {
 					window.setTimeout(getStatus, 1000);
@@ -42,7 +42,7 @@
 		abortTmeo = setTimeout(function () {
 			xhr.abort();
 			$("#status").html(<?= json_encode(tr('wifi.conn.telemetry_lost')) ?>);
-//				$('#backbtn').removeClass('hidden');
+//			$('#backbtn').removeClass('hidden');
 			$('.anim-dots').addClass('hidden');
 		}, 4000);
 

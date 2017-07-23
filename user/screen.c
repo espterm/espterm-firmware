@@ -17,7 +17,7 @@ void terminal_restore_defaults(void)
 	termconf->default_fg = 7;
 	termconf->width = 26;
 	termconf->height = 10;
-	sprintf(termconf->title, "ESP8266 Wireless Terminal");
+	sprintf(termconf->title, "ESPTerm");
 	sprintf(termconf->btn1, "1");
 	sprintf(termconf->btn2, "2");
 	sprintf(termconf->btn3, "3");

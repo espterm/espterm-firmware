@@ -20,7 +20,7 @@ require_once __DIR__ . '/_env.php';
 
 $prod = defined('STDIN');
 define('DEBUG', !$prod);
-$root = DEBUG ? json_encode(ESP_IP) : 'window.location.href';
+$root = DEBUG ? json_encode(ESP_IP) : 'location.host';
 define('JS_WEB_ROOT', $root);
 
 define('LOCALE', isset($_GET['locale']) ? $_GET['locale'] : 'en');

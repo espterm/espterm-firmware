@@ -36,30 +36,28 @@
 <div class="Box">
 	<h2>Issues</h2>
 	<p>
-		Please report any issues to the <a href="%githubrepo%/issues">bugtracker</a> or send them by e-mail.
+		Please report any issues to the <a href="%githubrepo%/issues">bugtracker</a> or send them by e-mail (see above).
 	</p>
 	<p>
-		Firmware updates can be downloaded from the <a href="%githubrepo%/releases">releases page</a>.
-		Flash the images using <a href="https://github.com/espressif/esptool">esptool</a>.
+		Firmware updates can be downloaded from the <a href="%githubrepo%/releases">releases page</a> and flashed
+		with <a href="https://github.com/espressif/esptool">esptool.py</a>.
 	</p>
 </div>
 
 <div class="Box">
 	<h2>Contributing</h2>
 	<p>
-		Submit your improvements and ideas to the project on
-		<a href="%githubrepo%">GitHub</a>.
+		<i class="icn-github"></i> You're welcome to submit your improvements and ideas to our <a href="%githubrepo%">GitHub repository</a>!
 	</p>
 
 	<p>
-		You can donate on <a href="https://paypal.me/mightypork">PayPal</a> or
-		<a href="https://liberapay.com/MightyPork/">LiberaPay</a> to help keep
-		the project going.
+		<i class="icn-donate"></i> If you'd like to donate, please try <a href="https://paypal.me/mightypork">PayPal</a> or
+		<a href="https://liberapay.com/MightyPork/">LiberaPay</a>.
 	</p>
 </div>
 
 <div class="Box">
-	<h2>Acknowledgements</h2>
+	<h2>Thanks</h2>
 	<p>
 		The webserver is based on a <a href="https://github.com/MightyPork/libesphttpd">fork</a> of the
 		<a href="https://github.com/Spritetm/esphttpd">esphttpd</a> library by Jeroen Domburg (Sprite_tm).

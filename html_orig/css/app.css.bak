@@ -576,10 +576,6 @@ ul > * {
   background-color: rgba(255, 255, 255, 0.07);
   box-shadow: 0 0 4px black;
   border: 1px solid #4f4f4f; }
-  .Box::after {
-    content: '';
-    display: block;
-    clear: both; }
   @media screen and (max-width: 544px) {
     .Box {
       margin-top: 0.61805rem; } }
@@ -590,8 +586,6 @@ ul > * {
   .Box h2 {
     margin-top: 0;
     margin-bottom: 0 !important; }
-  .Box p:last-child {
-    margin-bottom: 0.5em; }
   .Box.wide {
     width: initial;
     max-width: initial; }
@@ -973,8 +967,7 @@ form span.required {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 5px;
   padding: 0.38198rem;
-  margin-bottom: 0.38198rem;
-  margin-top: 0.38198rem; }
+  margin-bottom: 0.38198rem; }
 
 #ap-noscan {
   font-weight: bold; }
@@ -1116,8 +1109,10 @@ body.term #buttons {
   white-space: nowrap; }
   body.term #buttons button {
     margin: 0 3px;
-    padding: 8px 5px;
-    min-width: 65px;
+    padding: 10px 0;
+    width: 18%;
+    max-width: 65px;
+    min-width: initial;
     cursor: pointer;
     font-weight: bold; }
 body.term #botnav {
@@ -1143,8 +1138,7 @@ body.term #botnav {
   float: right;
   height: 130px; }
 .page-about #logo2 {
-  max-width: 100%;
-  margin: 1rem; }
+  max-width: 100%; }
 .page-about td {
   white-space: normal; }
 

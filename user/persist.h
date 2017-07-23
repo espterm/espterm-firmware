@@ -13,15 +13,31 @@
 #include "wifimgr.h"
 #include "screen.h"
 
+// Changing this could be used to force-erase the config area
+// after a firmware upgrade
+#define CHECKSUM_SALT 0x5F5F5F5F
+
+/** Struct for current or default settings */
 typedef struct {
 	WiFiConfigBundle wificonf;
 	TerminalConfigBundle termconf;
-	// ...
-	// other settings here
-	// ...
+
+	// --- Space for future settings ---
+	// Original size: 1024
+	//
+	// The size must be appropriately reduced each time something is added,
+	// and boolean flags defaulting to 0 should be used to detect unpopulated
+	// sections that must be restored to defaults on load.
+	//
+	// This ensures user settings are not lost each time they upgrade the firmware,
+	// which would lead to a checksum mismatch if the structure was changed and
+	// it grew to a different memory area.
+	uint8_t filler[1024];
+
 	uint32_t checksum; // computed before write and tested on load. If it doesn't match, values are reset to hard defaults.
 } AppConfigBundle;
 
+/** This is the entire data block stored in FLASH */
 typedef struct {
 	AppConfigBundle defaults; // defaults are stored here
 	AppConfigBundle current;     // active settings adjusted by the user

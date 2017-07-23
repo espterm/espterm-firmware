@@ -93,6 +93,8 @@ set(SOURCE_FILES
         user/io.h
         user/cgi_wifi.c
         user/cgi_wifi.h
+        user/cgi_persist.c
+        user/cgi_persist.h
         user/cgi_network.c
         user/cgi_network.h
         user/cgi_appcfg.c
@@ -140,6 +142,7 @@ add_definitions(
         -DICACHE_FLASH_ATTR=
         -DICACHE_RODATA_ATTR=
         -DFLAG_GZIP=2
+        -DADMIN_PASSWORD="asdf"
         -DESPFS_HEATSHRINK)
 
 add_executable(esp_vt100_firmware ${SOURCE_FILES})

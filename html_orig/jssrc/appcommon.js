@@ -100,7 +100,8 @@ $.ready(function () {
 			x.removeAttribute('tabindex');
 		});
 
-		qs('#brand').removeAttribute('tabindex');
+		var br = qs('#brand');
+		br && br.removeAttribute('tabindex');
 	}
 });
 
