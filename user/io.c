@@ -76,16 +76,17 @@ static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
 
-		if (resetCnt>=10) { //5 secs pressed - FR (timer is at 500 ms)
-			info("BOOT-button triggered FACTORY RESET!");
+		if (resetCnt>=12) { //6 secs pressed - FR (timer is at 500 ms)
+			info("Restoring to default settings via BOOT button!");
 			persist_restore_default();
 		}
 		else if (resetCnt>=2) { //1 sec pressed
 			info("BOOT-button triggered reset to AP mode...");
 
+			// Enter "rescue mode".
 			wificonf->opmode = STATIONAP_MODE;
-			persist_store();
 			wifimgr_apply_settings();
+			persist_store();
 		}
 		resetCnt=0;
 	}

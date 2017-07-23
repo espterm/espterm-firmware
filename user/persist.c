@@ -144,14 +144,17 @@ persist_load_hard_default(void)
 }
 
 /**
- * Restore default settings & apply
+ * Restore default settings & apply. also persists.
  */
 void ICACHE_FLASH_ATTR
 persist_restore_default(void)
 {
 	info("[Persist] Restoring live settings to stored defaults...");
+
 	memcpy(&persist.current, &persist.defaults, sizeof(AppConfigBundle));
 	apply_live_settings();
+	persist_store();
+
 	info("[Persist] Settings restored to stored defaults.");
 }
 

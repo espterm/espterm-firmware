@@ -55,6 +55,7 @@ cgiPersistRestoreDefaults(HttpdConnData *connData)
 	}
 
 	persist_restore_default();
+
 	httpdRedirect(connData, SET_REDIR_SUC);
 	return HTTPD_CGI_DONE;
 }
