@@ -47,7 +47,7 @@ typedef struct {
 extern PersistBlock persist;
 
 void persist_load(void);
-void persist_restore_hard_default(void);
+void persist_load_hard_default(void);
 void persist_restore_default(void);
 void persist_set_as_default(void);
 void persist_store(void);

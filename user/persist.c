@@ -99,7 +99,7 @@ persist_load(void)
 	}
 
 	if (hard_reset) {
-		persist_restore_hard_default();
+		persist_load_hard_default();
 		// this also stores them to flash and applies to modules
 	} else {
 		apply_live_settings();
@@ -127,18 +127,18 @@ persist_store(void)
  * Restore to built-in defaults
  */
 void ICACHE_FLASH_ATTR
-persist_restore_hard_default(void)
+persist_load_hard_default(void)
 {
-	info("[Persist] Restoring all settings to hard defaults...");
+	info("[Persist] Restoring live settings to hard defaults...");
 
 	// Set live config to default values
 	restore_live_settings_to_hard_defaults();
-
-	// Store current -> default
-	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 	persist_store();
 
-	info("[Persist] All settings restored to hard defaults.");
+//	// Store current -> default
+//	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
+
+	info("[Persist] Settings restored to hard defaults.");
 
 	apply_live_settings(); // apply
 }

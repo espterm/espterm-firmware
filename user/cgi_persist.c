@@ -67,7 +67,9 @@ cgiPersistRestoreHard(HttpdConnData *connData)
 		return HTTPD_CGI_DONE;
 	}
 
-	persist_restore_hard_default();
+	// this only changes live settings (and persists it)
+	// Defaults are not changed.
+	persist_load_hard_default();
 
 	httpdRedirect(connData, SET_REDIR_SUC);
 	return HTTPD_CGI_DONE;
