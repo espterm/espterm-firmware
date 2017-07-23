@@ -45,9 +45,9 @@ wifimgr_restore_defaults(void)
 	IP4_ADDR(&wificonf->sta_addr.gw, 192, 168, 0, 1);
 
 	// DEBUG ONLY - TODO remove for release
-	wificonf->opmode = STATION_MODE;
-	sprintf((char*)wificonf->sta_ssid, "Chlivek");
-	sprintf((char*)wificonf->sta_password, "prase chrochta");
+//	wificonf->opmode = STATION_MODE;
+//	sprintf((char*)wificonf->sta_ssid, "Chlivek");
+//	sprintf((char*)wificonf->sta_password, "prase chrochta");
 }
 
 static void ICACHE_FLASH_ATTR
