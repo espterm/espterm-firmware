@@ -8,11 +8,12 @@
 return [
 	'%term_title%' => 'ESP8266 Wireless Terminal',
 
-	'%b1%' => '1',
-	'%b2%' => '2',
-	'%b3%' => '3',
-	'%b4%' => '4',
-	'%b5%' => '5',
+	'%btn1%' => '1',
+	'%btn2%' => '2',
+	'%btn3%' => '3',
+	'%btn4%' => '4',
+	'%btn5%' => '5',
+
 	'%screenData%' => '{
 		 "w": 26, "h": 10,
 		 "x": 0, "y": 0,
@@ -50,4 +51,12 @@ return [
 	'%sta_addr_ip%' => '192.168.0.33',
 	'%sta_addr_mask%' => '255.255.255.0',
 	'%sta_addr_gw%' => '192.168.0.1',
+
+	'%sta_mac%' => 'ab:cd:ef:01:23:45',
+	'%ap_mac%' => '01:23:45:ab:cd:ef',
+
+	'%term_width%' => '26',
+	'%term_height%' => '10',
+	'%default_bg%' => '0',
+	'%default_fg%' => '7',
 ];

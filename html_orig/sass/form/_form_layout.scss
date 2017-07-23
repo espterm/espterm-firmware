@@ -5,7 +5,7 @@ form { @include naked(); }
 	width: $form-field-w;
 }
 
-input[type="number"] {
+input[type="number"], input.short {
 	width: $form-field-w/2;
 }
 
@@ -20,7 +20,7 @@ input[type="number"] {
 	}
 }
 
-form .Row {
+.Row {
 	vertical-align: middle;
 	margin: 12px auto;
 	text-align: left;
@@ -132,6 +132,7 @@ form .Row {
 	// special phone style
 	@include media($phone) {
 		flex-direction: column;
+		margin: 6px auto;
 
 		&.buttons, &.centered, &.checkbox {
 			flex-direction: row;
@@ -165,7 +166,7 @@ form .Row {
 			}
 		}
 
-		#{$all-text-inputs}, input[type="range"], textarea {
+		#{$all-text-inputs}, input[type="range"], textarea, select {
 			width: 100%;
 		}
 	}

@@ -10,6 +10,7 @@
 	var abortTmeo;
 
 	var messages = <?= json_encode([
+		'disabled' => tr('wifi.conn.disabled'),
 		'idle' => tr('wifi.conn.idle'),
 		'success' => tr('wifi.conn.success'),
 		'working' => tr('wifi.conn.working'),
@@ -25,6 +26,7 @@
 				var done = false;
 				var msg = messages[data.status] || '...';
 				if (data.status == 'success') msg += data.ip;
+				if (data.status == 'fail') msg += data.cause;
 
 				$("#status").html(msg);
 

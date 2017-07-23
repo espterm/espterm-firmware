@@ -93,6 +93,8 @@ set(SOURCE_FILES
         user/io.h
         user/cgi_wifi.c
         user/cgi_wifi.h
+        user/cgi_network.c
+        user/cgi_network.h
         user/cgi_appcfg.c
         user/cgi_appcfg.h
         user/cgi_ping.c
@@ -119,7 +121,7 @@ set(SOURCE_FILES
         user/wifimgr.c
         user/wifimgr.h
         user/persist.c
-        user/persist.h)
+        user/persist.h include/helpers.h)
 
 include_directories(include)
 include_directories(user)

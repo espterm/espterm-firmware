@@ -17,17 +17,22 @@ if (! function_exists('pg')) {
 	}
 }
 
-pg('cfg_wifi', 'cfg', '/cfg/wifi');
-pg('cfg_wifi_conn', '', '/wifi/connecting'); // page without menu that tries to show the connection progress
-pg('cfg_network', 'cfg', '/cfg/network');
-//pg('cfg_term', 'cfg', '/cfg/term');
-pg('help', 'cfg page-help', '/help');
+pg('cfg_wifi',        'cfg', '/cfg/wifi');
+pg('cfg_wifi_conn',   '',    '/cfg/wifi/connecting');
+pg('wifi_connstatus', 'api', '/cfg/wifi/connstatus');
+pg('wifi_set',        'api', '/cfg/wifi/set');
+pg('wifi_scan',       'api', '/cfg/wifi/scan');
+
+pg('cfg_network',     'cfg', '/cfg/network');
+pg('network_set',     'api', '/cfg/network/set');
+
+pg('cfg_app',        'cfg', '/cfg/app');
+pg('app_set',        'api', '/cfg/app/set');
+
+pg('help',  'cfg page-help',  '/help');
 pg('about', 'cfg page-about', '/about');
-pg('term', 'term', '/', 'title.term');
+pg('term',  'term',           '/', 'title.term');
 
 // ajax API
-pg('wifi_set', 'api', '/wifi/set');//'/cfg/wifi/set');
-pg('wifi_scan', 'api', '/wifi/scan');//'/cfg/wifi/scan');
-pg('wifi_connstatus', 'api', '/wifi/connstatus');
 
 return $pages;

@@ -489,14 +489,17 @@ ul > * {
   margin-top: 1rem;
   padding: 0.61805rem 1rem;
   border-radius: 3px;
-  background-color: rgba(255, 255, 255, 0.07); }
+  background-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 4px black;
+  border: 1px solid #4f4f4f; }
   @media screen and (max-width: 544px) {
     .Box {
       margin-top: 0.61805rem; } }
   h1 + .Box {
     margin-top: 0; }
   .Box h2 {
-    margin-top: 0; }
+    margin-top: 0;
+    margin-bottom: 0 !important; }
   .Box.wide {
     width: initial;
     max-width: initial; }
@@ -515,13 +518,26 @@ ul > * {
           right: 0;
           top: 0;
           margin-top: 0.61805rem; } }
+  .Box.str.mobopen .Row.buttons {
+    top: 0;
+    margin-top: 0.61805rem; }
+  .Box .Row.explain {
+    max-width: 600px;
+    margin-left: 0; }
+    @media screen and (max-width: 544px) {
+      .Box .Row.explain {
+        margin-top: 60px; } }
+  .Box.mobopen .Row.explain {
+    margin-top: 12px; }
+    @media screen and (max-width: 544px) {
+      .Box.mobopen .Row.explain {
+        margin-top: 18px; } }
 
 @media screen and (max-width: 544px) {
   .Box.mobcol h2 {
     position: relative;
     cursor: pointer;
-    padding-right: 1.3rem;
-    margin-bottom: 0 !important; }
+    padding-right: 1.3rem; }
     .Box.mobcol h2::after {
       position: absolute;
       right: 0;
@@ -732,7 +748,7 @@ form {
 input[type="number"], input[type="password"], input[type="text"], textarea, select, label.select-wrap {
   width: 250px; }
 
-input[type="number"] {
+input[type="number"], input.short {
   width: 125px; }
 
 .Box.errors .list {
@@ -741,46 +757,46 @@ input[type="number"] {
 .Box.errors .lead {
   color: white; }
 
-form .Row {
+.Row {
   vertical-align: middle;
   margin: 12px auto;
   text-align: left;
   display: flex;
   flex-direction: row;
   align-items: center; }
-  form .Row:first-child {
+  .Row:first-child {
     margin-top: 0; }
-  form .Row:last-child {
+  .Row:last-child {
     margin-bottom: 0; }
-  form .Row .spacer {
+  .Row .spacer {
     width: 160px; }
     @media screen and (max-width: 544px) {
-      form .Row .spacer {
+      .Row .spacer {
         display: none; } }
-  form .Row.buttons {
+  .Row.buttons {
     margin: 16px auto; }
-    form .Row.buttons input, form .Row.buttons .button {
+    .Row.buttons input, .Row.buttons .button {
       margin-right: 0.61805rem; }
-  form .Row.centered {
+  .Row.centered {
     justify-content: center; }
-  form .Row.message {
+  .Row.message {
     font-size: 1em;
     text-shadow: 1px 1px 3px black;
     text-align: center; }
-    form .Row.message.error {
+    .Row.message.error {
       color: crimson; }
-    form .Row.message.ok {
+    .Row.message.ok {
       color: #0fe851; }
-  form .Row.separator {
+  .Row.separator {
     padding-top: 14px;
     border-top: 2px solid rgba(255, 255, 255, 0.1); }
-  form .Row textarea {
+  .Row textarea {
     display: inline-block;
     vertical-align: top;
     min-height: 10rem;
     flex-grow: 1;
     resize: vertical; }
-  form .Row label {
+  .Row label {
     font-weight: bold;
     color: white;
     display: inline-block;
@@ -795,32 +811,33 @@ form .Row {
     user-select: none;
     white-space: nowrap;
     word-wrap: normal; }
-  form .Row label.error {
+  .Row label.error {
     color: crimson; }
-  form .Row input[type="range"] {
+  .Row input[type="range"] {
     width: 200px; }
   @media screen and (max-width: 544px) {
-    form .Row {
-      flex-direction: column; }
-      form .Row.buttons, form .Row.centered, form .Row.checkbox {
+    .Row {
+      flex-direction: column;
+      margin: 6px auto; }
+      .Row.buttons, .Row.centered, .Row.checkbox {
         flex-direction: row; }
-      form .Row.buttons {
+      .Row.buttons {
         justify-content: center; }
-        form .Row.buttons :last-child {
+        .Row.buttons :last-child {
           margin-right: 0; }
-      form .Row label {
+      .Row label {
         padding-left: 0;
         text-align: left;
         width: auto; }
-      form .Row .checkbox-wrap {
+      .Row .checkbox-wrap {
         order: 1;
         text-align: left;
         padding-bottom: 0;
         border-radius: .4px;
         width: auto; }
-        form .Row .checkbox-wrap + label {
+        .Row .checkbox-wrap + label {
           width: auto; }
-      form .Row input[type="number"], form .Row input[type="password"], form .Row input[type="text"], form .Row textarea, form .Row input[type="range"], form .Row textarea {
+      .Row input[type="number"], .Row input[type="password"], .Row input[type="text"], .Row textarea, .Row input[type="range"], .Row textarea, .Row select {
         width: 100%; } }
 
 form span.required {

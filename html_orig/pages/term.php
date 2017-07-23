@@ -13,11 +13,11 @@
 	<div id="screen"></div>
 
 	<div id="buttons">
-		<button data-n="1" class="btn-blue">%b1%</button><!--
-		--><button data-n="2" class="btn-blue">%b2%</button><!--
-		--><button data-n="3" class="btn-blue">%b3%</button><!--
-		--><button data-n="4" class="btn-blue">%b4%</button><!--
-		--><button data-n="5" class="btn-blue">%b5%</button>
+		<button data-n="1" class="btn-blue">%btn1%</button><!--
+		--><button data-n="2" class="btn-blue">%btn2%</button><!--
+		--><button data-n="3" class="btn-blue">%btn3%</button><!--
+		--><button data-n="4" class="btn-blue">%btn4%</button><!--
+		--><button data-n="5" class="btn-blue">%btn5%</button>
 	</div>
 </div>
 

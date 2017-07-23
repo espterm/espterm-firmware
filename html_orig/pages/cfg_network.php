@@ -2,15 +2,14 @@
 $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 ?>
 
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
+<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET">
 	<h2><?= tr('net.ap') ?></h2>
 
 	<div class="Row buttons">
 		<input type="submit" value="<?= tr('apply') ?>">
 	</div>
 
-	<div class="Row mq-phone" style="height: 35px"></div>
-	<div class="Row" style="max-width: 600px; margin-left: 0">
+	<div class="Row explain">
 		<?= tr('net.explain_ap') ?>
 	</div>
 
@@ -41,15 +40,14 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 	</div>
 </form>
 
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
+<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET">
 	<h2><?= tr('net.sta') ?></h2>
 
 	<div class="Row buttons">
 		<input type="submit" value="<?= tr('apply') ?>">
 	</div>
 
-	<div class="Row mq-phone" style="height: 35px"></div>
-	<div class="Row" style="max-width: 600px; margin-left: 0">
+	<div class="Row explain">
 		<?= tr('net.explain_sta') ?>
 	</div>
 
@@ -74,3 +72,14 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 		<input type="text" name="sta_addr_gw" id="sta_addr_gw" value="%sta_addr_gw%" <?=$ipmask?> required>
 	</div>
 </form>
+
+<div class="Box mobcol">
+	<h2><?= tr('net.details') ?></h2>
+
+	<div class="Row">
+		<label><?= tr('net.sta_mac') ?></label><input type="text" readonly value="%sta_mac%">
+	</div>
+	<div class="Row">
+		<label><?= tr('net.ap_mac') ?></label><input type="text" readonly value="%ap_mac%">
+	</div>
+</div>

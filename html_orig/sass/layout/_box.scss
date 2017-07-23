@@ -15,10 +15,13 @@
 
 	h2 {
 		margin-top: 0;
+		margin-bottom: 0 !important;
 	}
 
 	border-radius: 3px;
 	background-color: rgba(white, .07);
+	box-shadow: 0 0 4px black;
+	border: 1px solid #4f4f4f;
 
 	&.wide {
 		width: initial;
@@ -52,6 +55,25 @@
 			}
 		}
 	}
+
+	&.str.mobopen .Row.buttons {
+		top: 0;
+		margin-top: dist(-1);
+	}
+
+	.Row.explain {
+		max-width: 600px; margin-left: 0;
+		@include media($phone) {
+			margin-top: 60px;
+		}
+	}
+	&.mobopen .Row.explain {
+		margin-top: 12px; // default from .Row
+
+		@include media($phone) {
+			margin-top: 18px;
+		}
+	}
 }
 
 @include media($phone) {
@@ -71,8 +93,6 @@
 				font-weight: bold;
 				transform: translate(0,-50%) rotate(90deg);
 			}
-
-			margin-bottom: 0 !important;
 		}
 
 		&.expanded h2::after {

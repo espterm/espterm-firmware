@@ -5,7 +5,7 @@ return [
 
 	'menu.cfg_wifi' => 'WiFi Settings',
 	'menu.cfg_network' => 'Network Configuration',
-	'menu.cfg_term' => 'Terminal Settings',
+	'menu.cfg_app' => 'Terminal Settings',
 	'menu.about' => 'About ESPTerm',
 	'menu.help' => 'Quick Reference',
 	'menu.term' => 'Back to Terminal',
@@ -13,8 +13,46 @@ return [
 
 	'title.term' => 'Terminal',
 
-	'net.ap' => 'DHCP Server',
-	'net.sta' => 'DHCP Client',
+	'net.ap' => 'DHCP Server (AP)',
+	'net.sta' => 'DHCP Client (Station)',
+	'net.sta_mac' => 'Station MAC',
+	'net.ap_mac' => 'AP MAC',
+	'net.details' => 'MAC addresses',
+
+	'app.defaults' => 'Initial settings',
+	'app.explain_initials' => '
+		Those are the initial settings used after ESPTerm restarts, and they
+		will also be applied immediately after you submit this form.
+		They can be subsequently changed by ESC commands, but those changes
+		aren\'t persistent and will be lost when the device powers off.',
+
+	'app.term_title' => 'Header text',
+	'app.term_width' => 'Screen width',
+	'app.term_height' => 'Screen height',
+	'app.default_fg' => 'Base text color',
+	'app.default_bg' => 'Base background',
+	'app.btn1' => 'Button 1 text',
+	'app.btn2' => 'Button 2 text',
+	'app.btn3' => 'Button 3 text',
+	'app.btn4' => 'Button 4 text',
+	'app.btn5' => 'Button 5 text',
+
+	'color.0' => 'Black',
+	'color.1' => 'Dark Red',
+	'color.2' => 'Dark Green',
+	'color.3' => 'Dim Yellow',
+	'color.4' => 'Deep Blue',
+	'color.5' => 'Dark Violet',
+	'color.6' => 'Dark Cyan',
+	'color.7' => 'Silver',
+	'color.8' => 'Gray',
+	'color.9' => 'Light Red',
+	'color.10' => 'Light Green',
+	'color.11' => 'Light Yellow',
+	'color.12' => 'Light Blue',
+	'color.13' => 'Light Violet',
+	'color.14' => 'Light Cyan',
+	'color.15' => 'White',
 
 	'net.explain_sta' => '
 		Those settings affect the built-in DHCP client used for 
@@ -42,16 +80,14 @@ return [
 	'wifi.ap' => 'Built-in Access Point',
 	'wifi.sta' => 'Connect to External Network',
 
-	'wifi.enable' => 'Enabled:',
-	'wifi.tpw' => 'Transmit Power:',
-	'wifi.ap_channel' => 'Channel:',
-	'wifi.ap_ssid' => 'AP SSID:',
-	'wifi.ap_password' => 'Password:',
-	'wifi.ap_hidden' => 'Hide SSID:',
-	'wifi.sta_info' => 'Selected:',
+	'wifi.enable' => 'Enabled',
+	'wifi.tpw' => 'Transmit power',
+	'wifi.ap_channel' => 'Channel',
+	'wifi.ap_ssid' => 'AP SSID',
+	'wifi.ap_password' => 'Password',
+	'wifi.ap_hidden' => 'Hide SSID',
+	'wifi.sta_info' => 'Selected',
 
-	'wifi.sta_ssid' => 'Network SSID:',
-	'wifi.sta_password' => 'Password:',
 	'wifi.not_conn' => 'Not connected.',
 	'wifi.sta_none' => 'None',
 	'wifi.sta_active_pw' => '🔒',
@@ -67,10 +103,11 @@ return [
 	'wifi.conn.back_to_config' => 'Back to WiFi config',
 	'wifi.conn.telemetry_lost' => 'Telemetry lost, something went wrong. Try again...',
 
-	'wifi.conn.idle' =>"Preparing to connect",
+	'wifi.conn.disabled' =>"Station mode is disabled.",
+	'wifi.conn.idle' =>"Idle, not connected and with no IP.",
 	'wifi.conn.success' => "Connected! Received IP ",
 	'wifi.conn.working' => "Connecting to selected AP",
-	'wifi.conn.fail' => "Connection failed, check your password and try again.",
+	'wifi.conn.fail' => "Connection failed, check settings & try again. Cause: ",
 
 	'apply' => 'Apply!',
 	'enabled' => 'Enabled',
