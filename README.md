@@ -1,30 +1,30 @@
-# esp-vt100-firmware
+# ESPTerm
 
-ESP8266 Remote Terminal project
+ESP8266 Wireless Terminal Emulator project
 
 This project is based on SpriteTM's esphttpd and libesphttpd, forked by MightyPork to
 [MightyPork/esphttpd](https://github.com/MightyPork/esphttpd) and 
 [MightyPork/libesphttpd](https://github.com/MightyPork/libesphttpd) respectively.
 
-Those forks include improvements not yet available upstream.
+Those forks include improvements not available upstream.
 
 ## Goals
 
-This project aims to be a wireless terminal emulator that'll work with the likes of 
+The project aims to be a wireless terminal emulator that'll work with the likes of 
 Arduino, AVR, PIC, STM8, STM32, mbed etc, anything with UART, even your USB-serial dongle will work.
 
 Connect it to the master device via UART and use the terminal on the built-in web page for debug logging, 
 remote control etc. It works like a simple LCD screen, in a way.
 
 It lets you make simple UI (manipulating the screen with ANSI sequences) and receive input from buttons on
-the webpage (and keyboard on PC). Touch input is planned as well.
+the webpage (and keyboard on PC). There is some rudimentary touch input as well.
 
 The screen size is adjustable up to 25x80 (via a special control sequence) and uses 16 standard colors 
-(8 dark and 8 bright).
+(8 dark and 8 bright). Both default size and colors can be configured in the settings.
 
 ## Project status
 
-*Almost finished, still possibly buggy, but it looks promising. Most of the features are there now.*
+*A little buggy, but mostly okay! There are many features and fixes planned, but it should be fairly usable already.*
 
 - We have a working **2-way terminal** (UART->ESP->Browser and vice versa) with real-time update via websocket.
   
@@ -41,12 +41,10 @@ The screen size is adjustable up to 25x80 (via a special control sequence) and u
   
   Arrow keys generate ANSI sequences, ESC sends literal ASCII code 27 etc. Almost everything can be input 
   straight from the browser.
-  
-- To resize the screen, send `\e]W<rows>;<cols>\a` (it's an OSC code, terminated by ST).
 
 - Buttons pressed in the browser UI send ASCII codes 1..5. Mouse clicks are sent as `\e[<row>;<col>M`.
 
-- There's a built-in WiFi config page and a Help page with a list of all supported ANSI sequences etc.
+- There's a built-in WiFi config page and a Help page with a list of all supported ANSI sequences and other details.
 
 ## Development
 
@@ -67,32 +65,17 @@ The screen size is adjustable up to 25x80 (via a special control sequence) and u
   KERNEL=="tty[A-Z]*[0-9]*", GROUP="uucp", MODE="0666"
   ```
 
-- Install Ragel if you wish to make modifications to the parser. 
-  If not, comment out it's call in `build_parser.sh`. The `.rl` file is the actual source, the `.c` is generated.
+- Install Ragel if you wish to make modifications to the ANSI sequence parser. 
+  If not, comment out its call in `build_parser.sh`. The `.rl` file is the actual source, the `.c` is generated.
 
 - Install Ruby and then the `sass` package with `gem install sass` (or try some other implementation, such as 
   `sassc`)
 
-- Get the IoT SDK from one of:
-
-  ```
-  ESP8266_NONOS_SDK_V2.0.0_16_08_10.zip:
-    wget --content-disposition "http://bbs.espressif.com/download/file.php?id=1690"
-  ESP8266_NONOS_SDK_V2.0.0_16_07_19.zip:
-    wget --content-disposition "http://bbs.espressif.com/download/file.php?id=1613"
-  ESP8266_NONOS_SDK_V1.5.4_16_05_20.zip:
-    wget --content-disposition "http://bbs.espressif.com/download/file.php?id=1469"
-  ESP8266_NONOS_SDK_V1.5.3_16_04_18.zip:
-    wget --content-disposition "http://bbs.espressif.com/download/file.php?id=1361"
-  ESP8266_NONOS_SDK_V1.5.2_16_01_29.zip:
-    wget --content-disposition "http://bbs.espressif.com/download/file.php?id=1079"
-  ```
-
-  It's tested with 1.5.2, 2.0.0 won't work without adjusting the build scripts. Any 1.5.x could be fine.
-
-  The `esp-open-sdk` Makefile could also download this for you with the right flags.
-
 - Make sure your `esphttpdconfig.mk` is set up properly - link to the SDK etc.
+
+The IoT SDK is now included in the project due to problems with obtaining the correct version and patching it.
+It works with version 1.5.2, any newer seems to be incompatible. If you get it working with a newer SDK, a PR is more
+than welcome!
 
 ### Web resources
 
@@ -103,6 +86,9 @@ then embedded in the firmware image.
 
 It's kind of tricky to develop the web resources locally; you might want to try the "split image" 
 Makefile option, then you can flash just the html portion with `make htmlflash`. I haven't tried this.
+
+For local development, use the `server.sh` script in `html_orig`. It's possible to talk to API of a running 
+ESP8266 from here, if you configure `_env.php` with its IP.
 
 ### Flashing
 
