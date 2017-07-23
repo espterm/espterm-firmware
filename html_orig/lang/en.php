@@ -9,6 +9,7 @@ return [
 	'menu.about' => 'About ESPTerm',
 	'menu.help' => 'Quick Reference',
 	'menu.term' => 'Back to Terminal',
+	'menu.cfg_admin' => 'Reset & Restore',
 	'menu.cfg_wifi_conn' => 'Connecting to External Network',
 
 	'title.term' => 'Terminal',
@@ -93,6 +94,7 @@ return [
 	'wifi.sta_active_pw' => '🔒',
 	'wifi.sta_active_nopw' => '🔓 Open access',
 	'wifi.connected_ip_is' => 'Connected, IP is ',
+	'wifi.sta_password' => 'Password:',
 
 	'wifi.scanning' => 'Scanning',
 	'wifi.scan_now' => 'Start scanning!',
@@ -108,6 +110,23 @@ return [
 	'wifi.conn.success' => "Connected! Received IP ",
 	'wifi.conn.working' => "Connecting to selected AP",
 	'wifi.conn.fail' => "Connection failed, check settings & try again. Cause: ",
+
+	'admin.confirm_restore' => 'Restore all settings to their default values?',
+	'admin.confirm_restore_hard' =>
+		'Restore to firmware default settings? This will reset ' .
+		'all active settings and switch to AP mode with the default SSID.',
+	'admin.confirm_store_defaults' =>
+		'Enter admin password to confirm you want to store the current settings as defaults.',
+	'admin.password' => 'Admin password:',
+	'admin.restore_defaults' => 'Reset to default settings',
+	'admin.write_defaults' => 'Save current settings as default',
+	'admin.restore_hard' => 'Reset to firmware default settings',
+	'admin.explain' => '
+		ESPTerm contains two persistent memory banks, one for default and 
+		one for active settings. Active settings can be stored as defaults 
+		by the administrator. Use the following button to revert all 
+		active settings to their stored default values.  
+		',
 
 	'apply' => 'Apply!',
 	'enabled' => 'Enabled',

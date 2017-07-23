@@ -1,13 +1,9 @@
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
-	<h2><?= tr('wifi.ap') ?></h2>
-
-	<div class="Row buttons">
-		<input type="submit" value="<?= tr('apply') ?>">
-	</div>
+<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET" id="form-1">
+	<h2 tabindex=0><?= tr('wifi.ap') ?></h2>
 
 	<div class="Row checkbox">
 		<label><?= tr('wifi.enable') ?></label><!--
-		--><span class="box"></span>
+		--><span class="box" tabindex=0></span>
 		<input type="hidden" name="ap_enable" value="%ap_enable%">
 	</div>
 
@@ -37,21 +33,21 @@
 
 	<div class="Row checkbox">
 		<label><?= tr('wifi.ap_hidden') ?></label><!--
-		--><span class="box"></span>
+		--><span class="box" tabindex=0></span>
 		<input type="hidden" name="ap_hidden" value="%ap_hidden%">
+	</div>
+
+	<div class="Row buttons">
+		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
 	</div>
 </form>
 
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET">
-	<h2><?= tr('wifi.sta') ?></h2>
-
-	<div class="Row buttons">
-		<input type="submit" value="<?= tr('apply') ?>">
-	</div>
+<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET" id="form-2">
+	<h2 tabindex=0><?= tr('wifi.sta') ?></h2>
 
 	<div class="Row checkbox">
 		<label><?= tr('wifi.enable') ?></label><!--
-		--><span class="box"></span>
+		--><span class="box" tabindex=0></span>
 		<input type="hidden" name="sta_enable" value="%sta_enable%">
 	</div>
 
@@ -68,7 +64,7 @@
 					<div class="nopasswd"><?= tr('wifi.sta_active_nopw') ?></div>
 					<div class="ip"></div>
 				</div>
-				<a class="forget" id="forget-sta">×</a>
+				<a class="forget" href="#" id="forget-sta">×</a>
 			</div>
 		</div>
 		<div class="AP-preview-nil" id="sta-nw-nil">
@@ -78,10 +74,14 @@
 
 	<div id="ap-box">
 		<label><?= tr('wifi.select_ssid') ?></label>
-		<div id="ap-scan"><a onclick="startScanning(); return false"><?= tr('wifi.scan_now') ?></a></div>
+		<div id="ap-scan"><a href="#" onclick="startScanning(); return false"><?= tr('wifi.scan_now') ?></a></div>
 		<div id="ap-loader" class="hidden"><?= tr('wifi.scanning') ?><span class="anim-dots">.</span></div>
 		<div id="ap-noscan" class="hidden"><?= tr('wifi.cant_scan_no_sta') ?></div>
 		<div id="ap-list" class="hidden"></div>
+	</div>
+
+	<div class="Row buttons">
+		<a class="button icn-ok" href="#" onclick="qs('#form-2').submit()"><?= tr('apply') ?></a>
 	</div>
 </form>
 
@@ -120,6 +120,7 @@
 	// Forget STA credentials
 	$('#forget-sta').on('click', function() {
 		selectSta('', '', '');
+		return false;
 	});
 
 	// Display selected STA SSID etc
@@ -194,11 +195,12 @@
 
 			if (ap.enc > 4) return; // hide unsupported auths
 
-			var item = document.createElement('div');
+			var item = mk('div');
 
 			var $item = $(item)
 				.data('ssid', ap.essid)
 				.data('pwd', ap.enc)
+				.attr('tabindex', 0)
 				.addClass('AP');
 
 			// mark current SSID
@@ -206,7 +208,7 @@
 				$item.addClass('selected');
 			}
 
-			var inner = document.createElement('div');
+			var inner = mk('div');
 			$(inner).addClass('inner')
 				.htmlAppend('<div class="rssi">{0}</div>'.format(ap.rssi_perc))
 				.htmlAppend('<div class="essid" title="{0}">{0}</div>'.format($.htmlEscape(ap.essid)))

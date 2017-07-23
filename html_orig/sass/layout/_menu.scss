@@ -69,15 +69,27 @@
 			box-shadow: 0 0 5px rgba(black, .5);
 		}
 
+		&:focus {
+			outline-color: $c-red-outline;
+		}
+
+		//&::before {
+		//	content: "▸";
+		//	padding-right: .5rem;
+		//	position: relative;
+		//	top: -0.1rem;
+		//}
+
+		// Fontello
 		&::before {
-			content: "▸";
-			padding-right: .5rem;
-			position: relative;
-			top: -0.1rem;
+			vertical-align: -2px;
+			margin-left: 0;
+			margin-right: 15px;
 		}
 
 		@include media($phone) {
 			display: none;
+			&::before {margin-left: 10px;}
 		}
 	}
 

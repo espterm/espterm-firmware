@@ -2,12 +2,8 @@
 $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 ?>
 
-<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET">
-	<h2><?= tr('net.ap') ?></h2>
-
-	<div class="Row buttons">
-		<input type="submit" value="<?= tr('apply') ?>">
-	</div>
+<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET" id="form-1">
+	<h2 tabindex=0><?= tr('net.ap') ?></h2>
 
 	<div class="Row explain">
 		<?= tr('net.explain_ap') ?>
@@ -38,14 +34,14 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 		<label for="ap_addr_mask"><?= tr('net.ap_addr_mask') ?></label>
 		<input type="text" name="ap_addr_mask" id="ap_addr_mask" value="%ap_addr_mask%" <?=$ipmask?> required>
 	</div>
-</form>
-
-<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET">
-	<h2><?= tr('net.sta') ?></h2>
 
 	<div class="Row buttons">
-		<input type="submit" value="<?= tr('apply') ?>">
+		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
 	</div>
+</form>
+
+<form class="Box str mobcol" action="<?= e(url('network_set')) ?>" method="GET" id="form-2">
+	<h2 tabindex=0><?= tr('net.sta') ?></h2>
 
 	<div class="Row explain">
 		<?= tr('net.explain_sta') ?>
@@ -53,7 +49,7 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 
 	<div class="Row checkbox">
 		<label><?= tr('net.sta_dhcp_enable') ?></label><!--
-		--><span class="box"></span>
+		--><span class="box" tabindex=0 role=checkbox></span>
 		<input type="hidden" name="sta_dhcp_enable" value="%sta_dhcp_enable%">
 	</div>
 
@@ -70,6 +66,10 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 	<div class="Row">
 		<label for="sta_addr_gw"><?= tr('net.sta_addr_gw') ?></label>
 		<input type="text" name="sta_addr_gw" id="sta_addr_gw" value="%sta_addr_gw%" <?=$ipmask?> required>
+	</div>
+
+	<div class="Row buttons">
+		<a class="button icn-ok" href="#" onclick="qs('#form-2').submit()"><?= tr('apply') ?></a>
 	</div>
 </form>
 

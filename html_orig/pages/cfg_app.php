@@ -1,9 +1,5 @@
-<form class="Box mobopen str" action="<?= e(url('app_set')) ?>" method="GET">
+<form class="Box mobopen str" action="<?= e(url('app_set')) ?>" method="GET" id='form-1'>
 	<h2><?= tr('app.defaults') ?></h2>
-
-	<div class="Row buttons">
-		<input type="submit" value="<?= tr('apply') ?>">
-	</div>
 
 	<div class="Row explain">
 		<?= tr('app.explain_initials') ?>
@@ -67,5 +63,9 @@
 	<div class="Row">
 		<label for="btn5"><?= tr("app.btn5") ?></label>
 		<input class="short" type="text" name="btn5" id="btn5" value="%btn5%">
+	</div>
+
+	<div class="Row buttons">
+		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
 	</div>
 </form>

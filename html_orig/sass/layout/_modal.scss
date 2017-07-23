@@ -27,7 +27,9 @@
 	background: #1c1c1e;
 	border-left: 6px solid $c-form-highlight;
 	border-right: 6px solid $c-form-highlight;
-	box-shadow: 0 0 2px 0 #434349, 0 0 6px 0 black;
+	border-top: 1px solid $c-form-highlight;
+	border-bottom: 1px solid $c-form-highlight;
+	box-shadow: 0 0 6px 0 black;
 
 	border-radius: 6px;
 

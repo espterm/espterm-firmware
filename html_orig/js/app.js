@@ -715,6 +715,19 @@ function bool(x) {
 	return (x === 1 || x === '1' || x === true || x === 'true');
 }
 
+/**
+ * Filter 'spacebar' and 'return' from keypress handler,
+ * and when they're pressed, fire the callback.
+ * use $(...).on('keypress', cr(handler))
+ */
+function cr(hdl) {
+	return function(e) {
+		if (e.which == 10 || e.which == 13 || e.which == 32) {
+			hdl();
+		}
+	};
+}
+
 /** Extend an objects with options */
 function extend(defaults, options) {
 	var target = {};
@@ -893,18 +906,30 @@ $.ready(function () {
 
 		$(box).toggleClass('checked', inp.value);
 
-		$(x).on('click', function() {
+		var hdl = function() {
 			inp.value = 1 - inp.value;
 			$(box).toggleClass('checked', inp.value)
-		});
+		};
+
+		$(x).on('click', hdl).on('keypress', cr(hdl));
 	});
 
 	// Expanding boxes on mobile
 	$('.Box.mobcol').forEach(function(x) {
 		var h = x.querySelector('h2');
-		$(h).on('click', function() {
+
+		var hdl = function() {
 			$(x).toggleClass('expanded');
-		});
+		};
+		$(h).on('click', hdl).on('keypress', cr(hdl));
+	});
+
+	qsa('form').forEach(function(x) {
+		$(x).on('keypress', function(e) {
+			if ((e.keyCode == 10 || e.keyCode == 13) && e.ctrlKey) {
+				x.submit();
+			}
+		})
 	});
 
 	// loader dots...
@@ -967,6 +992,15 @@ $.ready(function () {
 
 	Modal.init();
 	Notify.init();
+
+	// remove tabindixes from h2 if wide
+	if (window.innerWidth > 550) {
+		qsa('.Box h2').forEach(function (x) {
+			x.removeAttribute('tabindex');
+		});
+
+		qs('#brand').removeAttribute('tabindex');
+	}
 });
 
 $._loader = function(vis) {

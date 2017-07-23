@@ -7,8 +7,8 @@
 	color: $c-form-field-fg;
 	padding: 6px;
 	line-height: 1em;
-	outline: 0 none !important;
-	-moz-outline: 0 none !important;
+	//outline: 0 none !important;
+	//-moz-outline: 0 none !important;
 	font-weight: normal;
 
 	&:focus, &:hover {
@@ -21,6 +21,7 @@
 	line-height: $h;
 
 	.box {
+		overflow: hidden;
 		width: $h;
 		height: $h;
 		border: 1px solid #808080;

@@ -12,6 +12,19 @@ function bool(x) {
 	return (x === 1 || x === '1' || x === true || x === 'true');
 }
 
+/**
+ * Filter 'spacebar' and 'return' from keypress handler,
+ * and when they're pressed, fire the callback.
+ * use $(...).on('keypress', cr(handler))
+ */
+function cr(hdl) {
+	return function(e) {
+		if (e.which == 10 || e.which == 13 || e.which == 32) {
+			hdl();
+		}
+	};
+}
+
 /** Extend an objects with options */
 function extend(defaults, options) {
 	var target = {};

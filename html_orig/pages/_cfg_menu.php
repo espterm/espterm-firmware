@@ -1,16 +1,19 @@
-
 <nav id="menu">
-	<div id="brand" onclick="$('#menu').toggleClass('expanded')"><?= tr('appname') ?></div>
+	<div id="brand" tabindex=0><?= tr('appname') ?></div>
 	<?php
 	// generate the menu
-	foreach($_pages as $k => $page) {
+	foreach ($_pages as $k => $page) {
 		if (strpos($page->bodyclass, 'cfg') === false) continue;
 
-		$sel = ($_GET['page'] == $k) ? ' class="selected"' : '';
+		$sel = ($_GET['page'] == $k) ? 'selected' : '';
 		$text = $page->label;
 		$url = e(url($k));
-		echo "<a href=\"$url\"$sel>$text</a>";
+		echo "<a href=\"$url\" class=\"$page->icon $sel\">$text</a>";
 	}
-	?><a href="<?= e(url('term')) ?>"><?= tr('menu.term') ?></a>
-
+	?><a href="<?= e(url('term')) ?>" class="icn-back"><?= tr('menu.term') ?></a>
 </nav>
+
+<script>
+	function menuOpen() { $('#menu').toggleClass('expanded') }
+	$('#brand').on('click', menuOpen).on('keypress', cr(menuOpen));
+</script>

@@ -9,6 +9,10 @@
 		margin-top: dist(-1);
 	}
 
+	h1, h2 {
+		overflow: hidden;
+	}
+
 	h1 + & {
 		margin-top: 0;
 	}
@@ -45,6 +49,7 @@
 
 			@include media($phone) {
 				right: dist(0);
+				top: 1.8em;
 				margin: 1rem auto;
 			}
 
