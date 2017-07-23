@@ -11,6 +11,8 @@
 
 #include <esp8266.h>
 #include "ansi_parser_callbacks.h"
+#include "wifimgr.h"
+#include "persist.h"
 
 #define BTNGPIO 0
 
@@ -74,16 +76,16 @@ static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
 
-		if (resetCnt>=10) { //5 secs pressed - FR
+		if (resetCnt>=10) { //5 secs pressed - FR (timer is at 500 ms)
 			info("BOOT-button triggered FACTORY RESET!");
-			apars_handle_OSC_FactoryReset();
+			persist_restore_default();
 		}
 		else if (resetCnt>=2) { //1 sec pressed
-			wifi_station_disconnect();
-			wifi_set_opmode(STATIONAP_MODE); //reset to AP+STA mode
-			info("BOOT-button triggered reset to AP mode, restarting...");
+			info("BOOT-button triggered reset to AP mode...");
 
-			system_restart();
+			wificonf->opmode = STATIONAP_MODE;
+			persist_store();
+			wifimgr_apply_settings();
 		}
 		resetCnt=0;
 	}

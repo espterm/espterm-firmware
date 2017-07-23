@@ -1,29 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<meta charset="UTF-8">
-	<title>Help - ESP8266 Remote Terminal</title>
-	<meta name="viewport" content="width=device-width,shrink-to-fit=no,user-scalable=no,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0">
-
-	<link rel="stylesheet" href="/css/app.css">
-	<script src="/js/app.js"></script>
-</head>
-<body class="page-help">
-
-<h1 onclick="location.href='/'">Quick Reference</h1>
-
 <div class="Box">
 	<h2>Wiring</h2>
 
 	<ul>
-		<li>Communication UART on pins <b>Rx, Tx</b> at 115200-8-1-N</li>
-		<li>Debug log on pin <b>GPIO2</b> at 115200-8-1-N</li>
-		<li>Use 3.3V logic, or 5V with protection resistors (470R or more)</li>
-		<li>If the "LVD" LED on the ESP Term board lights up, the module doesn't get enough power. Check your connections.</li>
+		<li>Communication UART is on pins <b>Rx, Tx</b> at 115200-8-1-N. The baud rate can be changed in Terminal Settings.
+		<li>Debug log is on pin <b>GPIO2</b> (P2) at 115200-8-1-N. This baud rate is fixed.
+		<li>Compatible with 3.3&nbsp;V and 5&nbsp;V logic. For 5&nbsp;V, 470&nbsp;R protection resistors are recommended.
+		<li>If the "LVD" LED on the ESPTerm module lights up, it doesn't get enough power to run correctly. Check your connections.
 		<li>Connect Rx and Tx with a piece of wire to test the terminal alone, you should see what you type in the browser.
-			NOTE: This won't work if your ESP8266 board has a built-in USB-serial (like NodeMCU).</li>
-		<li>For best performance, use the module in the Client mode. In AP mode, check that the channel used is clear;
-			interference may cause lag in the terminal.</li>
+			<i>NOTE: This won't work if your ESP8266 board has a built-in USB-serial converter (like NodeMCU).</i>
+		<li>For best performance, use the module in Client mode (connected to external network).
+		<li>In AP mode, check that the channel used is clear; interference may cause a flaky connection.
 	</ul>
 </div>
 
@@ -328,12 +314,3 @@
 		</tbody>
 	</table>
 </div>
-
-<nav id="botnav">
-	<a href="/">Terminal</a><!--
-	--><a href="/wifi">WiFi config</a><!--
-	--><a href="/about">About</a>
-</nav>
-
-</body>
-</html>

@@ -5,13 +5,29 @@ form { @include naked(); }
 	width: $form-field-w;
 }
 
-form .Row {
+input[type="number"], input.short {
+	width: $form-field-w/2;
+}
+
+.Box.errors {
+	.list {
+		color: crimson;
+		font-weight: bold;
+	}
+
+	.lead {
+		color: white;
+	}
+}
+
+.Row {
 	vertical-align: middle;
-	margin: 14px auto;
+	margin: 12px auto;
 	text-align: left;
 
 	display: flex;
 	flex-direction: row;
+	align-items: center;
 
 	&:first-child {
 		margin-top: 0;
@@ -30,6 +46,7 @@ form .Row {
 	}
 
 	&.buttons {
+		margin: 16px auto;
 		input, .button {
 			margin-right: dist(-1);
 		}
@@ -80,34 +97,44 @@ form .Row {
 		align-self: flex-start;
 
 		@include noselect;
+		@include nowrap;
 	}
 
-	.checkbox-wrap {
-		display: inline-block;
-		width: $form-label-w;
-		padding: $form-label-gap;
-		text-align: right;
-		align-self: flex-start;
+	label.error {
+		color: crimson;
+	}
 
-		input[type=checkbox] {
-			margin: auto;
-			width: auto;
-			height: auto;
-		}
+	//.checkbox-wrap {
+	//	display: inline-block;
+	//	width: $form-label-w;
+	//	padding: $form-label-gap;
+	//	text-align: right;
+	//	align-self: flex-start;
+	//
+	//	input[type=checkbox] {
+	//		margin: auto;
+	//		width: auto;
+	//		height: auto;
+	//	}
+	//
+	//	& + label {
+	//		width: $form-field-w;
+	//		padding-left: 0;
+	//		text-align: left;
+	//		cursor: pointer;
+	//	}
+	//}
 
-		& + label {
-			width: $form-field-w;
-			padding-left: 0;
-			text-align: left;
-			cursor: pointer;
-		}
+	input[type="range"] {
+		width: 200px;
 	}
 
 	// special phone style
 	@include media($phone) {
 		flex-direction: column;
+		margin: 6px auto;
 
-		&.buttons, &.centered {
+		&.buttons, &.centered, &.checkbox {
 			flex-direction: row;
 		}
 
@@ -139,7 +166,7 @@ form .Row {
 			}
 		}
 
-		#{$all-text-inputs}, textarea {
+		#{$all-text-inputs}, input[type="range"], textarea, select {
 			width: 100%;
 		}
 	}

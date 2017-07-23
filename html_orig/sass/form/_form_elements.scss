@@ -7,13 +7,55 @@
 	color: $c-form-field-fg;
 	padding: 6px;
 	line-height: 1em;
-	outline: 0 none !important;
-	-moz-outline: 0 none !important;
+	//outline: 0 none !important;
+	//-moz-outline: 0 none !important;
 	font-weight: normal;
 
 	&:focus, &:hover {
 		border-bottom-color: $c-form-highlight-a;
 	}
+}
+
+.Row.checkbox {
+	$h: 27px;
+	line-height: $h;
+
+	.box {
+		overflow: hidden;
+		width: $h;
+		height: $h;
+		border: 1px solid #808080;
+		border-radius: 3px;
+		background: $c-form-field-bg;
+		display: inline-block;
+		position: relative;
+		cursor: pointer;
+		color: $c-form-highlight-a;
+
+		&::before {
+			font-weight: bold;
+			position: absolute;
+			content: '×';
+			left: 0; top: 0; right: 0; bottom: 0;
+			line-height: $h - 1px;
+			text-align: center;
+			font-size: $h;
+			vertical-align: middle;
+			display: none;
+		}
+
+		&.checked::before {
+			display: block;
+		}
+	}
+}
+
+.Row.range {
+	.display {
+		margin-left: 1ex;
+	}
+
+	label .display { font-weight: normal; }
 }
 
 //#{$all-text-inputs} {

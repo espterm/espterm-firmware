@@ -1,0 +1,137 @@
+.Box {
+	display: block;
+	max-width: 900px;
+
+	margin-top: dist(0);
+	padding: dist(-1) dist(0);
+
+	// clear floats
+	&::after {
+		content: '';
+		display: block;
+		clear: both
+	}
+
+	@include media($phone) {
+		margin-top: dist(-1);
+	}
+
+	h1, h2 {
+		overflow: hidden;
+	}
+
+	h1 + & {
+		margin-top: 0;
+	}
+
+	h2 {
+		margin-top: 0;
+		margin-bottom: 0 !important;
+	}
+
+	p:last-child {
+		margin-bottom: 0.5em;
+	}
+
+	border-radius: 3px;
+	background-color: rgba(white, .07);
+	box-shadow: 0 0 4px black;
+	border: 1px solid #4f4f4f;
+
+	&.wide {
+		width: initial;
+		max-width: initial;
+	}
+
+	&.medium {
+		max-width: 1200px;
+	}
+
+	//.Valfield {
+	//	display: inline-block;
+	//	min-width: 10em;
+	//}
+
+	// Submit Top Right
+	&.str {
+		position: relative;
+		.Row.buttons {
+			position: absolute;
+
+			@include media($phone) {
+				right: dist(0);
+				top: 1.8em;
+				margin: 1rem auto;
+			}
+
+			@include media($tablet-min) {
+				right: 0;
+				top: 0;
+				margin-top: dist(-1);
+			}
+		}
+	}
+
+	&.str.mobopen .Row.buttons {
+		top: 0;
+		margin-top: dist(-1);
+	}
+
+	.Row.explain {
+		max-width: 600px; margin-left: 0;
+		@include media($phone) {
+			margin-top: 60px;
+		}
+	}
+	&.mobopen .Row.explain {
+		margin-top: 12px; // default from .Row
+
+		@include media($phone) {
+			margin-top: 18px;
+		}
+	}
+}
+
+@include media($phone) {
+	.Box.mobcol {
+		h2 {
+			position: relative;
+			cursor: pointer;
+			padding-right: 1.3rem;
+
+			&::after {
+				position: absolute;
+				right: 0;
+				content: '▸';
+
+				top:50%;
+				font-size: 120%;
+				font-weight: bold;
+				transform: translate(0,-50%) rotate(90deg);
+			}
+		}
+
+		&.expanded h2::after {
+			transform: translate(-25%,-50%) rotate(-90deg);
+			margin-bottom: dist(0);
+		}
+
+		.Row {
+			display: none;
+		}
+
+		#ap-box {
+			display: none;
+		}
+
+		&.expanded {
+			.Row {
+				display: flex;
+			}
+
+			#ap-box {
+				display: block;
+			}
+		}
+	}
+}

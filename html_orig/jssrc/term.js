@@ -135,7 +135,7 @@
 			H = obj.h;
 
 			/* Build screen & show */
-			var e, cell, scr = qq('#screen');
+			var e, cell, scr = qs('#screen');
 
 			// Empty the screen node
 			while (scr.firstChild) scr.removeChild(scr.firstChild);
@@ -281,7 +281,7 @@
 				}
 			});
 
-			qa('#buttons button').forEach(function(s) {
+			qsa('#buttons button').forEach(function(s) {
 				s.addEventListener('click', function() {
 					sendBtnMsg(+this.dataset['n']);
 				});
@@ -299,5 +299,5 @@
 		Term.init(obj);
 		Conn.init();
 		Input.init();
-	}
+	};
 })();

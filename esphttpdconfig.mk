@@ -37,3 +37,6 @@ OUTPUT_TYPE = combined
 
 # SPI flash size, in K
 ESP_SPI_FLASH_SIZE_K = 1024
+
+# Admin password, used to store settings to flash as defaults
+ADMIN_PASSWORD = "19738426"

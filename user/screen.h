@@ -34,6 +34,31 @@
  *
  */
 
+typedef struct {
+	u32 width;
+	u32 height;
+	u8 default_bg;
+	u8 default_fg;
+	char title[64];
+	char btn1[10];
+	char btn2[10];
+	char btn3[10];
+	char btn4[10];
+	char btn5[10];
+} TerminalConfigBundle;
+
+// Live config
+extern TerminalConfigBundle * const termconf;
+
+/**
+ * Transient live config with no persist, can be modified via esc sequences.
+ * terminal_apply_settings() copies termconf to this struct, erasing old scratch changes
+ */
+extern TerminalConfigBundle termconf_scratch;
+
+void terminal_restore_defaults(void);
+void terminal_apply_settings(void);
+
 /**
  * Maximum screen size (determines size of the static data array)
  *
@@ -42,20 +67,13 @@
  */
 #define MAX_SCREEN_SIZE (80*25)
 
-#define SCREEN_DEF_W 26  //!< Default screen width
-#define SCREEN_DEF_H 10  //!< Default screen height
-
-#define SCREEN_DEF_BG 0  //!< Default screen background
-#define SCREEN_DEF_FG 7  //!< Default screen foreground
-
 typedef enum {
 	CLEAR_TO_CURSOR=0, CLEAR_FROM_CURSOR=1, CLEAR_ALL=2
 } ClearMode;
 
 typedef uint8_t Color;
 
-httpd_cgi_state ICACHE_FLASH_ATTR
-screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
+httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
 
 /** Init the screen */
 void screen_init(void);

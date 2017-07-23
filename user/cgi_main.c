@@ -5,9 +5,7 @@
 #include "cgi_main.h"
 #include "screen.h"
 #include "user_main.h"
-
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
+#include "helpers.h"
 
 /**
  * Main page template substitution
@@ -28,7 +26,33 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 	const int bufsiz = 512;
 	char buff[bufsiz];
 
-	if (streq(token, "screenData")) {
+	if (streq(token, "term_title")) {
+		httpdSend(connData, termconf->title, -1);
+	}
+	else if (streq(token, "btn1")) {
+		httpdSend(connData, termconf->btn1, -1);
+	}
+	else if (streq(token, "btn2")) {
+		httpdSend(connData, termconf->btn2, -1);
+	}
+	else if (streq(token, "btn3")) {
+		httpdSend(connData, termconf->btn3, -1);
+	}
+	else if (streq(token, "btn4")) {
+		httpdSend(connData, termconf->btn4, -1);
+	}
+	else if (streq(token, "btn5")) {
+		httpdSend(connData, termconf->btn5, -1);
+	}
+	else if (streq(token, "default_bg")) {
+		sprintf(buff, "%d", termconf->default_bg);
+		httpdSend(connData, buff, -1);
+	}
+	else if (streq(token, "default_fg")) {
+		sprintf(buff, "%d", termconf->default_fg);
+		httpdSend(connData, buff, -1);
+	}
+	else if (streq(token, "screenData")) {
 		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, arg);
 		httpdSend(connData, buff, -1);
 		return cont;

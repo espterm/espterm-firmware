@@ -1,89 +1,45 @@
-/** Wifi page */
-(function () {
+(function(w) {
 	var authStr = ['Open', 'WEP', 'WPA', 'WPA2', 'WPA/WPA2'];
 	var curSSID;
 
-	/** Update display for received response */
-	function onScan(resp, status) {
-		if (status != 200) {
-			// bad response
-			rescan(5000); // wait 5sm then retry
-			return;
+	// Get XX % for a slider input
+	function rangePt(inp) {
+		return Math.round(((inp.value / inp.max)*100)) + '%';
+	}
+
+	// Display selected STA SSID etc
+	function selectSta(name, password, ip) {
+		$('#sta_ssid').val(name);
+		$('#sta_password').val(password);
+
+		$('#sta-nw').toggleClass('hidden', name.length == 0);
+		$('#sta-nw-nil').toggleClass('hidden', name.length > 0);
+
+		$('#sta-nw .essid').html(e(name));
+		var nopw = undef(password) || password.length == 0;
+		$('#sta-nw .x-passwd').html(e(password));
+		$('#sta-nw .passwd').toggleClass('hidden', nopw);
+		$('#sta-nw .nopasswd').toggleClass('hidden', !nopw);
+		$('#sta-nw .ip').html(ip.length>0 ? tr('wifi.connected_ip_is')+ip : tr('wifi.not_conn'));
+	}
+
+	function submitPskModal(e, open) {
+		var passwd = $('#conn-passwd').val();
+		var ssid = $('#conn-ssid').val();
+
+		if (open || passwd.length) {
+			$('#sta_password').val(passwd);
+			$('#sta_ssid').val(ssid);
+			selectSta(ssid, passwd, '');
 		}
 
-		resp = JSON.parse(resp);
-
-		var done = !bool(resp.result.inProgress) && (resp.result.APs.length > 0);
-		rescan(done ? 15000 : 1000);
-		if (!done) return; // no redraw yet
-
-		// clear the AP list
-		var $list = $('#ap-list');
-		// remove old APs
-		$('.AP').remove();
-
-		$list.toggle(done);
-		$('#ap-loader').toggle(!done);
-
-		// scan done
-		resp.result.APs.sort(function (a, b) {
-				return b.rssi - a.rssi;
-			}).forEach(function (ap) {
-				ap.enc = intval(ap.enc);
-
-				if (ap.enc > 4) return; // hide unsupported auths
-
-				var item = document.createElement('div');
-
-				var $item = $(item)
-					.data('ssid', ap.essid)
-					.data('pwd', ap.enc != 0)
-					.addClass('AP');
-
-				// mark current SSID
-				if (ap.essid == curSSID) {
-					$item.addClass('selected');
-				}
-
-				var inner = document.createElement('div');
-				$(inner).addClass('inner')
-					.htmlAppend('<div class="rssi">{0}</div>'.format(ap.rssi_perc))
-					.htmlAppend('<div class="essid" title="{0}">{0}</div>'.format($.htmlEscape(ap.essid)))
-					.htmlAppend('<div class="auth">{0}</div>'.format(authStr[ap.enc]));
-
-				$item.on('click', function () {
-					var $th = $(this);
-
-					// populate the form
-					$('#conn-essid').val($th.data('ssid'));
-					$('#conn-passwd').val(''); // clear
-
-					if ($th.data('pwd')) {
-						// this AP needs a password
-						Modal.show('#psk-modal');
-					} else {
-						Modal.show('#reset-modal');
-						$('#conn-form').submit();
-					}
-				});
-
-
-				item.appendChild(inner);
-				$list[0].appendChild(item);
-			});
+		if (e) e.preventDefault();
+		Modal.hide('#psk-modal');
+		return false;
 	}
 
-	/** Ask the CGI what APs are visible (async) */
-	function scanAPs() {
-		$.get('http://'+_root+'/wifi/scan', onScan);
-	}
-
-	function rescan(time) {
-		setTimeout(scanAPs, time);
-	}
-
-	/** Set up the WiFi page */
-	window.wifiInit = function (obj) {
+	/** Update display for received response */
+	function onScan(resp, status) {
 		//var ap_json = {
 		//	"result": {
 		//		"inProgress": "0",
@@ -94,85 +50,133 @@
 		//	}
 		//};
 
-		// Hide what should be hidden in this mode
-		$('.x-hide-'+obj.mode).addClass('hidden');
-		obj.mode = +obj.mode;
-
-		// Channel writable only in AP mode
-		if (obj.mode != 2) $('#channel').attr('readonly', 1);
-
-		curSSID = obj.staSSID;
-
-		// add SSID to the opmode field
-		if (curSSID) {
-			var box = $('#opmodebox');
-			box.html(box.html() + ' (' + curSSID + ')');
+		if (status != 200) {
+			// bad response
+			rescan(5000); // wait 5sm then retry
+			return;
 		}
 
-		// hide IP if IP not received
-		if (!obj.staIP) $('.x-hide-noip').addClass('hidden');
-
-		// scan if not AP
-		if (obj.mode != 2) {
-			scanAPs();
+		try {
+			resp = JSON.parse(resp);
+		} catch (e) {
+			console.log(e);
+			rescan(5000);
+			return;
 		}
 
-		$('#modeswitch').html([
-			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>',
-			'<a class="button" href="/wifi/setmode?mode=3">Client+AP</a>',
-			'<a class="button" href="/wifi/setmode?mode=1">Client only</a>&nbsp;<a class="button" href="/wifi/setmode?mode=2">AP only</a>'
-		][obj.mode-1]);
-	};
+		var done = !bool(resp.result.inProgress) && (resp.result.APs.length > 0);
+		rescan(done ? 15000 : 1000);
+		if (!done) return; // no redraw yet
 
-	window.wifiConn = function () {
-		var xhr = new XMLHttpRequest();
-		var abortTmeo;
+		// clear the AP list
+		var $list = $('#ap-list');
+		// remove old APs
+		$('#ap-list .AP').remove();
 
-		function getStatus() {
-			xhr.open("GET", 'http://'+_root+"/wifi/connstatus");
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState == 4 && xhr.status >= 200 && xhr.status < 300) {
-					clearTimeout(abortTmeo);
-					var data = JSON.parse(xhr.responseText);
-					var done = false;
-					var msg = '...';
+		$list.toggleClass('hidden', !done);
+		$('#ap-loader').toggleClass('hidden', done);
 
-					if (data.status == "idle") {
-						msg = "Preparing to connect";
-					}
-					else if (data.status == "success") {
-						msg = "Connected! Received IP " + data.ip + ".";
-						done = true;
-					}
-					else if (data.status == "working") {
-						msg = "Connecting to selected AP";
-					}
-					else if (data.status == "fail") {
-						msg = "Connection failed, check your password and try again.";
-						done = true;
-					}
+		// scan done
+		resp.result.APs.sort(function (a, b) {
+			return b.rssi - a.rssi;
+		}).forEach(function (ap) {
+			ap.enc = parseInt(ap.enc);
 
-					$("#status").html(msg);
+			if (ap.enc > 4) return; // hide unsupported auths
+			WiFi.scan_url = '/cfg/wifi/scan';
 
-					if (done) {
-						$('#backbtn').removeClass('hidden');
-						$('.anim-dots').addClass('hidden');
-					} else {
-						window.setTimeout(getStatus, 1000);
-					}
+			var item = mk('div');
+
+			var $item = $(item)
+				.data('ssid', ap.essid)
+				.data('pwd', ap.enc)
+				.attr('tabindex', 0)
+				.addClass('AP');
+
+			// mark current SSID
+			if (ap.essid == curSSID) {
+				$item.addClass('selected');
+			}
+
+			var inner = mk('div');
+			$(inner).addClass('inner')
+				.htmlAppend('<div class="rssi">{0}</div>'.format(ap.rssi_perc))
+				.htmlAppend('<div class="essid" title="{0}">{0}</div>'.format($.htmlEscape(ap.essid)))
+				.htmlAppend('<div class="auth">{0}</div>'.format(authStr[ap.enc]));
+
+			$item.on('click', function () {
+				var $th = $(this);
+
+				var ssid = $th.data('ssid');
+
+				$('#conn-ssid').val(ssid);
+				$('#conn-passwd').val('');
+
+				if (+$th.data('pwd')) {
+					// this AP needs a password
+					Modal.show('#psk-modal');
+					$('#conn-passwd')[0].focus();
+				} else {
+					//Modal.show('#reset-modal');
+					submitPskModal(null, true);
 				}
-			};
+			});
 
-			abortTmeo = setTimeout(function () {
-				xhr.abort();
-				$("#status").html("Telemetry lost, try reconnecting to the AP.");
-				$('#backbtn').removeClass('hidden');
-				$('.anim-dots').addClass('hidden');
-			}, 4000);
 
-			xhr.send();
-		}
+			item.appendChild(inner);
+			$list[0].appendChild(item);
+		});
+	}
 
-		getStatus();
-	};
-})();
+	function startScanning() {
+		$('#ap-loader').removeClass('hidden');
+		$('#ap-scan').addClass('hidden');
+		$('#ap-loader .anim-dots').html('.');
+		scanAPs();
+	}
+
+	/** Ask the CGI what APs are visible (async) */
+	function scanAPs() {
+		$.get('http://'+_root+w.scan_url, onScan);
+	}
+
+	function rescan(time) {
+		setTimeout(scanAPs, time);
+	}
+
+	/** Set up the WiFi page */
+	function wifiInit(cfg) {
+		// Hide what should be hidden in this mode
+		cfg.mode = +cfg.mode;
+
+		$('#ap-noscan').toggleClass('hidden', cfg.mode != 2);
+		$('#ap-scan').toggleClass('hidden', cfg.mode == 2);
+
+		// Update slider value displays
+		$('.Row.range').forEach(function(x) {
+			var inp = x.querySelector('input');
+			var disp1 = x.querySelector('.x-disp1');
+			var disp2 = x.querySelector('.x-disp2');
+			var t = rangePt(inp);
+			$(disp1).html(t);
+			$(disp2).html(t);
+			$(inp).on('input', function() {
+				t = rangePt(inp);
+				$(disp1).html(t);
+				$(disp2).html(t);
+			});
+		});
+
+		// Forget STA credentials
+		$('#forget-sta').on('click', function() {
+			selectSta('', '', '');
+			return false;
+		});
+
+		selectSta(cfg.sta_ssid, cfg.sta_password, cfg.sta_active_ip);
+		curSSID = cfg.sta_active_ssid;
+	}
+
+	w.init = wifiInit;
+	w.startScanning = startScanning;
+})(window.WiFi = {});
