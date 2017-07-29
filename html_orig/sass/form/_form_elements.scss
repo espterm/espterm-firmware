@@ -33,16 +33,19 @@
 		color: $c-form-highlight-a;
 
 		&::before {
-			font-weight: bold;
+			font-family: "fontello";
 			position: absolute;
-			content: '×';
+			//content: '×';
+			//content: '✓';
 			left: 0; top: 0; right: 0; bottom: 0;
-			line-height: $h - 1px;
+			line-height: 25px;
 			text-align: center;
-			font-size: $h;
+			font-size: 20px;
 			vertical-align: middle;
 			display: none;
 		}
+
+		@include icon-content('ok');
 
 		&.checked::before {
 			display: block;
