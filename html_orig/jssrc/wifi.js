@@ -23,21 +23,6 @@
 		$('#sta-nw .ip').html(ip.length>0 ? tr('wifi.connected_ip_is')+ip : tr('wifi.not_conn'));
 	}
 
-	function submitPskModal(e, open) {
-		var passwd = $('#conn-passwd').val();
-		var ssid = $('#conn-ssid').val();
-
-		if (open || passwd.length) {
-			$('#sta_password').val(passwd);
-			$('#sta_ssid').val(ssid);
-			selectSta(ssid, passwd, '');
-		}
-
-		if (e) e.preventDefault();
-		Modal.hide('#psk-modal');
-		return false;
-	}
-
 	/** Update display for received response */
 	function onScan(resp, status) {
 		//var ap_json = {
@@ -107,19 +92,18 @@
 			$item.on('click', function () {
 				var $th = $(this);
 
-				var ssid = $th.data('ssid');
-
-				$('#conn-ssid').val(ssid);
-				$('#conn-passwd').val('');
+				var conn_ssid = $th.data('ssid');
+				var conn_pass = '';
 
 				if (+$th.data('pwd')) {
 					// this AP needs a password
-					Modal.show('#psk-modal');
-					$('#conn-passwd')[0].focus();
-				} else {
-					//Modal.show('#reset-modal');
-					submitPskModal(null, true);
+					conn_pass = prompt(tr("wifi.enter_passwd").replace(":ssid:", conn_ssid));
+					if (!conn_pass) return;
 				}
+
+				$('#sta_password').val(conn_pass);
+				$('#sta_ssid').val(conn_ssid);
+				selectSta(conn_ssid, conn_pass, '');
 			});
 
 
@@ -132,6 +116,7 @@
 		$('#ap-loader').removeClass('hidden');
 		$('#ap-scan').addClass('hidden');
 		$('#ap-loader .anim-dots').html('.');
+
 		scanAPs();
 	}
 
@@ -146,12 +131,6 @@
 
 	/** Set up the WiFi page */
 	function wifiInit(cfg) {
-		// Hide what should be hidden in this mode
-		cfg.mode = +cfg.mode;
-
-		$('#ap-noscan').toggleClass('hidden', cfg.mode != 2);
-		$('#ap-scan').toggleClass('hidden', cfg.mode == 2);
-
 		// Update slider value displays
 		$('.Row.range').forEach(function(x) {
 			var inp = x.querySelector('input');

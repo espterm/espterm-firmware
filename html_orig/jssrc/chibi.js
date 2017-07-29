@@ -488,7 +488,7 @@
 								// Multiple select
 								for (j = 0; j < value.length; j += 1) {
 									elm[i].selected = '';
-									if (elm[i].value === value[j]) {
+									if (elm[i].value === ""+value[j]) {
 										elm[i].selected = 'selected';
 										break;
 									}

@@ -1,14 +1,6 @@
 // Unified Form wrapper
 form { @include naked(); }
 
-#{$all-text-inputs}, select, label.select-wrap {
-	width: $form-field-w;
-}
-
-input[type="number"], input.short {
-	width: $form-field-w/2;
-}
-
 .Box.errors {
 	.list {
 		color: crimson;
@@ -45,7 +37,8 @@ input[type="number"], input.short {
 		}
 	}
 
-	&.buttons {
+	// buttons2 is the same style, but different selector for use in the admin page
+	&.buttons, &.buttons2 {
 		margin: 16px auto;
 		input, .button {
 			margin-right: dist(-1);

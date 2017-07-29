@@ -19,7 +19,7 @@ wifimgr_restore_defaults(void)
 	u8 mac[6];
 	wifi_get_macaddr(SOFTAP_IF, mac);
 
-	wificonf->opmode = SOFTAP_MODE;
+	wificonf->opmode = STATIONAP_MODE; // Client+AP, so we can scan without having to enable Station
 	wificonf->tpw = 20;
 	wificonf->ap_channel = 1;
 	sprintf((char *) wificonf->ap_ssid, "TERM-%02X%02X%02X", mac[3], mac[4], mac[5]);

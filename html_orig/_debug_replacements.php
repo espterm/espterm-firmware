@@ -21,19 +21,21 @@ return [
 		 "screen": "70 t259"
 	}',
 
+	'%opmode%' => '2',
+	'%sta_enable%' => '0',
 	'%ap_enable%' => '1',
+
 	'%tpw%' => '60',
 	'%ap_channel%' => '7',
 	'%ap_ssid%' => 'ESP-123456',
 	'%ap_password%' => 'Passw0rd!',
 	'%ap_hidden%' => '0',
+
 	'%sta_ssid%' => 'Chlivek',
 	'%sta_password%' => 'windows XP is The Best',
 	'%sta_active_ip%' => '1.2.3.4',
 	'%sta_active_ssid%' => 'Chlivek',
 
-	'%sta_enable%' => '1',
-	'%opmode%' => '3',
 	'%vers_fw%' => '1.2.3',
 	'%date%' => date('Y-m-d'),
 	'%time%' => date('G:i'),
@@ -59,4 +61,8 @@ return [
 	'%term_height%' => '10',
 	'%default_bg%' => '0',
 	'%default_fg%' => '7',
+
+	'%uart_baud%' => 115200,
+	'%uart_stopbits%' => 1,
+	'%uart_parity%' => 2,
 ];

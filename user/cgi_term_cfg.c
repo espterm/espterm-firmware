@@ -3,19 +3,19 @@ Cgi/template routines for configuring non-wifi settings
 */
 
 #include <esp8266.h>
-#include "cgi_appcfg.h"
+#include "cgi_term_cfg.h"
 #include "persist.h"
 #include "screen.h"
 #include "helpers.h"
 
-#define SET_REDIR_SUC "/cfg/app"
+#define SET_REDIR_SUC "/cfg/term"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
 
 /**
  * Universal CGI endpoint to set Terminal params.
  */
 httpd_cgi_state ICACHE_FLASH_ATTR
-cgiAppCfgSetParams(HttpdConnData *connData)
+cgiTermCfgSetParams(HttpdConnData *connData)
 {
 	char buff[50];
 
@@ -114,7 +114,7 @@ cgiAppCfgSetParams(HttpdConnData *connData)
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
-		info("Set app params - success, saving...");
+		info("Set term params - success, saving...");
 
 		terminal_apply_settings();
 		persist_store();
@@ -130,7 +130,7 @@ cgiAppCfgSetParams(HttpdConnData *connData)
 
 
 httpd_cgi_state ICACHE_FLASH_ATTR
-tplAppCfg(HttpdConnData *connData, char *token, void **arg)
+tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 {
 #define BUFLEN 100
 	char buff[BUFLEN];

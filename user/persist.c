@@ -19,6 +19,7 @@ apply_live_settings(void)
 	dbg("[Persist] Applying live settings...");
 	terminal_apply_settings();
 	wifimgr_apply_settings();
+	sysconf_apply_settings();
 	// ...
 }
 
@@ -27,6 +28,7 @@ restore_live_settings_to_hard_defaults(void)
 {
 	wifimgr_restore_defaults();
 	terminal_restore_defaults();
+	sysconf_restore_defaults();
 	// ...
 }
 
@@ -41,7 +43,7 @@ restore_live_settings_to_hard_defaults(void)
 static uint32_t ICACHE_FLASH_ATTR
 calculateCRC32(const uint8_t *data, size_t length)
 {
-	uint32_t crc = 0xffffffff;
+	uint32_t crc = 0xffffffff + CHECKSUM_SALT;
 	while (length--) {
 		uint8_t c = *data++;
 		for (uint32_t i = 0x80; i > 0; i >>= 1) {
@@ -67,7 +69,8 @@ calculateCRC32(const uint8_t *data, size_t length)
 static uint32_t ICACHE_FLASH_ATTR
 compute_checksum(AppConfigBundle *bundle)
 {
-	return calculateCRC32((uint8_t *) bundle, sizeof(AppConfigBundle) - 4) ^ CHECKSUM_SALT;
+	// this should be the bundle without the checksum
+	return calculateCRC32((uint8_t *) bundle, sizeof(AppConfigBundle) - 4);
 }
 
 /**
@@ -78,10 +81,13 @@ persist_load(void)
 {
 	info("[Persist] Loading stored settings from FLASH...");
 
-	dbg("sizeof(AppConfigBundle)      = %d bytes", sizeof(AppConfigBundle));
-	dbg("sizeof(PersistBlock)         = %d bytes", sizeof(PersistBlock));
-	dbg("sizeof(WiFiConfigBundle)     = %d bytes", sizeof(WiFiConfigBundle));
-	dbg("sizeof(TerminalConfigBundle) = %d bytes", sizeof(TerminalConfigBundle));
+	dbg("sizeof(AppConfigBundle)        = %d bytes", sizeof(AppConfigBundle));
+	dbg("> sizeof(WiFiConfigBundle)     = %d bytes", sizeof(WiFiConfigBundle));
+	dbg("> sizeof(TerminalConfigBundle) = %d bytes", sizeof(TerminalConfigBundle));
+	dbg("> sizeof(SystemConfigBundle)   = %d bytes", sizeof(SystemConfigBundle));
+	dbg("> sizeof(checksum)             = %d bytes", sizeof(uint32_t));
+	dbg("> filler                       = %d bytes",
+		sizeof(AppConfigBundle) - (sizeof(WiFiConfigBundle) + sizeof(TerminalConfigBundle) + sizeof(SystemConfigBundle)));
 
 	bool hard_reset = false;
 

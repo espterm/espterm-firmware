@@ -12,7 +12,7 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 	<div class="Row checkbox x-static-toggle" >
 		<label><?= tr('net.sta_dhcp_enable') ?></label><!--
 		--><span class="box" tabindex=0 role=checkbox></span>
-		<input type="hidden" name="sta_dhcp_enable" value="%sta_dhcp_enable%">
+		<input type="hidden" id="sta_dhcp_enable" name="sta_dhcp_enable" value="%sta_dhcp_enable%">
 	</div>
 
 	<div class="Row x-static">
@@ -43,9 +43,13 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 	</div>
 
 	<div class="Row">
-		<label for="ap_dhcp_time"><?= tr('net.ap_dhcp_time') ?><span class="mq-phone">&nbsp;(min)</span></label>
-		<input type="number" step=1 min=1 max=2880 name="ap_dhcp_time" id="ap_dhcp_time" value="%ap_dhcp_time%" required>
-		<span class="mq-no-phone">&nbsp;(min)</span>
+		<label for="ap_addr_mask"><?= tr('net.ap_addr_mask') ?></label>
+		<input type="text" name="ap_addr_mask" id="ap_addr_mask" value="%ap_addr_mask%" <?=$ipmask?> required>
+	</div>
+
+	<div class="Row">
+		<label for="ap_addr_ip"><?= tr('net.ap_addr_ip') ?></label>
+		<input type="text" name="ap_addr_ip" id="ap_addr_ip" value="%ap_addr_ip%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row">
@@ -59,13 +63,9 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 	</div>
 
 	<div class="Row">
-		<label for="ap_addr_ip"><?= tr('net.ap_addr_ip') ?></label>
-		<input type="text" name="ap_addr_ip" id="ap_addr_ip" value="%ap_addr_ip%" <?=$ipmask?> required>
-	</div>
-
-	<div class="Row">
-		<label for="ap_addr_mask"><?= tr('net.ap_addr_mask') ?></label>
-		<input type="text" name="ap_addr_mask" id="ap_addr_mask" value="%ap_addr_mask%" <?=$ipmask?> required>
+		<label for="ap_dhcp_time"><?= tr('net.ap_dhcp_time') ?><span class="mq-phone">&nbsp;(min)</span></label>
+		<input type="number" step=1 min=1 max=2880 name="ap_dhcp_time" id="ap_dhcp_time" value="%ap_dhcp_time%" required>
+		<span class="mq-no-phone">&nbsp;min</span>
 	</div>
 
 	<div class="Row buttons">
@@ -86,10 +86,13 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 
 <script>
 	function updateStaticDisp() {
-		$('.x-static').toggleClass('hidden', $('#sta_dhcp_enable').val());
+		var sttc = !parseInt($('#sta_dhcp_enable').val());
+		$('.x-static').toggleClass('hidden', !sttc);
 	}
 	$('.x-static-toggle').on('click', function() {
-		updateStaticDisp();
+		setTimeout(function() {
+			updateStaticDisp();
+		}, 0)
 	});
 	updateStaticDisp();
 </script>

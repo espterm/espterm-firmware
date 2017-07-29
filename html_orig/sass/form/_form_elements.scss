@@ -1,5 +1,13 @@
 @import "buttons";
 
+#{$all-text-inputs}, select, label.select-wrap {
+	width: $form-field-w;
+}
+
+input[type="number"], input.short, select.short {
+	width: $form-field-w/2;
+}
+
 #{$all-text-inputs}, select {
 	border: 0 none;
 	border-bottom: 2px solid $c-form-highlight;

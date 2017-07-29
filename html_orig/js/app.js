@@ -488,7 +488,7 @@
 								// Multiple select
 								for (j = 0; j < value.length; j += 1) {
 									elm[i].selected = '';
-									if (elm[i].value === value[j]) {
+									if (elm[i].value === ""+value[j]) {
 										elm[i].selected = 'selected';
 										break;
 									}
@@ -1007,10 +1007,17 @@ $.ready(function () {
 $._loader = function(vis) {
 	$('#loader').toggleClass('show', vis);
 };
+
+$.ready(function() {
+	setTimeout(function() {
+		$('#content').addClass('load');
+	}, 1);
+});
 // Generated from PHP locale file
 var _tr = {
     "wifi.connected_ip_is": "Connected, IP is ",
-    "wifi.not_conn": "Not connected."
+    "wifi.not_conn": "Not connected.",
+    "wifi.enter_passwd": "Enter password for \":ssid:\""
 };
 
 function tr(key) { return _tr[key] || '?'+key+'?'; }
@@ -1037,21 +1044,6 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 		$('#sta-nw .passwd').toggleClass('hidden', nopw);
 		$('#sta-nw .nopasswd').toggleClass('hidden', !nopw);
 		$('#sta-nw .ip').html(ip.length>0 ? tr('wifi.connected_ip_is')+ip : tr('wifi.not_conn'));
-	}
-
-	function submitPskModal(e, open) {
-		var passwd = $('#conn-passwd').val();
-		var ssid = $('#conn-ssid').val();
-
-		if (open || passwd.length) {
-			$('#sta_password').val(passwd);
-			$('#sta_ssid').val(ssid);
-			selectSta(ssid, passwd, '');
-		}
-
-		if (e) e.preventDefault();
-		Modal.hide('#psk-modal');
-		return false;
 	}
 
 	/** Update display for received response */
@@ -1123,19 +1115,18 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 			$item.on('click', function () {
 				var $th = $(this);
 
-				var ssid = $th.data('ssid');
-
-				$('#conn-ssid').val(ssid);
-				$('#conn-passwd').val('');
+				var conn_ssid = $th.data('ssid');
+				var conn_pass = '';
 
 				if (+$th.data('pwd')) {
 					// this AP needs a password
-					Modal.show('#psk-modal');
-					$('#conn-passwd')[0].focus();
-				} else {
-					//Modal.show('#reset-modal');
-					submitPskModal(null, true);
+					conn_pass = prompt(tr("wifi.enter_passwd").replace(":ssid:", conn_ssid));
+					if (!conn_pass) return;
 				}
+
+				$('#sta_password').val(conn_pass);
+				$('#sta_ssid').val(conn_ssid);
+				selectSta(conn_ssid, conn_pass, '');
 			});
 
 
@@ -1148,6 +1139,7 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 		$('#ap-loader').removeClass('hidden');
 		$('#ap-scan').addClass('hidden');
 		$('#ap-loader .anim-dots').html('.');
+
 		scanAPs();
 	}
 
@@ -1162,12 +1154,6 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 
 	/** Set up the WiFi page */
 	function wifiInit(cfg) {
-		// Hide what should be hidden in this mode
-		cfg.mode = +cfg.mode;
-
-		$('#ap-noscan').toggleClass('hidden', cfg.mode != 2);
-		$('#ap-scan').toggleClass('hidden', cfg.mode == 2);
-
 		// Update slider value displays
 		$('.Row.range').forEach(function(x) {
 			var inp = x.querySelector('input');

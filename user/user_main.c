@@ -86,12 +86,12 @@ void ICACHE_FLASH_ATTR user_init(void)
 	static ETSTimer userStartTimer;
 	static ETSTimer prHeapTimer;
 
-	serialInit();
+	serialInitBase();
 
 	// Prevent WiFi starting and connecting by default
 	// let wifi manager handle it
 	wifi_station_set_auto_connect(false);
-	wifi_set_opmode(NULL_MODE); // save to flash if changed - this might avoid the current spike on startup?
+	wifi_set_opmode(NULL_MODE); // saves to flash if changed - this might avoid the current spike on startup?
 
 	printf("\r\n");
 	banner("====== ESP8266 Remote Terminal ======");
@@ -126,30 +126,16 @@ void ICACHE_FLASH_ATTR user_init(void)
 
 static void user_start(void *unused)
 {
-	// Change AP name if AI-THINKER found (means un-initialized device)
-//	struct softap_config apconf;
-//	wifi_softap_get_config(&apconf);
-//	if (strstarts((char *) apconf.ssid, "AI-THINKER")) {
-//		warn("Un-initialized device, performing factory reset.");
-//		apars_handle_OSC_FactoryReset();
-//		return;
-//	}
-
 	// Load and apply stored settings, or defaults if stored settings are invalid
 	persist_load();
-	// Captive portal (DNS redirector)
-	captdnsInit();
-	// Server
-	httpdInit(routes, 80);
 
-	// The terminal screen
+	captdnsInit();
+	httpdInit(routes, 80);
 	screen_init();
 
 	// Print the CANCEL character to indicate the module has restarted
 	// Critically important for client application if any kind of screen persistence / content re-use is needed
 	UART_WriteChar(UART0, 24, UART_TIMEOUT_US); // 0x18 - 24 - CAN
-
-	info("Listening on UART0, 115200-8-N-1!");
 }
 
 // ---- unused funcs removed from sdk to save space ---

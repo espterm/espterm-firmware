@@ -7,6 +7,7 @@ require_once __DIR__ . '/base.php';
 $selected = [
 	'wifi.connected_ip_is',
 	'wifi.not_conn',
+	'wifi.enter_passwd',
 ];
 
 $out = [];

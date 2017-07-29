@@ -27,13 +27,15 @@ pg('wifi_scan',       'api', '', '/cfg/wifi/scan');
 pg('cfg_network',     'cfg', 'network', '/cfg/network');
 pg('network_set',     'api', '', '/cfg/network/set');
 
-pg('cfg_app',         'cfg', 'terminal', '/cfg/app');
-pg('app_set',         'api', '', '/cfg/app/set');
+pg('cfg_term',        'cfg', 'terminal', '/cfg/term');
+pg('term_set',        'api', '', '/cfg/term/set');
 
-pg('cfg_admin',        'cfg', 'persist', '/cfg/admin');
-pg('write_defaults',   'api', '', '/cfg/admin/write_defaults');
-pg('restore_defaults', 'api', '', '/cfg/admin/restore_defaults');
-pg('restore_hard',     'api', '', '/cfg/admin/restore_hard');
+pg('cfg_system',        'cfg', 'configure', '/cfg/system');
+pg('system_set',        'api', '', '/cfg/system/set');
+
+pg('write_defaults',   'api', '', '/cfg/system/write_defaults');
+pg('restore_defaults', 'api', '', '/cfg/system/restore_defaults');
+pg('restore_hard',     'api', '', '/cfg/system/restore_hard');
 
 pg('help',  'cfg page-help',  'help', '/help');
 pg('about', 'cfg page-about', 'about', '/about');

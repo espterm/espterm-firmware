@@ -183,15 +183,20 @@ static void ICACHE_FLASH_ATTR wifiStartScan(void)
 }
 
 /**
- * This CGI is called from the bit of AJAX-code in wifi.tpl. It will initiate a
- * scan for access points and if available will return the result of an earlier scan.
- * The result is embedded in a bit of JSON parsed by the javascript in wifi.tpl.
+ * Start a scan and return a result of an earlier scan, if available.
+ * The STA is switched ON if disabled.
  */
 httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData)
 {
 	int pos = (int) connData->cgiData;
 	int len;
 	char buff[256];
+
+	// auto-turn on STA
+	if ((wificonf->opmode & STATION_MODE) == 0) {
+		wificonf->opmode |= STATION_MODE;
+		wifimgr_apply_settings();
+	}
 
 	// 2nd and following runs of the function via MORE:
 	if (!cgiWifiAps.scanInProgress && pos != 0) {

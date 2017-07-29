@@ -32,22 +32,8 @@ void ICACHE_FLASH_ATTR clear_rxtx(int uart_no)
 }
 
 
-/**
- * @brief Configure UART 115200-8-N-1
- * @param uart_no
- */
-static void ICACHE_FLASH_ATTR my_uart_init(UARTn uart_no, uint32 baud)
-{
-	UART_SetParity(uart_no, PARITY_NONE);
-	UART_SetStopBits(uart_no, ONE_STOP_BIT);
-	UART_SetWordLength(uart_no, EIGHT_BITS);
-	UART_SetBaudrate(uart_no, baud);
-	UART_ResetFifo(uart_no);
-}
-
-
 /** Configure basic UART func and pins */
-void ICACHE_FLASH_ATTR UART_Init(uint32_t baud0, uint32_t baud1)
+void ICACHE_FLASH_ATTR UART_Init(void)
 {
 	// U0TXD
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
@@ -60,8 +46,10 @@ void ICACHE_FLASH_ATTR UART_Init(uint32_t baud0, uint32_t baud1)
 	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
 
 	// Configure the UART peripherals
-	my_uart_init(UART0, baud0); // main
-	my_uart_init(UART1, baud1); // debug (output only)
+	UART_SetWordLength(UART0, EIGHT_BITS); // main
+	UART_ResetFifo(UART0);
+	UART_SetWordLength(UART1, EIGHT_BITS); // debug (output only)
+	UART_ResetFifo(UART1);
 }
 
 /** Configure Rx on UART0 */

@@ -13,6 +13,10 @@
 #define SSID_LEN 32
 #define PASSWORD_LEN 64
 
+// Size designed for the wifi config structure
+// Must be constant to avoid corrupting user config after upgrade
+#define WIFICONF_SIZE 340
+
 /**
  * A structure holding all configured WiFi parameters
  * and the active state.
@@ -37,8 +41,28 @@ typedef struct {
 	u8 sta_ssid[SSID_LEN];
 	u8 sta_password[PASSWORD_LEN];
 	bool sta_dhcp_enable;
-
 	struct ip_info sta_addr;
+
+	u8 _filler[
+		WIFICONF_SIZE
+		- 1
+		- 1
+
+		- 1
+		- SSID_LEN
+		- PASSWORD_LEN
+		- 1
+		- 2
+		- sizeof(struct dhcps_lease)
+
+		- sizeof(struct ip_info)
+
+	 	- SSID_LEN
+	 	- PASSWORD_LEN
+		- 1
+		- sizeof(struct ip_info)
+		- 8 // padding?
+	];
 } WiFiConfigBundle;
 
 typedef struct  {

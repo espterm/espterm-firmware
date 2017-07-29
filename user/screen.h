@@ -34,17 +34,35 @@
  *
  */
 
+// Size designed for the wifi config structure
+// Must be constant to avoid corrupting user config after upgrade
+#define TERMCONF_SIZE 200
+
+#define TERM_BTN_LEN 10
+#define TERM_TITLE_LEN 64
+
 typedef struct {
 	u32 width;
 	u32 height;
 	u8 default_bg;
 	u8 default_fg;
-	char title[64];
-	char btn1[10];
-	char btn2[10];
-	char btn3[10];
-	char btn4[10];
-	char btn5[10];
+	char title[TERM_TITLE_LEN];
+	char btn1[TERM_BTN_LEN];
+	char btn2[TERM_BTN_LEN];
+	char btn3[TERM_BTN_LEN];
+	char btn4[TERM_BTN_LEN];
+	char btn5[TERM_BTN_LEN];
+
+	u8 _filler[
+		TERMCONF_SIZE
+		- 4
+		- 4
+		- 1
+		- 1
+		- TERM_TITLE_LEN
+		- TERM_BTN_LEN * 5
+	];
+
 } TerminalConfigBundle;
 
 // Live config

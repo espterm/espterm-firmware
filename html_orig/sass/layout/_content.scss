@@ -48,3 +48,13 @@
 		color: $c-form-label-fg;
 	}
 }
+
+#content {
+	// fade in effect
+	opacity: 0;
+	transition: opacity 0.15s ease-in;
+}
+
+#content.load {
+	opacity: 1;
+}

@@ -1,28 +1,28 @@
 <form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET" id="form-1">
 	<h2 tabindex=0><?= tr('wifi.ap') ?></h2>
 
-	<div class="Row checkbox">
+	<div class="Row checkbox x-ap-toggle">
 		<label><?= tr('wifi.enable') ?></label><!--
 		--><span class="box" tabindex=0></span>
-		<input type="hidden" name="ap_enable" value="%ap_enable%">
+		<input type="hidden" id="ap_enabled" name="ap_enable" value="%ap_enable%">
 	</div>
 
-	<div class="Row">
+	<div class="Row x-ap-on">
 		<label for="ap_ssid"><?= tr('wifi.ap_ssid') ?></label>
 		<input type="text" name="ap_ssid" id="ap_ssid" value="%ap_ssid%" required>
 	</div>
 
-	<div class="Row">
+	<div class="Row x-ap-on">
 		<label for="ap_password"><?= tr('wifi.ap_password') ?></label>
 		<input type="text" name="ap_password" id="ap_password" value="%ap_password%">
 	</div>
 
-	<div class="Row">
+	<div class="Row x-ap-on">
 		<label for="ap_channel"><?= tr('wifi.ap_channel') ?></label>
 		<input type="number" name="ap_channel" id="ap_channel" min=1 max=14 value="%ap_channel%" required>
 	</div>
 
-	<div class="Row range">
+	<div class="Row range x-ap-on">
 		<label for="tpw">
 			<?= tr('wifi.tpw') ?>
 			<span class="display x-disp1 mq-phone"></span>
@@ -31,7 +31,7 @@
 		<span class="display x-disp2 mq-no-phone"></span>
 	</div>
 
-	<div class="Row checkbox">
+	<div class="Row checkbox x-ap-on">
 		<label><?= tr('wifi.ap_hidden') ?></label><!--
 		--><span class="box" tabindex=0></span>
 		<input type="hidden" name="ap_hidden" value="%ap_hidden%">
@@ -45,16 +45,21 @@
 <form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET" id="form-2">
 	<h2 tabindex=0><?= tr('wifi.sta') ?></h2>
 
-	<div class="Row checkbox">
+	<div class="Row checkbox x-sta-toggle">
 		<label><?= tr('wifi.enable') ?></label><!--
 		--><span class="box" tabindex=0></span>
-		<input type="hidden" name="sta_enable" value="%sta_enable%">
+		<input type="hidden" id="sta_enabled" name="sta_enable" value="%sta_enable%">
+	</div>
+
+	<div class="Row explain nomargintop x-sta-on">
+		<span class="spacer"></span>
+		<?= tr("wifi.sta_explain") ?>
 	</div>
 
 	<input type="hidden" name="sta_ssid" id="sta_ssid" value="">
 	<input type="hidden" name="sta_password" id="sta_password" value="">
 
-	<div class="Row sta-info">
+	<div class="Row sta-info x-sta-on">
 		<label><?= tr('wifi.sta_info') ?></label>
 		<div class="AP-preview hidden" id="sta-nw">
 			<div class="wrap">
@@ -72,11 +77,10 @@
 		</div>
 	</div>
 
-	<div id="ap-box">
+	<div id="ap-box" class="x-sta-on">
 		<label><?= tr('wifi.select_ssid') ?></label>
 		<div id="ap-scan"><a href="#" onclick="WiFi.startScanning(); return false"><?= tr('wifi.scan_now') ?></a></div>
 		<div id="ap-loader" class="hidden"><?= tr('wifi.scanning') ?><span class="anim-dots">.</span></div>
-		<div id="ap-noscan" class="hidden"><?= tr('wifi.cant_scan_no_sta') ?></div>
 		<div id="ap-list" class="hidden"></div>
 	</div>
 
@@ -85,24 +89,35 @@
 	</div>
 </form>
 
-<div class="Modal hidden" id="psk-modal">
-	<div class="Dialog">
-		<form id="conn-form" onsubmit="submitPskModal(); return false;">
-			<input type="hidden" id="conn-ssid"><!--
-			--><label for="conn-passwd"><?= tr('wifi.sta_password') ?></label><!--
-			--><input type="text" id="conn-passwd"><!--
-			--><input type="submit" value="<?= tr('confirm') ?>">
-		</form>
-	</div>
-</div>
-
 <script>
 	WiFi.scan_url = '<?= url('wifi_scan', true) ?>';
 	WiFi.init({
-		mode: '%opmode%',
 		sta_ssid: '%sta_ssid%',
 		sta_password: '%sta_password%',
 		sta_active_ip: '%sta_active_ip%',
 		sta_active_ssid: '%sta_active_ssid%',
 	});
+
+	function updateApDisp() {
+		var a = !!parseInt($('#ap_enabled').val());
+		$('.x-ap-on').toggleClass('hidden', !a);
+	}
+	$('.x-ap-toggle').on('click', function() {
+		setTimeout(function() {
+			updateApDisp();
+		}, 0)
+	});
+
+	function updateStaDisp() {
+		var a = !!parseInt($('#sta_enabled').val());
+		$('.x-sta-on').toggleClass('hidden', !a);
+	}
+	$('.x-sta-toggle').on('click', function() {
+		setTimeout(function() {
+			updateStaDisp();
+		}, 0)
+	});
+
+	updateApDisp();
+	updateStaDisp();
 </script>

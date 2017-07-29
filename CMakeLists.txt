@@ -86,7 +86,6 @@ set(SOURCE_FILES
         esp_iot_sdk_v1.5.2/include/json/jsonparse.h
         esp_iot_sdk_v1.5.2/include/json/json.h
 
-        include/uart_hw.h
         include/user_config.h
         include/ets_sys_extra.h
         user/io.c
@@ -97,10 +96,9 @@ set(SOURCE_FILES
         user/cgi_persist.h
         user/cgi_network.c
         user/cgi_network.h
-        user/cgi_appcfg.c
-        user/cgi_appcfg.h
-        user/cgi_ping.c
-        user/cgi_reset.c
+        user/cgi_term_cfg.c
+        user/cgi_term_cfg.h
+        user/cgi_system.c
         user/uart_driver.c
         user/uart_handler.c
         user/ansi_parser.c
@@ -123,7 +121,10 @@ set(SOURCE_FILES
         user/wifimgr.c
         user/wifimgr.h
         user/persist.c
-        user/persist.h include/helpers.h)
+        user/persist.h
+        include/helpers.h
+        user/syscfg.c
+        user/syscfg.h)
 
 include_directories(include)
 include_directories(user)

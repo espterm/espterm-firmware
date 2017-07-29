@@ -108,3 +108,9 @@ $.ready(function () {
 $._loader = function(vis) {
 	$('#loader').toggleClass('show', vis);
 };
+
+$.ready(function() {
+	setTimeout(function() {
+		$('#content').addClass('load');
+	}, 1);
+});

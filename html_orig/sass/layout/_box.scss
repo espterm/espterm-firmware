@@ -79,8 +79,18 @@
 
 	.Row.explain {
 		max-width: 600px; margin-left: 0;
+		line-height: 1.2;
+
 		@include media($phone) {
 			margin-top: 60px;
+		}
+
+		&.nomargintop {
+			margin-top: 12px !important;
+		}
+
+		&.padleft {
+
 		}
 	}
 	&.mobopen .Row.explain {
@@ -97,11 +107,12 @@
 		h2 {
 			position: relative;
 			cursor: pointer;
-			padding-right: 1.3rem;
+			padding: 2px 1.3rem 2px 5px;
+			margin: 0 -5px 0 -5px;
 
 			&::after {
 				position: absolute;
-				right: 0;
+				right: 4px;
 				content: '▸';
 
 				top:50%;

@@ -12,8 +12,8 @@
 
 #include <esp8266.h>
 
-/** Configure UART periphs and enable pins */
-void UART_Init(uint32_t baud0, uint32_t baud1);
+/** Configure UART periphs and enable pins - does not set baud rate, parity and stopbits */
+void UART_Init(void);
 
 /** Configure async Rx on UART0 */
 void UART_SetupAsyncReceiver(void);
