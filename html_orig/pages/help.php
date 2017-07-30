@@ -178,7 +178,7 @@
 		<tr>
 			<td>\e[&lt;n&gt;E</td>
 			<td>[count]</td>
-			<td>Go N line down, start of line</td>
+			<td>Go N lines down, start of line</td>
 		</tr>
 		<tr>
 			<td>\e[&lt;n&gt;F</td>

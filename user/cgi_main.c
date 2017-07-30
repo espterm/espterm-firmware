@@ -44,12 +44,16 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 	else if (streq(token, "btn5")) {
 		httpdSend(connData, termconf->btn5, -1);
 	}
-	else if (streq(token, "default_bg")) {
-		sprintf(buff, "%d", termconf->default_bg);
-		httpdSend(connData, buff, -1);
-	}
-	else if (streq(token, "default_fg")) {
-		sprintf(buff, "%d", termconf->default_fg);
+//	else if (streq(token, "default_bg")) {
+//		sprintf(buff, "%d", termconf->default_bg);
+//		httpdSend(connData, buff, -1);
+//	}
+//	else if (streq(token, "default_fg")) {
+//		sprintf(buff, "%d", termconf->default_fg);
+//		httpdSend(connData, buff, -1);
+//	}
+	else if (streq(token, "theme")) {
+		sprintf(buff, "%d", termconf->theme);
 		httpdSend(connData, buff, -1);
 	}
 	else if (streq(token, "screenData")) {

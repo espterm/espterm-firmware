@@ -14,12 +14,13 @@ return [
 	'%btn4%' => '4',
 	'%btn5%' => '5',
 
-	'%screenData%' => '{
+	'%screenData%' => 'HELLOxNRE3',//'\u000b\u0001\u001b\u0001\u0001\u0001\u0001\u0001\f\u0005\u0001\u0010\u0003HELLOx\u0002\u000b\u0001\u0001N\u0001RE\u00023\u0001', //,
+	/*'{
 		 "w": 26, "h": 10,
-		 "x": 0, "y": 0,
-		 "cv": 1,
-		 "screen": "70 t259"
-	}',
+		 "x": 10, "y": 5,
+		 "cv": 1, "fg": 10, "bg": 2,
+		 "screen": ""
+	}',//"70 t259"*/
 
 	'%opmode%' => '2',
 	'%sta_enable%' => '0',
@@ -65,4 +66,6 @@ return [
 	'%uart_baud%' => 115200,
 	'%uart_stopbits%' => 1,
 	'%uart_parity%' => 2,
+
+	'%theme%' => 5,
 ];

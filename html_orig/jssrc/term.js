@@ -1,303 +1,334 @@
-(function() {
-	/**
-	 * Terminal module
-	 */
-	var Term = (function () {
-		var W, H;
-		var cursor = {a: false, x: 0, y: 0, suppress: false, hidden: false};
-		var screen = [];
-		var blinkIval;
+var Screen = (function () {
+	var W, H; // dimensions
+	var inited = false;
 
-/*
-		/!** Clear screen *!/
-		function cls() {
-			screen.forEach(function(cell, i) {
-				cell.t = ' ';
-				cell.fg = 7;
-				cell.bg = 0;
-				blit(cell);
-			});
+	var cursor = {
+		a: false,        // active (blink state)
+		x: 0,            // 0-based coordinates
+		y: 0,
+		fg: 7,           // colors 0-15
+		bg: 0,
+		bold: false,
+		suppress: false, // do not turn on in blink interval (for safe moving)
+		hidden: false    // do not show
+	};
+
+	var screen = [];
+	var blinkIval;
+
+	/** Clear screen */
+	function _clear() {
+		for (var i = W*H-1; i>=0; i--) {
+			var cell = screen[i];
+			cell.t = ' ';
+			cell.bg = cursor.bg;
+			cell.fg = cursor.fg;
+			cell.bold = false;
+			_draw(cell);
 		}
-*/
+	}
 
-		/** Set text and color at XY */
-		function cellAt(y, x) {
-			return screen[y*W+x];
-		}
+	/** Set text and color at XY */
+	function _cellAt(y, x) {
+		return screen[y*W+x];
+	}
 
-		/** Get cell under cursor */
-		function cursorCell() {
-			return cellAt(cursor.y, cursor.x);
-		}
+	/** Get cell under cursor */
+	function _curCell() {
+		return screen[cursor.y*W + cursor.x];
+	}
 
-/*
-		/!** Enable or disable cursor visibility *!/
-		function cursorEnable(enable) {
-			cursor.hidden = !enable;
-			cursor.a &= enable;
-			blit(cursorCell(), cursor.a);
-		}
+	/** Enable or disable cursor visibility */
+	function _cursorEnable(enable) {
+		cursor.hidden = !enable;
+		cursor.a &= enable;
+		_draw(_curCell());
+	}
 
-		/!** Safely move cursor *!/
-		function cursorSet(y, x) {
-			// Hide and prevent from showing up during the move
-			cursor.suppress = true;
-			blit(cursorCell(), false);
+	/** Safely move cursor */
+	function cursorSet(y, x) {
+		// Hide and prevent from showing up during the move
+		cursor.suppress = true;
+		_draw(_curCell(), false);
+		cursor.x = x;
+		cursor.y = y;
+		// Show again
+		cursor.suppress = false;
+		_draw(_curCell());
+	}
 
-			cursor.x = x;
-			cursor.y = y;
-
-			// Show again
-			cursor.suppress = false;
-			blit(cursorCell(), cursor.a);
-		}
-*/
-
-		/** Update cell on display. inv = invert (for cursor) */
-		function blit(cell, inv) {
-			var e = cell.e, fg, bg;
-			// Colors
-			fg = inv ? cell.bg : cell.fg;
-			bg = inv ? cell.fg : cell.bg;
-			// Update
-			e.innerText = (cell.t+' ')[0];
-			e.className = 'fg'+fg+' bg'+bg;
-		}
-
-		/** Show entire screen */
-		function blitAll() {
-			screen.forEach(function(cell, i) {
-				/* Invert if under cursor & cursor active */
-				var inv = cursor.a && (i == cursor.y*W+cursor.x);
-				blit(cell, inv);
-			});
+	/** Update cell on display. inv = invert (for cursor) */
+	function _draw(cell, inv) {
+		if (typeof inv == 'undefined') {
+			inv = cursor.a && cursor.x == cell.x && cursor.y == cell.y;
 		}
 
-		/** Load screen content from a 'binary' sequence */
-		function load(obj) {
-			cursor.x = obj.x;
-			cursor.y = obj.y;
-			cursor.hidden = !obj.cv;
+		var e = cell.e, fg, bg;
+		// Colors
+		fg = inv ? cell.bg : cell.fg;
+		bg = inv ? cell.fg : cell.bg;
+		// Update
+		e.innerText = (cell.t + ' ')[0];
+		e.className = 'fg' + fg + ' bg' + bg + (cell.bold ? ' bold' : '');
+	}
 
-			// full re-init if size changed
-			if (obj.w != W || obj.h != H) {
-				Term.init(obj);
-				return;
+	/** Show entire screen */
+	function _drawAll() {
+		for (var i = W*H-1; i>=0; i--) {
+			_draw(screen[i]);
+		}
+	}
+
+	function _rebuild(rows, cols) {
+		W = cols;
+		H = rows;
+
+		/* Build screen & show */
+		var e, cell, scr = qs('#screen');
+
+		// Empty the screen node
+		while (scr.firstChild) scr.removeChild(scr.firstChild);
+
+		screen = [];
+
+		for(var i = 0; i < W*H; i++) {
+			e = mk('span');
+
+			(function() {
+				var x = i % W;
+				var y = Math.floor(i / W);
+				e.addEventListener('click', function () {
+					Input.onTap(y, x);
+				});
+			})();
+
+			/* End of line */
+			if ((i > 0) && (i % W == 0)) {
+				scr.appendChild(mk('br'));
+			}
+			/* The cell */
+			scr.appendChild(e);
+
+			cell = {
+				t: ' ',
+				fg: cursor.fg,
+				bg: cursor.bg,
+				e: e,
+				x: i % W,
+				y: Math.floor(i / W),
+			};
+			screen.push(cell);
+			_draw(cell);
+		}
+	}
+
+	/** Init the terminal */
+	function _init() {
+		/* Cursor blinking */
+		clearInterval(blinkIval);
+		blinkIval = setInterval(function () {
+			cursor.a = !cursor.a;
+			if (cursor.hidden) {
+				cursor.a = false;
 			}
 
-			// Simple compression - hexFG hexBG 'ASCII' (r/s/t/u NUM{1,2,3,4})?
-			// comma instead of both colors = same as before
+			if (!cursor.suppress) {
+				_draw(_curCell(), cursor.a);
+			}
+		}, 500);
+		inited = true;
+	}
 
-			var i = 0, ci = 0, str = obj.screen;
-			var fg = 7, bg = 0;
-			while(i < str.length && ci<W*H) {
-				var cell = screen[ci++];
+	/** Decode two-byte number */
+	function parse2B(s, i) {
+		return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
+	}
 
-				var j = str[i];
-				if (j != ',') { // comma = repeat last colors
-					fg = cell.fg = parseInt(str[i++], 16);
-					bg = cell.bg = parseInt(str[i++], 16);
-				} else {
-					i++;
+	var SEQ_SET_COLOR = 1;
+	var SEQ_REPEAT = 2;
+
+	/** Load screen content from a binary sequence (new) */
+	function load(str) {
+		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, bold, cell;
+
+		if (!inited) _init();
+
+		// Set size
+		num = parse2B(str, i); i += 2;
+		num2 = parse2B(str, i); i += 2;
+		if (num != H || num2 != W) {
+			_rebuild(num, num2);
+		}
+		console.log("Size ",num, num2);
+
+		// Cursor position
+		num = parse2B(str, i); i += 2;
+		num2 = parse2B(str, i); i += 2;
+		cursorSet(num, num2);
+		console.log("Cursor at ",num, num2);
+
+		// Attributes
+		num = parse2B(str, i); i += 2;
+		cursor.fg = num & 0x0F;
+		cursor.bg = (num & 0xF0) >> 4;
+		cursor.bold = !!(num & 0x100);
+		cursor.hidden = !(num & 0x200);
+		console.log("FG ",cursor.fg, ", BG ", cursor.bg,", BOLD ", cursor.bold, ", HIDE ", cursor.hidden);
+
+		fg = cursor.fg;
+		bg = cursor.bg;
+		bold = cursor.bold;
+
+		// Here come the content
+		while(i < str.length && ci<W*H) {
+
+			j = str[i++];
+			jc = j.charCodeAt(0);
+			if (jc == SEQ_SET_COLOR) {
+				num = parse2B(str, i); i += 2;
+				fg = num & 0x0F;
+				bg = (num & 0xF0) >> 4;
+				bold = !!(num & 0x100);
+				console.log("Switch to ",fg,bg,bold);
+			}
+			else if (jc == SEQ_REPEAT) {
+				num = parse2B(str, i); i += 2;
+				console.log("Repeat x ",num);
+				for (; num>0 && ci<W*H; num--) {
+					cell = screen[ci++];
 					cell.fg = fg;
 					cell.bg = bg;
-				}
-
-				var t = cell.t = str[i++];
-
-				var repchars = 0;
-				switch(str[i]) {
-					case 'r': repchars = 1; break;
-					case 's': repchars = 2; break;
-					case 't': repchars = 3; break;
-					case 'u': repchars = 4; break;
-					default: repchars = 0;
-				}
-
-				if (repchars > 0) {
-					var rep = parseInt(str.substr(i+1,repchars));
-					i = i + repchars + 1;
-					for (; rep>0 && ci<W*H; rep--) {
-						cell = screen[ci++];
-						cell.fg = fg;
-						cell.bg = bg;
-						cell.t = t;
-					}
+					cell.t = t;
+					cell.bold = bold;
 				}
 			}
-
-			blitAll();
-		}
-
-		/** Init the terminal */
-		function init(obj) {
-			W = obj.w;
-			H = obj.h;
-
-			/* Build screen & show */
-			var e, cell, scr = qs('#screen');
-
-			// Empty the screen node
-			while (scr.firstChild) scr.removeChild(scr.firstChild);
-
-			screen = [];
-
-			for(var i = 0; i < W*H; i++) {
-				e = mk('span');
-
-				(function() {
-					var x = i % W;
-					var y = Math.floor(i / W);
-					e.addEventListener('click', function () {
-						Input.onTap(y, x);
-					});
-				})();
-
-				/* End of line */
-				if ((i > 0) && (i % W == 0)) {
-					scr.appendChild(mk('br'));
-				}
-				/* The cell */
-				scr.appendChild(e);
-
-				cell = {t: ' ', fg: 7, bg: 0, e: e};
-				screen.push(cell);
-				blit(cell);
-			}
-
-			/* Cursor blinking */
-			clearInterval(blinkIval);
-			blinkIval = setInterval(function() {
-				cursor.a = !cursor.a;
-				if (cursor.hidden) {
-					cursor.a = false;
-				}
-
-				if (!cursor.suppress) {
-					blit(cursorCell(), cursor.a);
-				}
-			}, 500);
-
-			load(obj);
-		}
-
-		// publish
-		return {
-			init: init,
-			load: load
-		};
-	})();
-
-	/** Handle connections */
-	var Conn = (function() {
-		var ws;
-
-		function onOpen(evt) {
-			console.log("CONNECTED");
-		}
-
-		function onClose(evt) {
-			console.warn("SOCKET CLOSED, code "+evt.code+". Reconnecting...");
-			setTimeout(function() {
-				init();
-			}, 1000);
-		}
-
-		function onMessage(evt) {
-			try {
-				console.log("RX: ", evt.data);
-				// Assume all our messages are screen updates
-				Term.load(JSON.parse(evt.data));
-			} catch(e) {
-				console.error(e);
+			else {
+				cell = screen[ci++];
+				// Unique cell character
+				t = cell.t = j;
+				cell.fg = fg;
+				cell.bg = bg;
+				cell.bold = bold;
+				console.log("Symbol ", j);
 			}
 		}
 
-		function doSend(message) {
-			console.log("TX: ", message);
-			if (ws.readyState != 1) {
-				console.error("Socket not ready");
-				return;
-			}
-			if (typeof message != "string") {
-				message = JSON.stringify(message);
-			}
-			ws.send(message);
-		}
+		_drawAll();
+	}
 
-		function init() {
-			ws = new WebSocket("ws://"+_root+"/ws/update.cgi");
-			ws.onopen = onOpen;
-			ws.onclose = onClose;
-			ws.onmessage = onMessage;
-
-			console.log("Opening socket.");
-		}
-
-		return {
-			ws: null,
-			init: init,
-			send: doSend
-		};
-	})();
-
-	//
-	// Keyboard (& mouse) input
-	//
-	var Input = (function() {
-		function sendStrMsg(str) {
-			Conn.send("STR:"+str);
-		}
-
-		function sendPosMsg(y, x) {
-			Conn.send("TAP:"+y+','+x);
-		}
-
-		function sendBtnMsg(n) {
-			Conn.send("BTN:"+n);
-		}
-
-		function init() {
-			window.addEventListener('keypress', function(e) {
-				var code = +e.which;
-				if (code >= 32 && code < 127) {
-					var ch = String.fromCharCode(code);
-					//console.log("Typed ", ch, "code", code, e);
-					sendStrMsg(ch);
-				}
-			});
-
-			window.addEventListener('keydown', function(e) {
-				var code = e.keyCode;
-				//console.log("Down ", code, e);
-				switch(code) {
-					case 8: sendStrMsg('\x08'); break;
-					case 13: sendStrMsg('\x0d\x0a'); break;
-					case 27: sendStrMsg('\x1b'); break; // this allows to directly enter control sequences
-					case 37: sendStrMsg('\x1b[D'); break;
-					case 38: sendStrMsg('\x1b[A'); break;
-					case 39: sendStrMsg('\x1b[C'); break;
-					case 40: sendStrMsg('\x1b[B'); break;
-				}
-			});
-
-			qsa('#buttons button').forEach(function(s) {
-				s.addEventListener('click', function() {
-					sendBtnMsg(+this.dataset['n']);
-				});
-			});
-		}
-
-		return {
-			init: init,
-			onTap: sendPosMsg
-		};
-	})();
-
-
-	window.termInit = function (obj) {
-		Term.init(obj);
-		Conn.init();
-		Input.init();
+	return  {
+		load: load, // full load (string)
 	};
 })();
+
+/** Handle connections */
+var Conn = (function() {
+	var ws;
+
+	function onOpen(evt) {
+		console.log("CONNECTED");
+	}
+
+	function onClose(evt) {
+		console.warn("SOCKET CLOSED, code "+evt.code+". Reconnecting...");
+		setTimeout(function() {
+			init();
+		}, 1000);
+	}
+
+	function onMessage(evt) {
+		try {
+			console.log("RX: ", evt.data);
+			// Assume all our messages are screen updates
+			Screen.load(evt.data);
+		} catch(e) {
+			console.error(e);
+		}
+	}
+
+	function doSend(message) {
+		console.log("TX: ", message);
+		if (!ws) return; // for dry testing
+		if (ws.readyState != 1) {
+			console.error("Socket not ready");
+			return;
+		}
+		if (typeof message != "string") {
+			message = JSON.stringify(message);
+		}
+		ws.send(message);
+	}
+
+	function init() {
+		ws = new WebSocket("ws://"+_root+"/ws/update.cgi");
+		ws.onopen = onOpen;
+		ws.onclose = onClose;
+		ws.onmessage = onMessage;
+
+		console.log("Opening socket.");
+	}
+
+	return {
+		ws: null,
+		init: init,
+		send: doSend
+	};
+})();
+
+/** User input */
+var Input = (function() {
+	function sendStrMsg(str) {
+		Conn.send("STR:"+str);
+	}
+
+	function sendPosMsg(y, x) {
+		Conn.send("TAP:"+y+','+x);
+	}
+
+	function sendBtnMsg(n) {
+		Conn.send("BTN:"+n);
+	}
+
+	function init() {
+		window.addEventListener('keypress', function(e) {
+			var code = +e.which;
+			if (code >= 32 && code < 127) {
+				var ch = String.fromCharCode(code);
+				//console.log("Typed ", ch, "code", code, e);
+				sendStrMsg(ch);
+			}
+		});
+
+		window.addEventListener('keydown', function(e) {
+			var code = e.keyCode;
+			//console.log("Down ", code, e);
+			switch(code) {
+				case 8: sendStrMsg('\x08'); break;
+				case 10:
+				case 13: sendStrMsg('\x0d\x0a'); break;
+				case 27: sendStrMsg('\x1b'); break; // this allows to directly enter control sequences
+				case 37: sendStrMsg('\x1b[D'); break;
+				case 38: sendStrMsg('\x1b[A'); break;
+				case 39: sendStrMsg('\x1b[C'); break;
+				case 40: sendStrMsg('\x1b[B'); break;
+			}
+		});
+
+		qsa('#buttons button').forEach(function(s) {
+			s.addEventListener('click', function() {
+				sendBtnMsg(+this.dataset['n']);
+			});
+		});
+	}
+
+	return {
+		init: init,
+		onTap: sendPosMsg
+	};
+})();
+
+window.termInit = function (str) {
+	Screen.load(str);
+	Conn.init();
+	Input.init();
+};

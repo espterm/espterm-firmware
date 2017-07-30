@@ -1,8 +1,13 @@
 body.term {
-	h1 {
-		font-size: fsize(5);
-		@include media($phone) {
-			font-size: fsize(3);
+	#content {
+		padding-left: 0;
+		padding-right: 0;
+
+		h1 {
+			font-size: fsize(5);
+			@include media($phone) {
+				font-size: fsize(3);
+			}
 		}
 	}
 
@@ -36,7 +41,7 @@ body.term {
 			margin: 0 3px;
 			padding: 8px 5px;
 			//width: 18%;
-			min-width: 65px;
+			min-width: 62px;
 			//max-width: 65px;
 			//min-width: initial;
 			cursor: pointer;
@@ -53,16 +58,133 @@ body.term {
 			text-decoration: underline;
 
 			&, &:visited, &:link {
-				color: #2e4d6e;
+				color: #336085;
 			}
 
 			&:hover {
 				color: #5abfff;
 			}
 		}
+
+		.icn-keyboard {
+			text-decoration: none;
+			font-size: 150%;
+			vertical-align: middle;
+		}
 	}
 }
 
 #termwrap {
 	text-align: center;
+}
+
+#softkb-input {
+	position: absolute;
+	top: -9999px;
+}
+
+// "non-bold"
+.nb {
+	font-weight: normal !important;
+}
+
+// Tango
+.theme-0 {
+	$term-colors:
+			#111213, #CC0000, #4E9A06, #C4A000, #3465A4, #75507B, #06989A, #D3D7CF,
+			#555753, #EF2929, #8AE234, #FCE94F, #729FCF, #AD7FA8, #34E2E2, #EEEEEC;
+	@for $i from 1 through length($term-colors) {
+		$c: nth($term-colors, $i);
+		.fg#{$i - 1} { color: $c; }
+		.bg#{$i - 1} { background-color: $c; }
+	}
+}
+
+// Linux
+.theme-1 {
+	$term-colors:
+			#000000, #aa0000, #00aa00, #aa5500, #0000aa, #aa00aa, #00aaaa, #aaaaaa,
+			#555555, #ff5555, #55ff55, #ffff55, #5555ff, #ff55ff, #55ffff, #ffffff;
+	@for $i from 1 through length($term-colors) {
+		$c: nth($term-colors, $i);
+		.fg#{$i - 1} { color: $c; }
+		.bg#{$i - 1} { background-color: $c; }
+	}
+}
+
+// xterm
+.theme-2 {
+	$term-colors:
+			#000000, #cd0000, #00cd00, #cdcd00, #0000ee, #cd00cd, #00cdcd, #e5e5e5,
+			#7f7f7f, #ff0000, #00ff00, #ffff00, #5c5cff, #ff00ff, #00ffff, #ffffff;
+	@for $i from 1 through length($term-colors) {
+		$c: nth($term-colors,  $i);
+		.fg#{$i - 1} { color: $c; }
+		.bg#{$i - 1} { background-color: $c; }
+	}
+}
+
+// rxvt
+.theme-3 {
+	$term-colors:
+			#000000, #cd0000, #00cd00, #cdcd00, #0000cd, #cd00cd, #00cdcd, #faebd7,
+			#404040, #ff0000, #00ff00, #ffff00, #0000ff, #ff00ff, #00ffff, #ffffff;
+	@for $i from 1 through length($term-colors) {
+		$c: nth($term-colors,  $i);
+		.fg#{$i - 1} { color: $c; }
+		.bg#{$i - 1} { background-color: $c; }
+	}
+}
+
+// Ambience
+.theme-4 {
+	$term-colors:
+			#2e3436, #cc0000, #4e9a06, #c4a000, #3465a4, #75507b, #06989a, #d3d7cf,
+			#555753, #ef2929, #8ae234, #fce94f, #729fcf, #ad7fa8, #34e2e2, #eeeeec;
+	@for $i from 1 through length($term-colors) {
+		$c: nth($term-colors,  $i);
+		.fg#{$i - 1} { color: $c; }
+		.bg#{$i - 1} { background-color: $c; }
+	}
+}
+
+// Solarized
+.theme-5 {
+	$term-colors:
+			#073642, #dc322f, #859900, #b58900, #268bd2, #d33682, #2aa198, #eee8d5,
+			#002b36, #cb4b16, #586e75, #657b83, #839496, #6c71c4, #93a1a1, #fdf6e3;
+	@for $i from 1 through length($term-colors) {
+		$c: nth($term-colors,  $i);
+		.fg#{$i - 1} { color: $c; }
+		.bg#{$i - 1} { background-color: $c; }
+	}
+}
+
+.bold {
+	font-weight: bold !important;
+}
+
+.Row.color-preview {
+	font-family: monospace;
+	font-size: 16pt;
+	display: block;
+	margin-bottom: 0;
+
+	padding-left: $form-label-w;
+
+	@include media($phone) {
+		padding-left: 0;
+		font-size: 14pt;
+	}
+
+	.colorprev {
+		display:block;
+		margin: 0;
+		cursor: pointer;
+	}
+}
+
+#color-example {
+	display: inline-block;
+	padding: 5px;
 }

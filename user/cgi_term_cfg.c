@@ -82,6 +82,17 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		}
 	}
 
+	if (GET_ARG("theme")) {
+		dbg("Screen color theme: %s", buff);
+		int theme = atoi(buff);
+		if (theme >= 0 && theme <= 5) { // ALWAYS ADJUST WHEN ADDING NEW THEME!
+			termconf->theme = (u8) theme;
+		} else {
+			warn("Bad theme num: %s", buff);
+			redir_url += sprintf(redir_url, "theme,");
+		}
+	}
+
 	if (GET_ARG("term_title")) {
 		dbg("Terminal title default text: \"%s\"", buff);
 		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
@@ -147,6 +158,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "term_height")) {
 		sprintf(buff, "%d", termconf->height);
+	}
+	else if (streq(token, "theme")) {
+		sprintf(buff, "%d", termconf->theme);
 	}
 	else if (streq(token, "default_bg")) {
 		sprintf(buff, "%d", termconf->default_bg);

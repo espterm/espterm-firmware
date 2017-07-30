@@ -671,7 +671,25 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastFg = 0;
 		ss->lastChar = '\0';
 
-		bufprint("{\n \"w\": %d, \"h\": %d,\n \"x\": %d, \"y\": %d,\n \"cv\": %d,\n \"screen\": \"", W, H, cursor.x, cursor.y, cursor.visible);
+		// TODO implement the new more efficient encoder!
+
+		bufprint(
+			"{"
+			"\"w\":%d,"
+			"\"h\":%d,"
+			"\"x\":%d,"
+			"\"y\":%d,"
+			"\"fg\":%d,"
+			"\"bg\":%d,"
+			"\"cv\":%d,"
+			"\"screen\":\"",
+			W,
+			H,
+			cursor.x,
+			cursor.y,
+			cursor.fg,
+			cursor.bg,
+			cursor.visible);
 	}
 
 	int i = ss->index;

@@ -52,11 +52,13 @@ typedef struct {
 	char btn3[TERM_BTN_LEN];
 	char btn4[TERM_BTN_LEN];
 	char btn5[TERM_BTN_LEN];
+	u8 theme;
 
 	u8 _filler[
 		TERMCONF_SIZE
 		- 4
 		- 4
+		- 1
 		- 1
 		- 1
 		- TERM_TITLE_LEN

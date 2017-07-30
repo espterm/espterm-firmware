@@ -105,7 +105,15 @@ persist_load(void)
 	}
 
 	if (hard_reset) {
+		// Zero all out
+		memset(&persist, 0, sizeof(PersistBlock));
+
 		persist_load_hard_default();
+
+		// write them also as defaults
+		memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
+		persist_store();
+
 		// this also stores them to flash and applies to modules
 	} else {
 		apply_live_settings();
@@ -140,9 +148,6 @@ persist_load_hard_default(void)
 	// Set live config to default values
 	restore_live_settings_to_hard_defaults();
 	persist_store();
-
-//	// Store current -> default
-//	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 
 	info("[Persist] Settings restored to hard defaults.");
 
