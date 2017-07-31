@@ -1092,7 +1092,8 @@ form span.required {
 
 body.term #content {
   padding-left: 0;
-  padding-right: 0; }
+  padding-right: 0;
+  transition: opacity 0.25s ease-in; }
   body.term #content h1 {
     font-size: 1.80203em; }
     @media screen and (max-width: 544px) {

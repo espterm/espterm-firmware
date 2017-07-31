@@ -9,6 +9,9 @@ body.term {
 				font-size: fsize(3);
 			}
 		}
+
+		// longer duration to load everything in background nicely
+		transition: opacity 0.25s ease-in;
 	}
 
 	#screen {

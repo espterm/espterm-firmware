@@ -222,16 +222,17 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 				int n = params[i];
 
 				if (i == 0 && n == 0) { // reset SGR
-					screen_reset_cursor();
+					screen_reset_cursor(); // resets colors, inverse and bold.
 					break; // cannot combine reset with others
 				}
 				else if (n >= 30 && n <= 37) screen_set_fg(n-30); // ANSI normal fg
 				else if (n >= 40 && n <= 47) screen_set_bg(n-40); // ANSI normal bg
 				else if (n == 39) screen_set_fg(7); // default fg
-				else if (n == 49) screen_set_bg(0); // default bg
-				else if (n == 7) screen_inverse(1); // inverse
-				else if (n == 27) screen_inverse(0); // positive
-				else if (n == 1) screen_set_bright_fg(); // ANSI bold = bright fg
+				else if (n == 49) screen_set_bg(false); // default bg
+				else if (n == 7) screen_inverse(true); // inverse
+				else if (n == 27) screen_inverse(false); // positive
+				else if (n == 1) screen_set_bold(true); // ANSI bold = bright fg
+				else if (n == 21 || n == 22) screen_set_bold(false); // ANSI bold = bright fg
 				else if (n >= 90 && n <= 97) screen_set_fg(n-90+8); // AIX bright fg
 				else if (n >= 100 && n <= 107) screen_set_bg(n-100+8); // AIX bright bg
 			}

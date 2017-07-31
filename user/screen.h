@@ -170,7 +170,7 @@ void screen_set_fg(Color color);
 void screen_set_bg(Color color);
 
 /** make foreground bright */
-void screen_set_bright_fg(void);
+void screen_set_bold(bool bold);
 
 /** Set cursor foreground and background color */
 void screen_set_colors(Color fg, Color bg);

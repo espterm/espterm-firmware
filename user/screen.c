@@ -116,6 +116,7 @@ clear_range(unsigned int from, unsigned int to)
 		screen[i].c[3] = 0;
 		screen[i].fg = fg;
 		screen[i].bg = bg;
+		screen[i].bold = false;
 	}
 }
 
@@ -502,11 +503,18 @@ screen_inverse(bool inverse)
  * This relates to the '1' SGR command which originally means
  * "bold font". We interpret that as "Bright", similar to other
  * terminal emulators.
+ *
+ * Note that the bright colors can be used without bold using the 90+ codes
  */
 void ICACHE_FLASH_ATTR
-screen_set_bright_fg(void)
+screen_set_bold(bool bold)
 {
-	cursor.fg = (Color) ((cursor.fg % 8) + 8);
+	if (!bold) {
+		cursor.fg = (Color) (cursor.fg % 8);
+	} else {
+		cursor.fg = (Color) ((cursor.fg % 8) + 8); // change anything to the bright colors
+	}
+	cursor.bold = bold;
 }
 
 //endregion
@@ -591,6 +599,7 @@ screen_putchar(const char *ch)
 		c->fg = cursor.fg;
 		c->bg = cursor.bg;
 	}
+	c->bold = cursor.bold;
 
 	cursor.x++;
 	// X wrap
