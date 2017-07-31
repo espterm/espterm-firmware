@@ -85,7 +85,7 @@ void terminal_apply_settings(void);
  * TODO May need adjusting if there are size problems when flashing the ESP.
  * We could also try to pack the Cell struct to a single 32bit word.
  */
-#define MAX_SCREEN_SIZE (80*25)
+#define MAX_SCREEN_SIZE (80*30)
 
 typedef enum {
 	CLEAR_TO_CURSOR=0, CLEAR_FROM_CURSOR=1, CLEAR_ALL=2
@@ -94,6 +94,14 @@ typedef enum {
 typedef uint8_t Color;
 
 httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
+
+typedef struct {
+	u8 lsb;
+	u8 msb;
+} WordB2;
+
+/** Encode number to two nice ASCII bytes */
+void encode2B(u16 number, WordB2 *stru);
 
 /** Init the screen */
 void screen_init(void);
@@ -135,6 +143,9 @@ void screen_cursor_set_x(int x);
 /** Set cursor Y position */
 void screen_cursor_set_y(int y);
 
+/** Reset cursor attribs */
+void screen_reset_cursor(void);
+
 /** Relative cursor move */
 void screen_cursor_move(int dy, int dx);
 
@@ -168,8 +179,12 @@ void screen_set_colors(Color fg, Color bg);
 void screen_inverse(bool inverse);
 
 
-/** Set a character in the cursor color, move to right with wrap. */
-void screen_putchar(char c);
+/**
+ * Set a character in the cursor color, move to right with wrap.
+ * The character may be ASCII (then only one char is used), or
+ * unicode (then it can be 4 chars, or terminated by a zero)
+ */
+void screen_putchar(const char *ch);
 
 #if 0
 /** Debug dump */

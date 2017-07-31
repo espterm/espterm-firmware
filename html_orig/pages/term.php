@@ -22,7 +22,7 @@
 	</div>
 </div>
 
-<input id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+<textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
 <nav id="botnav">
 	<a href="#" onclick="toggleSoftKb(true); return false" class="icn-keyboard mq-tablet-max"></a><!--
@@ -34,7 +34,7 @@
 <script>
 	// TODO cleanup
 	try {
-		termInit("%screenData%");
+		termInit();
 
 		// auto-clear the input box
 		$('#softkb-input').on('input', function(e) {
@@ -47,7 +47,8 @@
 	}
 
 	function toggleSoftKb(yes) {
-		qs('#softkb-input')[yes ? 'focus' : 'blur']();
-		qs('.icn-keyboard').blur();
+		var i = qs('#softkb-input');
+		if (yes) i.focus();
+		else i.blur();
 	}
 </script>

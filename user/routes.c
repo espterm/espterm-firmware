@@ -32,6 +32,7 @@ HttpdBuiltInUrl routes[] = {
 	ROUTE_FILE("/help/?", "/help.tpl"),
 
 	// --- Sockets ---
+	ROUTE_CGI("/term/init", cgiTermInitialImage),
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),
 
 	// --- System control ---

@@ -68,7 +68,6 @@
 			ap.enc = parseInt(ap.enc);
 
 			if (ap.enc > 4) return; // hide unsupported auths
-			WiFi.scan_url = '/cfg/wifi/scan';
 
 			var item = mk('div');
 
@@ -122,7 +121,7 @@
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('http://'+_root+w.scan_url, onScan);
+		$.get('http://'+_root+'/cfg/wifi/scan', onScan);
 	}
 
 	function rescan(time) {

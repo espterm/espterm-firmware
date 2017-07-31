@@ -10,13 +10,47 @@
 #include "ansi_parser.h"
 #include "uart_driver.h"
 
+static char utf_collect[4];
+static int utf_i = 0;
+static int utf_j = 0;
+
 /**
  * Handle a received plain character
  */
 void ICACHE_FLASH_ATTR
 apars_handle_plainchar(char c)
 {
-	screen_putchar(c);
+	// collecting unicode glyphs...
+	if (c & 0x80) {
+		if (utf_i == 0) {
+			if ((c & 0xE0) == 0xC0) {
+				utf_i = 2;
+			}
+			else if ((c & 0xF0) == 0xE0) {
+				utf_i = 3;
+			}
+			else if ((c & 0xF8) == 0xF0) {
+				utf_i = 4;
+			}
+
+			utf_collect[0] = c;
+			utf_j = 1;
+		}
+		else {
+			utf_collect[utf_j++] = c;
+			if (utf_j >= utf_i) {
+				screen_putchar(utf_collect);
+				utf_i = 0;
+				utf_j = 0;
+				memset(utf_collect, 0, 4);
+			}
+		}
+	}
+	else {
+		utf_collect[0] = c;
+		utf_collect[1] = 0; // just to make sure it's closed...
+		screen_putchar(utf_collect);
+	}
 }
 
 /**
@@ -188,8 +222,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 				int n = params[i];
 
 				if (i == 0 && n == 0) { // reset SGR
-					screen_set_fg(7);
-					screen_set_bg(0);
+					screen_reset_cursor();
 					break; // cannot combine reset with others
 				}
 				else if (n >= 30 && n <= 37) screen_set_fg(n-30); // ANSI normal fg

@@ -3,5 +3,6 @@
 
 httpd_cgi_state tplScreen(HttpdConnData *connData, char *token, void **arg);
 httpd_cgi_state tplAbout(HttpdConnData *connData, char *token, void **arg);
+httpd_cgi_state cgiTermInitialImage(HttpdConnData *connData);
 
 #endif // CGI_MAIN_H

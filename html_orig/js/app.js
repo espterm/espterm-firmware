@@ -1091,7 +1091,6 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 			ap.enc = parseInt(ap.enc);
 
 			if (ap.enc > 4) return; // hide unsupported auths
-			WiFi.scan_url = '/cfg/wifi/scan';
 
 			var item = mk('div');
 
@@ -1145,7 +1144,7 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('http://'+_root+w.scan_url, onScan);
+		$.get('http://'+_root+'/cfg/wifi/scan', onScan);
 	}
 
 	function rescan(time) {
@@ -1183,7 +1182,7 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 	w.startScanning = startScanning;
 })(window.WiFi = {});
 var Screen = (function () {
-	var W, H; // dimensions
+	var W = 0, H = 0; // dimensions
 	var inited = false;
 
 	var cursor = {
@@ -1338,21 +1337,21 @@ var Screen = (function () {
 		if (!inited) _init();
 
 		// Set size
-		num = parse2B(str, i); i += 2;
-		num2 = parse2B(str, i); i += 2;
+		num = parse2B(str, i); i += 2;  // height
+		num2 = parse2B(str, i); i += 2; // width
 		if (num != H || num2 != W) {
 			_rebuild(num, num2);
 		}
 		console.log("Size ",num, num2);
 
 		// Cursor position
-		num = parse2B(str, i); i += 2;
-		num2 = parse2B(str, i); i += 2;
+		num = parse2B(str, i); i += 2; // row
+		num2 = parse2B(str, i); i += 2; // col
 		cursorSet(num, num2);
 		console.log("Cursor at ",num, num2);
 
 		// Attributes
-		num = parse2B(str, i); i += 2;
+		num = parse2B(str, i); i += 2; // fg bg bold hidden
 		cursor.fg = num & 0x0F;
 		cursor.bg = (num & 0xF0) >> 4;
 		cursor.bold = !!(num & 0x100);
@@ -1444,12 +1443,19 @@ var Conn = (function() {
 	}
 
 	function init() {
-		ws = new WebSocket("ws://"+_root+"/ws/update.cgi");
+		ws = new WebSocket("ws://"+_root+"/term/update.ws");
 		ws.onopen = onOpen;
 		ws.onclose = onClose;
 		ws.onmessage = onMessage;
 
 		console.log("Opening socket.");
+
+		// Ask for initial data
+		$.get('http://'+_root+'/term/init', function(resp, status) {
+			if (status !== 200) location.reload(true);
+			console.log("Data received!");
+			Screen.load(resp);
+		});
 	}
 
 	return {
@@ -1511,8 +1517,7 @@ var Input = (function() {
 	};
 })();
 
-window.termInit = function (str) {
-	Screen.load(str);
+window.termInit = function () {
 	Conn.init();
 	Input.init();
 };

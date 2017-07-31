@@ -46,9 +46,10 @@ void terminal_apply_settings(void)
  * Screen cell data type (16 bits)
  */
 typedef struct __attribute__((packed)){
-	char c   : 8;
+	char c[4]; // space for a full unicode character
 	Color fg : 4;
 	Color bg : 4;
+	bool bold : 1;
 } Cell;
 
 /**
@@ -64,7 +65,8 @@ static struct {
 	int y;    //!< Y coordinate
 	bool visible;    //!< Visible
 	bool inverse;    //!< Inverse colors
-	bool autowrap;    //!< Wrapping when EOL
+	bool autowrap;   //!< Wrapping when EOL
+	bool bold;       //!< Bold style
 	Color fg;        //!< Foreground color for writing
 	Color bg;        //!< Background color for writing
 } cursor;
@@ -108,7 +110,10 @@ clear_range(unsigned int from, unsigned int to)
 	Color fg = cursor.inverse ? cursor.bg : cursor.fg;
 	Color bg = cursor.inverse ? cursor.fg : cursor.bg;
 	for (unsigned int i = from; i <= to; i++) {
-		screen[i].c = ' ';
+		screen[i].c[0] = ' ';
+		screen[i].c[1] = 0;
+		screen[i].c[2] = 0;
+		screen[i].c[3] = 0;
 		screen[i].fg = fg;
 		screen[i].bg = bg;
 	}
@@ -127,6 +132,7 @@ cursor_reset(void)
 	cursor.visible = 1;
 	cursor.inverse = 0;
 	cursor.autowrap = 1;
+	cursor.bold = 0;
 }
 
 //endregion
@@ -153,6 +159,20 @@ screen_reset(void)
 	NOTIFY_LOCK();
 	cursor_reset();
 	screen_clear(CLEAR_ALL);
+	NOTIFY_DONE();
+}
+
+/**
+ * Reset the cursor
+ */
+void ICACHE_FLASH_ATTR
+screen_reset_cursor(void)
+{
+	NOTIFY_LOCK();
+	cursor.fg = termconf_scratch.default_fg;
+	cursor.bg = termconf_scratch.default_bg;
+	cursor.inverse = 0;
+	cursor.bold = 0;
 	NOTIFY_DONE();
 }
 
@@ -486,7 +506,7 @@ screen_inverse(bool inverse)
 void ICACHE_FLASH_ATTR
 screen_set_bright_fg(void)
 {
-	cursor.fg = (cursor.fg % 8) + 8;
+	cursor.fg = (Color) ((cursor.fg % 8) + 8);
 }
 
 //endregion
@@ -507,14 +527,14 @@ bool ICACHE_FLASH_ATTR screen_isCoordValid(int y, int x)
  * Set a character in the cursor color, move to right with wrap.
  */
 void ICACHE_FLASH_ATTR
-screen_putchar(char ch)
+screen_putchar(const char *ch)
 {
 	NOTIFY_LOCK();
 
 	Cell *c = &screen[cursor.x + cursor.y * W];
 
 	// Special treatment for CRLF
-	switch (ch) {
+	switch (ch[0]) {
 		case '\r':
 			screen_cursor_set_x(0);
 			goto done;
@@ -535,27 +555,34 @@ screen_putchar(char ch)
 			}
 			// erase target cell
 			c = &screen[cursor.x + cursor.y * W];
-			c->c = ' ';
+			c->c[0] = ' ';
+			c->c[1] = 0;
+			c->c[2] = 0;
+			c->c[3] = 0;
 			goto done;
 
 		case 9: // TAB
 			if (cursor.x<((W-1)-(W-1)%4)) {
-				c->c = ' ';
+				c->c[0] = ' ';
+				c->c[1] = 0;
+				c->c[2] = 0;
+				c->c[3] = 0;
 				do {
-					screen_putchar(' ');
+					screen_putchar(" ");
 				} while(cursor.x%4!=0);
 			}
 			goto done;
 
 		default:
-			if (ch < ' ') {
+			if (ch[0] < ' ') {
 				// Discard
 				warn("Ignoring control char %d", (int)ch);
 				goto done;
 			}
 	}
 
-	c->c = ch;
+	// copy unicode char
+	strncpy(c->c, ch, 4);
 
 	if (cursor.inverse) {
 		c->fg = cursor.bg;
@@ -627,9 +654,18 @@ void screen_dd(void)
 struct ScreenSerializeState {
 	Color lastFg;
 	Color lastBg;
-	char lastChar;
+	bool lastBold;
+	char lastChar[4];
 	int index;
 };
+
+void ICACHE_FLASH_ATTR
+encode2B(u16 number, WordB2 *stru)
+{
+	stru->lsb = (u8) (number % 127);
+	stru->msb = (u8) ((number - stru->lsb) / 127 + 1);
+	stru->lsb += 1;
+}
 
 /**
  * Serialize the screen to a data buffer. May need multiple calls if the buffer is insufficient in size.
@@ -654,6 +690,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	}
 
 	Cell *cell, *cell0;
+	WordB2 w1, w2, w3, w4, w5;
 
 	size_t remain = buf_len; int used = 0;
 	char *bb = buffer;
@@ -669,27 +706,22 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->index = 0;
 		ss->lastBg = 0;
 		ss->lastFg = 0;
-		ss->lastChar = '\0';
+		ss->lastBold = false;
+		memset(ss->lastChar, 0, 4); // this ensures the first char is never "repeat"
 
-		// TODO implement the new more efficient encoder!
+		encode2B((u16) H, &w1);
+		encode2B((u16) W, &w2);
+		encode2B((u16) cursor.y, &w3);
+		encode2B((u16) cursor.x, &w4);
+		encode2B((u16) (
+			cursor.fg |
+			(cursor.bg<<4) |
+			(cursor.bold?0x100:0) |
+			(cursor.visible?0x200:0))
+			, &w5);
 
-		bufprint(
-			"{"
-			"\"w\":%d,"
-			"\"h\":%d,"
-			"\"x\":%d,"
-			"\"y\":%d,"
-			"\"fg\":%d,"
-			"\"bg\":%d,"
-			"\"cv\":%d,"
-			"\"screen\":\"",
-			W,
-			H,
-			cursor.x,
-			cursor.y,
-			cursor.fg,
-			cursor.bg,
-			cursor.visible);
+		// H W X Y Attribs
+		bufprint("%c%c%c%c%c%c%c%c%c%c", w1.lsb, w1.msb, w2.lsb, w2.msb, w3.lsb, w3.msb, w4.lsb, w4.msb, w5.lsb, w5.msb);
 	}
 
 	int i = ss->index;
@@ -701,52 +733,60 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		while (i < W*H
 		       && cell->fg == ss->lastFg
 		       && cell->bg == ss->lastBg
-		       && cell->c == ss->lastChar) {
+		       && cell->bold == ss->lastBold
+		       && strneq(cell->c, ss->lastChar, 4)) {
 			// Repeat
 			repCnt++;
 			cell = &screen[++i];
 		}
 
 		if (repCnt == 0) {
+			// No repeat
+
 			// All this crap is needed because it's JSON and also
 			// embedded in HTML (hence the angle brackets)
 
-			if (cell0->fg == ss->lastFg && cell0->bg == ss->lastBg) {
-				// same colors as previous
-				bufprint(",");
-			} else {
-				bufprint("%X%X", cell0->fg, cell0->bg);
+			// TODO use the encoding magic correctly
+
+			if (cell0->bold != ss->lastBold || cell0->fg != ss->lastFg || cell0->bg != ss->lastBg) {
+				encode2B((u16) (
+							 cell0->fg |
+							 (cell0->bg<<4) |
+							 (cell0->bold?0x100:0))
+					, &w1);
+				bufprint("\x01%c%c", w1.lsb, w1.msb);
 			}
 
-			char c = cell0->c;
-			if (c == '"' || c == '\\') {
-				bufprint("\\%c", c);
-			}
-			else if (c == '<' || c == '>' || c == '\'' || c == '/' || c == '&') {
-				bufprint("\\u00%02X", (int)c);
-			}
-			else {
+			// copy the symbol, until first 0 or reached 4 bytes
+			char c;
+			int j = 0;
+			while ((c = cell->c[j++]) != 0 && j < 4) {
 				bufprint("%c", c);
 			}
 
+			// TODO do correctly JSON encoding
+//
+//			char c = cell0->c;
+//			if (c == '"' || c == '\\') {
+//				bufprint("\\%c", c);
+//			}
+//			else if (c == '<' || c == '>' || c == '\'' || c == '/' || c == '&') {
+//				bufprint("\\u00%02X", (int)c);
+//			}
+//			else {
+//				bufprint("%c", c);
+//			}
+
 			ss->lastFg = cell0->fg;
 			ss->lastBg = cell0->bg;
-			ss->lastChar = cell0->c;
+			ss->lastBold = cell0->bold;
+			memcpy(ss->lastChar, cell0->c, 4);
 
 			i++;
 		} else {
-			char code;
-			if(repCnt<10) {
-				code = 'r';
-			} else if(repCnt<100) {
-				code = 's';
-			} else if(repCnt<1000) {
-				code = 't';
-			} else {
-				code = 'u';
-			}
-
-			bufprint("%c%d", code, repCnt);
+			// Repeat count
+			encode2B((u16) repCnt, &w1);
+			bufprint("\x02%c%c", w1.lsb, w1.msb);
 		}
 	}
 
@@ -756,12 +796,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		return HTTPD_CGI_MORE;
 	}
 
-	if (remain >= 3) {
-		bufprint("\"\n}");
-		return HTTPD_CGI_DONE;
-	} else {
-		return HTTPD_CGI_MORE;
-	}
+	return HTTPD_CGI_DONE;
 }
 
 //endregion

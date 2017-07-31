@@ -19,12 +19,10 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 {
 	if (token == NULL) {
 		// Release data object
-		screenSerializeToBuffer(NULL, 0, arg);
 		return HTTPD_CGI_DONE;
 	}
 
-	const int bufsiz = 512;
-	char buff[bufsiz];
+	char buff[100];
 
 	if (streq(token, "term_title")) {
 		httpdSend(connData, termconf->title, -1);
@@ -44,29 +42,41 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 	else if (streq(token, "btn5")) {
 		httpdSend(connData, termconf->btn5, -1);
 	}
-//	else if (streq(token, "default_bg")) {
-//		sprintf(buff, "%d", termconf->default_bg);
-//		httpdSend(connData, buff, -1);
-//	}
-//	else if (streq(token, "default_fg")) {
-//		sprintf(buff, "%d", termconf->default_fg);
-//		httpdSend(connData, buff, -1);
-//	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);
 		httpdSend(connData, buff, -1);
-	}
-	else if (streq(token, "screenData")) {
-		httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, arg);
-		httpdSend(connData, buff, -1);
-		return cont;
 	}
 
 	return HTTPD_CGI_DONE;
 }
 
+httpd_cgi_state ICACHE_FLASH_ATTR
+cgiTermInitialImage(HttpdConnData *connData)
+{
+	const int bufsiz = 512;
+	char buff[bufsiz];
+
+	if (connData->conn == NULL) {
+		//Connection aborted. Clean up.
+		// Release data object
+		screenSerializeToBuffer(NULL, 0, &connData->cgiData);
+		return HTTPD_CGI_DONE;
+	}
+
+	if (connData->cgiData == NULL) {
+		httpdStartResponse(connData, 200);
+		httpdHeader(connData, "Content-Type", "application/octet-stream");
+		httpdEndHeaders(connData);
+	}
+
+	httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &connData->cgiData);
+	httpdSend(connData, buff, -1);
+	return cont;
+}
+
 /** "About" page */
-httpd_cgi_state ICACHE_FLASH_ATTR tplAbout(HttpdConnData *connData, char *token, void **arg)
+httpd_cgi_state ICACHE_FLASH_ATTR
+tplAbout(HttpdConnData *connData, char *token, void **arg)
 {
 	if (token == NULL) return HTTPD_CGI_DONE;
 
