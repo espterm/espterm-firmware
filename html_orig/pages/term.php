@@ -32,7 +32,7 @@
 </nav>
 
 <!-- this avoids having to escape quotes for JSON -->
-<span class="hidden" id="initial_data">T%term_title%|%btn1%|%btn2%|%btn3%|%btn4%|%btn5%</span>
+<span class="hidden" id="initial_data">%labels_seq%</span>
 
 <script>
 	try {

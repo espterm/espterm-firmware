@@ -6,13 +6,14 @@
  * are given to JavaScript, to avoid syntax errors with %%
  */
 return [
-	'%term_title%' => 'ESP8266 Wireless Terminal',
+	'%term_title%' => 'ESPTerm local debug',
 
 	'%btn1%' => '1',
 	'%btn2%' => '2',
 	'%btn3%' => '3',
 	'%btn4%' => '',
 	'%btn5%' => '5',
+	'%labels_seq%' => 'TESPTerm local debug1235',
 
 	'%screenData%' => 'HELLOxNRE3',//'\u000b\u0001\u001b\u0001\u0001\u0001\u0001\u0001\f\u0005\u0001\u0010\u0003HELLOx\u0002\u000b\u0001\u0001N\u0001RE\u00023\u0001', //,
 	/*'{

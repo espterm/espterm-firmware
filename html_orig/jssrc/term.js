@@ -216,7 +216,7 @@ var Screen = (function () {
 	}
 
 	function _load_labels(str) {
-		var pieces = str.split('|');
+		var pieces = str.split('\x01');
 		qs('h1').textContent = pieces[0];
 		qsa('#buttons button').forEach(function(x, i) {
 			var s = pieces[i+1].trim();

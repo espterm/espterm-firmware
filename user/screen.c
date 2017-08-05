@@ -683,7 +683,7 @@ void ICACHE_FLASH_ATTR
 screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
 {
 	// let's just assume it's long enough - called with the huge websocket buffer
-	sprintf(buffer, "T%s|%s|%s|%s|%s|%s",
+	sprintf(buffer, "T%s\x01%s\x01%s\x01%s\x01%s\x01%s", // use 0x01 as separator
 			termconf_scratch.title,
 			termconf_scratch.btn[0],
 			termconf_scratch.btn[1],
