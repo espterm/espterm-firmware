@@ -45,6 +45,7 @@ ansi_parser(const char *newdata, size_t len)
 
 	// The parser
 	%%{
+#/*
 		ESC = 27;
 		NOESC = (any - ESC);
 		TOK_ST = ESC '\\'; # String terminator - used for OSC commands
@@ -59,11 +60,11 @@ ansi_parser(const char *newdata, size_t len)
 		# Text color & style
 
 		action CSI_start {
-			/* Reset the CSI builder */
+			// Reset the CSI builder
 			csi_leading = csi_char = 0;
 			csi_ni = 0;
 
-			/* Zero out digits */
+			// Zero out digits
 			for(int i = 0; i < CSI_N_MAX; i++) {
 				csi_n[i] = 0;
 			}
@@ -76,7 +77,7 @@ ansi_parser(const char *newdata, size_t len)
 		}
 
 		action CSI_digit {
-			/* x10 + digit */
+			// x10 + digit
 			if (csi_ni < CSI_N_MAX) {
 				csi_n[csi_ni] = csi_n[csi_ni]*10 + (fc - '0');
 			}
@@ -168,5 +169,6 @@ ansi_parser(const char *newdata, size_t len)
 			)+ $!errBadSeq;
 
 		write exec;
+#*/
 	}%%
 }
