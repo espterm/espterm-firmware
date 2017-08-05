@@ -158,13 +158,13 @@ var Screen = (function () {
 		if (num != H || num2 != W) {
 			_rebuild(num, num2);
 		}
-		console.log("Size ",num, num2);
+		// console.log("Size ",num, num2);
 
 		// Cursor position
 		num = parse2B(str, i); i += 2; // row
 		num2 = parse2B(str, i); i += 2; // col
 		cursorSet(num, num2);
-		console.log("Cursor at ",num, num2);
+		// console.log("Cursor at ",num, num2);
 
 		// Attributes
 		num = parse2B(str, i); i += 2; // fg bg bold hidden
@@ -172,7 +172,7 @@ var Screen = (function () {
 		cursor.bg = (num & 0xF0) >> 4;
 		cursor.bold = !!(num & 0x100);
 		cursor.hidden = !(num & 0x200);
-		console.log("FG ",cursor.fg, ", BG ", cursor.bg,", BOLD ", cursor.bold, ", HIDE ", cursor.hidden);
+		// console.log("FG ",cursor.fg, ", BG ", cursor.bg,", BOLD ", cursor.bold, ", HIDE ", cursor.hidden);
 
 		fg = cursor.fg;
 		bg = cursor.bg;
@@ -188,11 +188,11 @@ var Screen = (function () {
 				fg = num & 0x0F;
 				bg = (num & 0xF0) >> 4;
 				bold = !!(num & 0x100);
-				console.log("Switch to ",fg,bg,bold);
+				// console.log("Switch to ",fg,bg,bold);
 			}
 			else if (jc == SEQ_REPEAT) {
 				num = parse2B(str, i); i += 2;
-				console.log("Repeat x ",num);
+				// console.log("Repeat x ",num);
 				for (; num>0 && ci<W*H; num--) {
 					cell = screen[ci++];
 					cell.fg = fg;
@@ -208,7 +208,7 @@ var Screen = (function () {
 				cell.fg = fg;
 				cell.bg = bg;
 				cell.bold = bold;
-				console.log("Symbol ", j);
+				// console.log("Symbol ", j);
 			}
 		}
 
@@ -220,6 +220,7 @@ var Screen = (function () {
 		qs('h1').textContent = pieces[0];
 		qsa('#buttons button').forEach(function(x, i) {
 			var s = pieces[i+1].trim();
+			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
 			x.innerHTML = s.length >0 ? e(s) : "&nbsp;";
 			x.style.opacity = s.length > 0 ? 1 : 0.2;
 		});

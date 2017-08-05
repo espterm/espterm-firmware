@@ -31,14 +31,11 @@
 	--><a href="<?= url('about') ?>">About</a>
 </nav>
 
-<!-- this avoids having to escape quotes for JSON -->
-<span class="hidden" id="initial_data">%labels_seq%</span>
-
 <script>
 	try {
 		window.noAutoShow = true;
 		termInit(); // the screen will be loaded via ajax
-		Screen.load(qs('#initial_data').textContent);
+		Screen.load('%labels_seq%');
 
 		// auto-clear the input box
 		$('#softkb-input').on('input', function(e) {
