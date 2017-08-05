@@ -23,28 +23,22 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 	}
 
 	char buff[100];
+	char buff2[10];
 
 	if (streq(token, "term_title")) {
-		httpdSend(connData, termconf->title, -1);
-	}
-	else if (streq(token, "btn1")) {
-		httpdSend(connData, termconf->btn1, -1);
-	}
-	else if (streq(token, "btn2")) {
-		httpdSend(connData, termconf->btn2, -1);
-	}
-	else if (streq(token, "btn3")) {
-		httpdSend(connData, termconf->btn3, -1);
-	}
-	else if (streq(token, "btn4")) {
-		httpdSend(connData, termconf->btn4, -1);
-	}
-	else if (streq(token, "btn5")) {
-		httpdSend(connData, termconf->btn5, -1);
+		httpdSend(connData, termconf_scratch.title, -1);
 	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);
 		httpdSend(connData, buff, -1);
+	}
+	else {
+		for (int i = 1; i <= 5; i++) {
+			sprintf(buff2, "btn%d", i);
+			if (streq(token, buff2)) {
+				httpdSend(connData, termconf_scratch.btn[i-1], -1);
+			}
+		}
 	}
 
 	return HTTPD_CGI_DONE;

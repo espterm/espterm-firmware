@@ -100,8 +100,11 @@ $.ready(function () {
 			x.removeAttribute('tabindex');
 		});
 
+		// brand works as a link back to term in widescreen mode
 		var br = qs('#brand');
-		br && br.removeAttribute('tabindex');
+		br && br.addEventListener('click', function() {
+			location.href='/'; // go to terminal
+		});
 	}
 });
 

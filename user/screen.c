@@ -18,11 +18,9 @@ void terminal_restore_defaults(void)
 	termconf->width = 26;
 	termconf->height = 10;
 	sprintf(termconf->title, "ESPTerm");
-	sprintf(termconf->btn1, "1");
-	sprintf(termconf->btn2, "2");
-	sprintf(termconf->btn3, "3");
-	sprintf(termconf->btn4, "4");
-	sprintf(termconf->btn5, "5");
+	for(int i=1; i <= 5; i++) {
+		sprintf(termconf->btn[i-1], "%d", i);
+	}
 }
 
 /**

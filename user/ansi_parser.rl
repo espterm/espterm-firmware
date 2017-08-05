@@ -30,6 +30,8 @@ ansi_parser(const char *newdata, size_t len)
 	static int  csi_ni;           //!< Number of the active digit
 	static int  csi_n[CSI_N_MAX]; //!< Param digits
 	static char csi_char;         //!< CSI action char (end)
+	static char osc_buffer[OSC_CHAR_MAX];
+	static int  osc_bi;
 
 	if (len == 0) len = strlen(newdata);
 	
@@ -49,6 +51,7 @@ ansi_parser(const char *newdata, size_t len)
 		ESC = 27;
 		NOESC = (any - ESC);
 		TOK_ST = ESC '\\'; # String terminator - used for OSC commands
+		OSC_END = ('\a' | ESC '\\');
 
 		# --- Regular characters to be printed ---
 
@@ -120,23 +123,37 @@ ansi_parser(const char *newdata, size_t len)
 				csi_n[i] = 0;
 			}
 
-			fgoto OSC_body;
-		}
+			osc_bi = 0;
+			osc_buffer[0] = '\0';
 
-		action OSC_fr {
-			apars_handle_OSC_FactoryReset();
-			fgoto main;
+			fgoto OSC_body;
 		}
 
 		action OSC_resize {
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
+			fgoto main;
+		}
 
+		action OSC_text_char {
+			osc_buffer[osc_bi++] = fc;
+		}
+
+		action OSC_title {
+			osc_buffer[osc_bi++] = '\0';
+			apars_handle_OSC_SetTitle(osc_buffer);
+			fgoto main;
+		}
+
+		action OSC_button {
+			osc_buffer[osc_bi++] = '\0';
+			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
 			fgoto main;
 		}
 		
 		OSC_body := (
-			("FR" ('\a' | ESC '\\') @OSC_fr) |
-			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ ('\a' | ESC '\\') @OSC_resize)
+			("BTN" digit @CSI_digit '=' (NOESC @OSC_text_char)+ OSC_END @OSC_button) |
+			("TITLE=" (NOESC @OSC_text_char)+ OSC_END @OSC_title) |
+			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ OSC_END @OSC_resize)
 		) $!errBadSeq;
 
 		action RESET_cmd {

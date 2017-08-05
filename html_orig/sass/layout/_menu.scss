@@ -16,6 +16,7 @@
 	}
 
 	#brand {
+		cursor: pointer;
 		color: $menu-fg;
 		background: darken($menu-bg, 10%);
 		font-size: 120%;

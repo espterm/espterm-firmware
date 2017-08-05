@@ -26,7 +26,8 @@ return [
 	'term.explain_initials' => '
 		Those are the initial settings used after ESPTerm powers on. 
 		The selected colors will also be used after receiving a 
-		screen- or attributes-reset command.',
+		screen- or attributes-reset command. Those settings will be 
+		applied immediately after saving to preview the changes live.',
 
 	'term.example' => 'Default colors preview',
 

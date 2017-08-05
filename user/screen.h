@@ -47,11 +47,7 @@ typedef struct {
 	u8 default_bg;
 	u8 default_fg;
 	char title[TERM_TITLE_LEN];
-	char btn1[TERM_BTN_LEN];
-	char btn2[TERM_BTN_LEN];
-	char btn3[TERM_BTN_LEN];
-	char btn4[TERM_BTN_LEN];
-	char btn5[TERM_BTN_LEN];
+	char btn[5][TERM_BTN_LEN];
 	u8 theme;
 
 	u8 _filler[

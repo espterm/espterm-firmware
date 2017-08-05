@@ -9,6 +9,7 @@
 #include "screen.h"
 #include "ansi_parser.h"
 #include "uart_driver.h"
+#include "persist.h"
 
 static char utf_collect[4];
 static int utf_i = 0;
@@ -256,71 +257,7 @@ void ICACHE_FLASH_ATTR apars_handle_restoreCursorAttrs(void)
 void ICACHE_FLASH_ATTR
 apars_handle_RESET_cmd(void)
 {
-	// XXX maybe user wanted to reset the module instead?
 	screen_reset();
-}
-
-/**
- * Handle a factory reset request
- */
-void ICACHE_FLASH_ATTR
-apars_handle_OSC_FactoryReset(void)
-{
-	warn("-------- Factory reset --------");
-
-	dbg("Switching to Client+AP mode");
-
-	// Send acknowledgement message to UART0
-	// User is performing this manually, so we can just print it as string
-	UART_WriteString(UART0, "\r\nFACTORY RESET\r\n", UART_TIMEOUT_US);
-
-	// Disconnect from AP if connected
-	int opmode = wifi_get_opmode();
-	if (opmode != SOFTAP_MODE) {
-		wifi_station_disconnect();
-	}
-
-	// Both must be enabled so we can manipulate their settings
-	wifi_set_opmode(STATIONAP_MODE);
-
-	// --- AP config ---
-	dbg("AP WiFi channel: 6");
-
-	struct softap_config apconf;
-	wifi_softap_get_config(&apconf);
-	apconf.authmode=AUTH_OPEN; // Disable access protection
-	apconf.channel=6; // Reset channel; user may have set bad channel in the UI
-
-	// generate unique AP name
-	u8 mac[6];
-	wifi_get_macaddr(SOFTAP_IF, mac);
-	sprintf((char*)apconf.ssid, "TERM-%02X%02X%02X", mac[3], mac[4], mac[5]);
-	apconf.ssid_len = (u8)strlen((char*)apconf.ssid);
-
-	info("New AP name: %s", (char*)apconf.ssid);
-
-	// --- Station ---
-	dbg("Erasing stored WiFi credentials...");
-
-	struct station_config staconf;
-	wifi_station_get_config(&staconf);
-
-	// clear info about SSID
-	staconf.ssid[0]=0;
-	staconf.bssid_set=0;
-	staconf.password[0]=0;
-
-	dbg("Commiting changes...");
-	wifi_softap_set_config(&apconf);
-	wifi_station_set_config(&staconf);
-
-	UART_WriteString(UART0, "Factory Reset complete, device reset.\r\n\r\n", UART_TIMEOUT_US);
-
-	info("*** FACTORY RESET COMPLETE ***");
-	dbg("Device reset...");
-
-	// Reboot to clean STA+AP mode with Channel X & reset AP SSID.
-	system_restart();
 }
 
 /**
@@ -332,4 +269,21 @@ apars_handle_OSC_SetScreenSize(int rows, int cols)
 	info("OSC: Set screen size to %d x %d", rows, cols);
 
 	screen_resize(rows, cols);
+}
+
+
+void ICACHE_FLASH_ATTR
+apars_handle_OSC_SetButton(int num, const char *buffer)
+{
+	strncpy(termconf_scratch.btn[num-1], buffer, TERM_BTN_LEN);
+	dbg("Term set BTN%d = %s", num, buffer);
+	// TODO notify
+}
+
+void ICACHE_FLASH_ATTR
+apars_handle_OSC_SetTitle(const char *buffer)
+{
+	strncpy(termconf_scratch.title, buffer, TERM_TITLE_LEN);
+	dbg("Term set TITLE = %s", buffer);
+	// TODO notify
 }

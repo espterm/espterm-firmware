@@ -98,29 +98,12 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
 	}
 
-	if (GET_ARG("btn1")) {
-		dbg("Button1 default text: \"%s\"", buff);
-		strncpy_safe(termconf->btn1, buff, 10);
-	}
-
-	if (GET_ARG("btn2")) {
-		dbg("Button1 default text: \"%s\"", buff);
-		strncpy_safe(termconf->btn2, buff, 10);
-	}
-
-	if (GET_ARG("btn3")) {
-		dbg("Button1 default text: \"%s\"", buff);
-		strncpy_safe(termconf->btn3, buff, 10);
-	}
-
-	if (GET_ARG("btn4")) {
-		dbg("Button1 default text: \"%s\"", buff);
-		strncpy_safe(termconf->btn4, buff, 10);
-	}
-
-	if (GET_ARG("btn5")) {
-		dbg("Button1 default text: \"%s\"", buff);
-		strncpy_safe(termconf->btn5, buff, 10);
+	for (int i = 1; i <= 5; i++) {
+		sprintf(buff, "btn%d", i);
+		if (GET_ARG(buff)) {
+			dbg("Button%d default text: \"%s\"", i, buff);
+			strncpy_safe(termconf->btn[i-1], buff, TERM_BTN_LEN);
+		}
 	}
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
@@ -145,6 +128,7 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 {
 #define BUFLEN 100
 	char buff[BUFLEN];
+	char buff2[10];
 
 	if (token == NULL) {
 		// We're done
@@ -171,20 +155,14 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	else if (streq(token, "term_title")) {
 		strncpy_safe(buff, termconf->title, BUFLEN);
 	}
-	else if (streq(token, "btn1")) {
-		strncpy_safe(buff, termconf->btn1, BUFLEN);
-	}
-	else if (streq(token, "btn2")) {
-		strncpy_safe(buff, termconf->btn2, BUFLEN);
-	}
-	else if (streq(token, "btn3")) {
-		strncpy_safe(buff, termconf->btn3, BUFLEN);
-	}
-	else if (streq(token, "btn4")) {
-		strncpy_safe(buff, termconf->btn4, BUFLEN);
-	}
-	else if (streq(token, "btn5")) {
-		strncpy_safe(buff, termconf->btn5, BUFLEN);
+	else {
+		for (int i = 1; i <= 5; i++) {
+			sprintf(buff2, "btn%d", i);
+			if (streq(token, buff2)) {
+				strncpy_safe(buff, termconf->btn[i-1], BUFLEN);
+				break;
+			}
+		}
 	}
 
 	httpdSend(connData, buff, -1);

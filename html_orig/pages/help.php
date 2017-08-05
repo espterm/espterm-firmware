@@ -334,13 +334,6 @@
 			</td>
 		</tr>
 		<tr>
-			<td>\e]FR\a</td>
-			<td>--</td>
-			<td>"Factory Reset", emergency code when you mess up the WiFi, restores SSID to unique default, clears
-				stored credentials & enters Client+AP mode.
-			</td>
-		</tr>
-		<tr>
 			<td>\e[5n</td>
 			<td>--</td>
 			<td>Query device status, replies with <code>\e[0n</code> "device is OK". Can be used to check if the UART works.</td>

@@ -2,18 +2,21 @@
 #define ANSI_PARSER_H
 
 #include <stdlib.h>
+#include <screen.h>
 
 // Max nr of CSI parameters
 #define CSI_N_MAX 3
+#define OSC_CHAR_MAX TERM_TITLE_LEN
 
 extern void apars_handle_badseq(void);
 extern void apars_handle_CSI(char leadchar, int *params, char keychar);
 extern void apars_handle_RESET_cmd(void);
 extern void apars_handle_plainchar(char c);
-extern void apars_handle_OSC_FactoryReset(void);
 extern void apars_handle_OSC_SetScreenSize(int rows, int cols);
 extern void apars_handle_saveCursorAttrs(void);
 extern void apars_handle_restoreCursorAttrs(void);
+extern void apars_handle_OSC_SetButton(int num, const char *buffer);
+extern void apars_handle_OSC_SetTitle(const char *buffer);
 
 /**
  * \brief Linear ANSI chars stream parser

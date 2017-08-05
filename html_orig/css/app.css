@@ -450,6 +450,7 @@ ul > * {
     -ms-user-select: none;
     user-select: none; }
   #menu #brand {
+    cursor: pointer;
     color: white;
     background: #2b6aa8;
     font-size: 120%;
