@@ -231,8 +231,8 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 				else if (n == 49) screen_set_bg(false); // default bg
 				else if (n == 7) screen_inverse(true); // inverse
 				else if (n == 27) screen_inverse(false); // positive
-				else if (n == 1) screen_set_bold(true); // ANSI bold = bright fg
-				else if (n == 21 || n == 22) screen_set_bold(false); // ANSI bold = bright fg
+				else if (n == 1) screen_set_bold(true); // bold
+				else if (n == 21 || n == 22) screen_set_bold(false); // bold off
 				else if (n >= 90 && n <= 97) screen_set_fg(n-90+8); // AIX bright fg
 				else if (n >= 100 && n <= 107) screen_set_bg(n-100+8); // AIX bright bg
 			}

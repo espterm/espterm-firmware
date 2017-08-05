@@ -1,15 +1,34 @@
 <div class="Box">
-	<h2>Wiring</h2>
+	<h2>Troubleshooting</h2>
 
 	<ul>
-		<li>Communication UART is on pins <b>Rx, Tx</b> at 115200-8-1-N. The baud rate can be changed in Terminal Settings.
-		<li>Debug log is on pin <b>GPIO2</b> (P2) at 115200-8-1-N. This baud rate is fixed.
-		<li>Compatible with 3.3&nbsp;V and 5&nbsp;V logic. For 5&nbsp;V, 470&nbsp;R protection resistors are recommended.
-		<li>If the "LVD" LED on the ESPTerm module lights up, it doesn't get enough power to run correctly. Check your connections.
-		<li>Connect Rx and Tx with a piece of wire to test the terminal alone, you should see what you type in the browser.
-			<i>NOTE: This won't work if your ESP8266 board has a built-in USB-serial converter (like NodeMCU).</i>
-		<li>For best performance, use the module in Client mode (connected to external network).
-		<li>In AP mode, check that the channel used is clear; interference may cause a flaky connection.
+		<li>ESPTerm communicates with external µC via UART on pins <b>Rx</b> and <b>Tx</b>.
+			It can be configured in <a href="<?= url('cfg_system') ?>">System Settings</a>.
+			Make sure you're using the correct baud rate and other settings on the other side.
+
+		<li>Boot log and debug messages are available on pin <b>GPIO2</b> (P2) at 115200\,bps, 1 stop bit, no parity.
+
+		<li>ESPTerm uses 3.3\,V logic. For communication with 5\,V logic (eg. Aurdino), 470\,R
+			protection resistors are recommended. The ESPTerm breakout board already includes those resistors.
+
+		<li>If the Low Voltage Detector ("LVD") LED on the ESPTerm breakout lights up, your power connections have too high
+			resistance or the power supply is insufficient. ESP8266 can consume in short spikes up to 500\,A and
+			the supply voltage on the module must not drop below about 2.7\,V. Avoid needless breadboard jumpers and too thin wires.
+
+		<li>Connect Rx and Tx with a piece of wire to verify that the terminal works correctly; you should then immediately
+			see what you type in the browser. <i>This won't work if your ESP8266 board has a built-in USB-serial
+			converter connected to those pins.</i>
+
+		<li>For best performance, use the module in Client mode (connected to external network). Enabling AP mode consumes
+			extra RAM and cycles, since the captive portal DNS server and DHCP server are be loaded.
+
+		<li>In AP mode, check that the channel used by ESPTerm is clear; interference may cause flaky connection. A good mobile app to use for this is <a href="https://play.google.com/store/apps/details?id=com.farproc.wifi.analyzer">WiFi Analyzer (Google Play)</a>
+
+		<li>The terminal browser display needs WebSockets for the real-time updating to work.
+			It will not work with some old browsers (Android < 4.4, IE < 10, Opera Mini)
+			- see the <a href="https://caniuse.com/websockets/embed/">compatibility chart</a>.
+
+		<li>At most 4 clients can be connected to the AP at the same time. This is a limitation of the ESP8266 SDK.
 	</ul>
 </div>
 
@@ -17,19 +36,22 @@
 	<h2>Screen</h2>
 
 	<ul>
-		<li>Most ANSI escape sequences are supported.</li>
-		<li>The max screen size is 2000 characters (eg. <b>25x80</b>), default is <b>10x26</b>. Set using <code>\e]W&lt;rows&gt;;&lt;cols&gt;\a</code>.</li>
-		<li>The screen will automatically scroll, can be used for log output.</li>
-		<li>Display update is sent <b>after 20 ms of inactivity</b>.</li>
-		<li>At most 4 clients can be connected at the same time.</li>
-		<li>The browser display needs WebSockets for the real-time updating. It may not work on really old phones / browsers.</li>
+		<li>Most ANSI escape sequences are supported.
+
+		<li>The initial screen size and other terminal options can be configured in
+			<a href="<?= url('cfg_term') ?>">Terminal Settings</a>
+
+		<li>Display updates are sent to the browser after 20 ms of inactivity on the communication UART.
+			This is to avoid hogging the server with tiny updates during large screen repaints.
 	</ul>
 </div>
 
-<div class="Box">
+<div class="Box theme-0">
 	<h2>Color Reference</h2>
 
-	<p>Color is set using <code>\e[&lt;c&gt;m</code> or <code>\e[&lt;c&gt;;&lt;c&gt;m</code> where "&lt;c&gt;" are numbers from the following tables:</p>
+	<p>Color is set using <code>\e[&lt;c&gt;m</code> where <code>&lt;c&gt;</code> are numbers separated by semicolons
+		(and <code>\e</code> is ESC, code 27). The actual color representation depends on a color theme which
+		can be selected in <a href="<?= url('cfg_term') ?>">Terminal Settings</a>.</p>
 
 	<b>Foreground</b>
 
@@ -45,7 +67,7 @@
 	</div>
 
 	<div class="colorprev">
-		<span class="bg7 fg8">90</span>
+		<span class="bg0 fg8">90</span>
 		<span class="bg0 fg9">91</span>
 		<span class="bg0 fg10">92</span>
 		<span class="bg0 fg11">93</span>
@@ -58,18 +80,18 @@
 	<b>Background</b>
 
 	<div class="colorprev">
-		<span class="bg0 fg15 nb">40</span>
-		<span class="bg1 fg15 nb">41</span>
-		<span class="bg2 fg15 nb">42</span>
+		<span class="bg0 fg15">40</span>
+		<span class="bg1 fg15">41</span>
+		<span class="bg2 fg15">42</span>
 		<span class="bg3 fg0">43</span>
-		<span class="bg4 fg15 nb">44</span>
-		<span class="bg5 fg15 nb">45</span>
-		<span class="bg6 fg15 nb">46</span>
+		<span class="bg4 fg15">44</span>
+		<span class="bg5 fg15">45</span>
+		<span class="bg6 fg15">46</span>
 		<span class="bg7 fg0">47</span>
 	</div>
 
 	<div class="colorprev">
-		<span class="bg8 fg15 nb">100</span>
+		<span class="bg8 fg15">100</span>
 		<span class="bg9 fg0">101</span>
 		<span class="bg10 fg0">102</span>
 		<span class="bg11 fg0">103</span>
@@ -79,7 +101,10 @@
 		<span class="bg15 fg0">107</span>
 	</div>
 
-	<p>Bright foreground can also be set using the "bold" attribute 1 (eg. <code>\e[31;1m</code>). For more details, see the ANSI code reference below.</p>
+	<p>To make the text bold, use the "bold" attribute (eg. <code>\e[31;40;1m</code> for
+		<span style="padding: 2px;" class="bg0 fg1 bold">bold red on black</span>).</p>
+
+	<p>The colors are reset to default using <code>\e[0m</code>. For more info, see the tables below.</p>
 </div>
 
 <div class="Box">
@@ -87,13 +112,12 @@
 
 	<p>
 		All the user types on their keyboard is sent as-is to the UART, including ESC, ANSI sequences for arrow keys and CR-LF for Enter.
-		The input is limited to ASCII codes 32-126, backspace 8 and tab 9.
 	</p>
 
-	<p>The buttons under the screen send ASCII codes 1, 2, 3, 4, 5.</p>
+	<p>The buttons under the screen send ASCII codes 1, 2, 3, 4, 5. This choice was made to make their parsing as simple as possible.</p>
 
 	<p>
-		<b>Mouse input</b> (click/tap) is sent as <code>\e[&lt;y&gt;;&lt;x&gt;M</code>. You can use this for on-screen buttons, menu navigation etc.
+		Mouse input (click/tap) is sent as <code>\e[&lt;y&gt;;&lt;x&gt;M</code>. You can use this for virtual on-screen buttons.
 	</p>
 </div>
 
@@ -122,6 +146,14 @@
 		<tr>
 			<td>0</td>
 			<td>Reset text attributes to default</td>
+		</tr>
+		<tr>
+			<td>1</td>
+			<td>Bold</td>
+		</tr>
+		<tr>
+			<td>21 or 22</td>
+			<td>Bold off</td>
 		</tr>
 		<tr>
 			<td>7</td>
@@ -277,7 +309,7 @@
 		<tr>
 			<td>\e]W&lt;r&gt;;&lt;c&gt;\a</td>
 			<td>rows;cols</td>
-			<td>Set screen size, maximum 25x80 (resp. total 2000 characters). This also clears the screen.</td>
+			<td>Set screen size (max ~ 80x30). This also clears the screen. This is a custom ESPTerm OSC command.</td>
 		</tr>
 		</tbody>
 	</table>
@@ -304,12 +336,22 @@
 		<tr>
 			<td>\e]FR\a</td>
 			<td>--</td>
-			<td>"Factory Reset", emergency code when you mess up the WiFi, restores SSID to unique default, clears stored credentials & enters Client+AP mode.</td>
+			<td>"Factory Reset", emergency code when you mess up the WiFi, restores SSID to unique default, clears
+				stored credentials & enters Client+AP mode.
+			</td>
 		</tr>
 		<tr>
 			<td>\e[5n</td>
 			<td>--</td>
 			<td>Query device status, replies with <code>\e[0n</code> "device is OK". Can be used to check if the UART works.</td>
+		</tr>
+		<tr>
+			<td>ASCII 24 (18h)</td>
+			<td></td>
+			<td>This symbol is sent by ESPTerm when it becomes ready to receive commands. It can be used to wait before it becomes
+				ready on power-up, or to detect a spontaneous ESPTerm restart - that could happen due to RAM exhaustion due
+				to a memory leak, or perhaps a power outage.
+			</td>
 		</tr>
 		</tbody>
 	</table>

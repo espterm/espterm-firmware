@@ -24,13 +24,14 @@ return [
 
 	'term.defaults' => 'Initial Settings',
 	'term.explain_initials' => '
-		Those are the initial settings used after ESPTerm powers on. They
-		will also be applied immediately after you submit this form.',
+		Those are the initial settings used after ESPTerm powers on. 
+		The selected colors will also be used after receiving a 
+		screen- or attributes-reset command.',
 
 	'term.example' => 'Default colors preview',
 
 	'term.term_title' => 'Header text',
-	'term.term_width' => 'Screen width / height',
+	'term.term_width' => 'Width / height',
 	'term.default_fg_bg' => 'Text / background',
 	'term.buttons' => 'Button labels',
 	'term.theme' => 'Color scheme',
@@ -124,7 +125,7 @@ return [
 		',
 	'system.uart' => 'Serial Port',
 	'system.explain_uart' => '
-		This form controls the primary UART. The debug port is fixed at 115200 baud, one stop-bit and no parity.
+		This form controls the primary, communication UART. The debug UART is fixed at 115.200 baud, one stop-bit and no parity.
 		',
 	'uart.baud' => 'Baud rate',
 	'uart.parity' => 'Parity',

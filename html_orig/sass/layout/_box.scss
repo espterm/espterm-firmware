@@ -78,6 +78,7 @@
 	}
 
 	.Row.explain {
+		display: block; // this stops flex messing up text with inline tags
 		max-width: 600px; margin-left: 0;
 		line-height: 1.2;
 

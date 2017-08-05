@@ -13,6 +13,11 @@ if (file_exists($_pf)) {
 	$f = file_get_contents($_pf);
 	$reps = DEBUG ? require(__DIR__ . '/_debug_replacements.php') : [];
 	$str = str_replace(array_keys($reps), array_values($reps), $f);
+
+	// special symbols
+	$str = str_replace('\,', '&#8239;', $str);
+	$str = preg_replace('/(?<=\w)~(?=\w)/', '&nbsp;', $str);
+
 	include_str($str);
 } else {
 	echo "404";

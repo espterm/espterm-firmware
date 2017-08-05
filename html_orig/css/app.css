@@ -613,6 +613,7 @@ ul > * {
     top: 0;
     margin-top: 0.61805rem; }
   .Box .Row.explain {
+    display: block;
     max-width: 600px;
     margin-left: 0;
     line-height: 1.2; }
