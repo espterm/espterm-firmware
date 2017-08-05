@@ -9,8 +9,27 @@
 #define SOCK_BUF_LEN 2048
 static char sock_buff[SOCK_BUF_LEN];
 
-static void notifyTimCb(void *arg) {
+volatile bool notify_available = true;
+
+static ETSTimer notifyTim;
+static ETSTimer notifyTim2;
+
+// we're trying to do a kind of mutex here, without the actual primitives
+// this might glitch, very rarely.
+// it's recommended to put some delay between setting labels and updating the screen.
+
+static void ICACHE_FLASH_ATTR
+notifyTimCb(void *arg) {
 	void *data = NULL;
+
+	if (!notify_available) {
+		// postpone a little
+		os_timer_disarm(&notifyTim);
+		os_timer_setfn(&notifyTim, notifyTimCb, NULL);
+		os_timer_arm(&notifyTim, 1, 0);
+		return;
+	}
+	notify_available = false;
 
 	for (int i = 0; i < 20; i++) {
 		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, &data);
@@ -21,21 +40,53 @@ static void notifyTimCb(void *arg) {
 		if (cont == HTTPD_CGI_DONE) break;
 	}
 
+	// cleanup
 	screenSerializeToBuffer(NULL, SOCK_BUF_LEN, &data);
+
+	notify_available = true;
 }
 
-static ETSTimer notifyTim;
+static void ICACHE_FLASH_ATTR
+notifyLabelsTimCb(void *arg)
+{
+	if (!notify_available) {
+		// postpone a little
+		os_timer_disarm(&notifyTim2);
+		os_timer_setfn(&notifyTim2, notifyLabelsTimCb, NULL);
+		os_timer_arm(&notifyTim2, 1, 0);
+		return;
+	}
+	notify_available = false;
+
+	screenSerializeLabelsToBuffer(sock_buff, SOCK_BUF_LEN);
+	cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), 0);
+
+	notify_available = true;
+}
+
 
 /**
  * Broadcast screen state to sockets.
  * This is a callback for the Screen module,
  * called after each visible screen modification.
  */
-void ICACHE_FLASH_ATTR screen_notifyChange(void)
+void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 {
-	os_timer_disarm(&notifyTim);
-	os_timer_setfn(&notifyTim, notifyTimCb, NULL);
-	os_timer_arm(&notifyTim, 20, 0);
+	// this is not the most ideal/cleanest implementation
+	// PRs are welcome for a nicer update "queue" solution
+
+	if (topic == CHANGE_LABELS) {
+		// separate timer from content change timer, to avoid losing that update
+		os_timer_disarm(&notifyTim2);
+		os_timer_setfn(&notifyTim2, notifyLabelsTimCb, NULL);
+		os_timer_arm(&notifyTim2, SCREEN_NOTIFY_DELAY_MS, 0);
+	}
+	else if (topic == CHANGE_CONTENT) {
+		// throttle delay
+		os_timer_disarm(&notifyTim);
+		os_timer_setfn(&notifyTim, notifyTimCb, NULL);
+		os_timer_arm(&notifyTim, SCREEN_NOTIFY_DELAY_MS, 0);
+	}
 }
 
 /** Socket received a message */
@@ -44,6 +95,8 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	char buf[20];
 	// Add terminator if missing (seems to randomly happen)
 	data[len] = 0;
+
+	// TODO re-implement those, use single byte markers and B2 encoding
 
 	dbg("Sock RX str: %s, len %d", data, len);
 

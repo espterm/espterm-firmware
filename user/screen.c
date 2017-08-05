@@ -96,7 +96,7 @@ static volatile int notifyLock = 0;
 
 #define NOTIFY_DONE()   do { \
 							if (notifyLock > 0) notifyLock--; \
-							if (notifyLock == 0) screen_notifyChange(); \
+							if (notifyLock == 0) screen_notifyChange(CHANGE_CONTENT); \
 						} while(0)
 
 /**
@@ -371,8 +371,8 @@ screen_cursor_move(int dy, int dx)
 
 	cursor.x += dx;
 	cursor.y += dy;
-	if (cursor.x >= W) cursor.x = W - 1;
-	if (cursor.x < 0) cursor.x = 0;
+	if (cursor.x >= (int)W) cursor.x = W - 1;
+	if (cursor.x < (int)0) cursor.x = 0;
 
 	if (cursor.y < 0) {
 		move = -cursor.y;
@@ -675,6 +675,25 @@ encode2B(u16 number, WordB2 *stru)
 }
 
 /**
+ * buffer should be at least 64+5*10+6 long (title + buttons + 6), ie. 120
+ * @param buffer
+ * @param buf_len
+ */
+void ICACHE_FLASH_ATTR
+screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
+{
+	// let's just assume it's long enough - called with the huge websocket buffer
+	sprintf(buffer, "T%s|%s|%s|%s|%s|%s",
+			termconf_scratch.title,
+			termconf_scratch.btn[0],
+			termconf_scratch.btn[1],
+			termconf_scratch.btn[2],
+			termconf_scratch.btn[3],
+			termconf_scratch.btn[4]
+	);
+}
+
+/**
  * Serialize the screen to a data buffer. May need multiple calls if the buffer is insufficient in size.
  *
  * @warning MAKE SURE *DATA IS NULL BEFORE FIRST CALL!
@@ -728,7 +747,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			, &w5);
 
 		// H W X Y Attribs
-		bufprint("%c%c%c%c%c%c%c%c%c%c", w1.lsb, w1.msb, w2.lsb, w2.msb, w3.lsb, w3.msb, w4.lsb, w4.msb, w5.lsb, w5.msb);
+		bufprint("S%c%c%c%c%c%c%c%c%c%c", w1.lsb, w1.msb, w2.lsb, w2.msb, w3.lsb, w3.msb, w4.lsb, w4.msb, w5.lsb, w5.msb);
 	}
 
 	int i = ss->index;
@@ -749,12 +768,6 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 		if (repCnt == 0) {
 			// No repeat
-
-			// All this crap is needed because it's JSON and also
-			// embedded in HTML (hence the angle brackets)
-
-			// TODO use the encoding magic correctly
-
 			if (cell0->bold != ss->lastBold || cell0->fg != ss->lastFg || cell0->bg != ss->lastBg) {
 				encode2B((u16) (
 							 cell0->fg |
@@ -770,19 +783,6 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			while ((c = cell->c[j++]) != 0 && j < 4) {
 				bufprint("%c", c);
 			}
-
-			// TODO do correctly JSON encoding
-//
-//			char c = cell0->c;
-//			if (c == '"' || c == '\\') {
-//				bufprint("\\%c", c);
-//			}
-//			else if (c == '<' || c == '>' || c == '\'' || c == '/' || c == '&') {
-//				bufprint("\\u00%02X", (int)c);
-//			}
-//			else {
-//				bufprint("%c", c);
-//			}
 
 			ss->lastFg = cell0->fg;
 			ss->lastBg = cell0->bg;

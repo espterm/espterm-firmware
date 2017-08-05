@@ -8,17 +8,17 @@
 	}, 2000);
 </script>
 
-<h1>%term_title%</h1>
+<h1></h1>
 
 <div id="termwrap">
 	<div id="screen" class="theme-%theme%"></div>
 
 	<div id="buttons">
-		<button data-n="1" class="btn-blue">%btn1%</button><!--
-		--><button data-n="2" class="btn-blue">%btn2%</button><!--
-		--><button data-n="3" class="btn-blue">%btn3%</button><!--
-		--><button data-n="4" class="btn-blue">%btn4%</button><!--
-		--><button data-n="5" class="btn-blue">%btn5%</button>
+		<button data-n="1" class="btn-blue"></button><!--
+		--><button data-n="2" class="btn-blue"></button><!--
+		--><button data-n="3" class="btn-blue"></button><!--
+		--><button data-n="4" class="btn-blue"></button><!--
+		--><button data-n="5" class="btn-blue"></button>
 	</div>
 </div>
 
@@ -31,10 +31,14 @@
 	--><a href="<?= url('about') ?>">About</a>
 </nav>
 
+<!-- this avoids having to escape quotes for JSON -->
+<span class="hidden" id="initial_data">T%term_title%|%btn1%|%btn2%|%btn3%|%btn4%|%btn5%</span>
+
 <script>
-	// TODO cleanup
 	try {
-		termInit();
+		window.noAutoShow = true;
+		termInit(); // the screen will be loaded via ajax
+		Screen.load(qs('#initial_data').textContent);
 
 		// auto-clear the input box
 		$('#softkb-input').on('input', function(e) {

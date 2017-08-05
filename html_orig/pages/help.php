@@ -339,6 +339,16 @@
 			<td>Query device status, replies with <code>\e[0n</code> "device is OK". Can be used to check if the UART works.</td>
 		</tr>
 		<tr>
+			<td>\e]TITLE=…\a</td>
+			<td>Title text</td>
+			<td>Set terminal title. Avoid ", ', &lt; and &gt;. This is a custom ESPTerm OSC command.</td>
+		</tr>
+		<tr>
+			<td>\e]BTNn=…\a</td>
+			<td>1-5, label</td>
+			<td>Set button label. Avoid ", ', &lt; and &gt;. This is a custom ESPTerm OSC command.</td>
+		</tr>
+		<tr>
 			<td>ASCII 24 (18h)</td>
 			<td></td>
 			<td>This symbol is sent by ESPTerm when it becomes ready to receive commands. It can be used to wait before it becomes

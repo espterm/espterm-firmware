@@ -112,8 +112,14 @@ $._loader = function(vis) {
 	$('#loader').toggleClass('show', vis);
 };
 
+function showPage() {
+	$('#content').addClass('load');
+}
+
 $.ready(function() {
-	setTimeout(function() {
-		$('#content').addClass('load');
-	}, 1);
+	if (window.noAutoShow !== true) {
+		setTimeout(function () {
+			showPage();
+		}, 1);
+	}
 });

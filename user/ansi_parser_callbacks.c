@@ -276,14 +276,14 @@ void ICACHE_FLASH_ATTR
 apars_handle_OSC_SetButton(int num, const char *buffer)
 {
 	strncpy(termconf_scratch.btn[num-1], buffer, TERM_BTN_LEN);
-	dbg("Term set BTN%d = %s", num, buffer);
-	// TODO notify
+	info("OSC: Set BTN%d = %s", num, buffer);
+	screen_notifyChange(CHANGE_LABELS);
 }
 
 void ICACHE_FLASH_ATTR
 apars_handle_OSC_SetTitle(const char *buffer)
 {
 	strncpy(termconf_scratch.title, buffer, TERM_TITLE_LEN);
-	dbg("Term set TITLE = %s", buffer);
-	// TODO notify
+	info("OSC: Set TITLE = %s", buffer);
+	screen_notifyChange(CHANGE_LABELS);
 }

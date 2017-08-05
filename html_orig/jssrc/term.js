@@ -147,8 +147,7 @@ var Screen = (function () {
 	var SEQ_SET_COLOR = 1;
 	var SEQ_REPEAT = 2;
 
-	/** Load screen content from a binary sequence (new) */
-	function load(str) {
+	function _load_content(str) {
 		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, bold, cell;
 
 		if (!inited) _init();
@@ -216,6 +215,31 @@ var Screen = (function () {
 		_drawAll();
 	}
 
+	function _load_labels(str) {
+		var pieces = str.split('|');
+		qs('h1').textContent = pieces[0];
+		qsa('#buttons button').forEach(function(x, i) {
+			var s = pieces[i+1].trim();
+			x.innerHTML = s.length >0 ? e(s) : "&nbsp;";
+			x.style.opacity = s.length > 0 ? 1 : 0.2;
+		});
+	}
+
+	/** Load screen content from a binary sequence (new) */
+	function load(str) {
+		var content = str.substr(1);
+		switch(str.charAt(0)) {
+			case 'S':
+				_load_content(content);
+				break;
+			case 'T':
+				_load_labels(content);
+				break;
+			default:
+				console.warn("Bad data message type, ignoring.");
+		}
+	}
+
 	return  {
 		load: load, // full load (string)
 	};
@@ -272,6 +296,8 @@ var Conn = (function() {
 			if (status !== 200) location.reload(true);
 			console.log("Data received!");
 			Screen.load(resp);
+
+			showPage();
 		});
 	}
 

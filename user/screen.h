@@ -41,6 +41,13 @@
 #define TERM_BTN_LEN 10
 #define TERM_TITLE_LEN 64
 
+typedef enum {
+	CHANGE_CONTENT,
+	CHANGE_LABELS,
+} ScreenNotifyChangeTopic;
+
+#define SCREEN_NOTIFY_DELAY_MS 20
+
 typedef struct {
 	u32 width;
 	u32 height;
@@ -90,6 +97,9 @@ typedef enum {
 typedef uint8_t Color;
 
 httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
+
+void screenSerializeLabelsToBuffer(char *buffer, size_t buf_len);
+
 
 typedef struct {
 	u8 lsb;
@@ -187,6 +197,6 @@ void screen_putchar(const char *ch);
 void screen_dd(void);
 #endif
 
-extern void screen_notifyChange(void);
+extern void screen_notifyChange(ScreenNotifyChangeTopic topic);
 
 #endif // SCREEN_H
