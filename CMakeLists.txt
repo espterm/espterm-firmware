@@ -144,6 +144,7 @@ add_definitions(
         -DICACHE_RODATA_ATTR=
         -DFLAG_GZIP=2
         -DADMIN_PASSWORD="asdf"
+        -DGIT_HASH="blabla"
         -DESPFS_HEATSHRINK)
 
 add_executable(esp_vt100_firmware ${SOURCE_FILES})

@@ -77,7 +77,7 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 		tplSend(connData, __TIME__, -1);
 	}
 	else if (streq(token, "vers_httpd")) {
-		tplSend(connData, HTTPDVER, -1);
+		tplSend(connData, httpdGetVersion(), -1);
 	}
 	else if (streq(token, "vers_sdk")) {
 		tplSend(connData, STR(ESP_SDK_VERSION), -1);

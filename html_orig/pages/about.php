@@ -20,7 +20,7 @@
 	<table>
 		<tr>
 			<th>ESPTerm</th>
-			<td>v%vers_fw%, build %date% at %time%</td>
+			<td>v%vers_fw%, built %date% at %time%</td>
 		</tr>
 		<tr>
 			<th>libesphttpd</th>
