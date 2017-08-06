@@ -17,7 +17,7 @@
 /**
  * Helper that retrieves an arg from `connData->getArgs` and stores it in `buff`. Returns 1 on success
  */
-#define GET_ARG(key) (httpdFindArg(connData->getArgs, key, buff, sizeof(buff)) > 0)
+#define GET_ARG(key) (httpdFindArg(connData->getArgs, key, buff, sizeof(buff)) >= 0)
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
