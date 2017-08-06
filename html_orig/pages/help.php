@@ -341,12 +341,12 @@
 		<tr>
 			<td>\e]TITLE=…\a</td>
 			<td>Title text</td>
-			<td>Set terminal title. Avoid ", ', &lt; and &gt;. This is a custom ESPTerm OSC command.</td>
+			<td>Set terminal title. This is a custom ESPTerm OSC command.</td>
 		</tr>
 		<tr>
 			<td>\e]BTNn=…\a</td>
 			<td>1-5, label</td>
-			<td>Set button label. Avoid ", ', &lt; and &gt;. This is a custom ESPTerm OSC command.</td>
+			<td>Set button label. This is a custom ESPTerm OSC command.</td>
 		</tr>
 		<tr>
 			<td>ASCII 24 (18h)</td>
