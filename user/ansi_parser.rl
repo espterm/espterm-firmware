@@ -190,6 +190,16 @@ ansi_parser(const char *newdata, size_t len)
 			fgoto main;
 		}
 
+		action HASH_code {
+			apars_handle_hashCode(fc);
+			fgoto main;
+		}
+
+		action SHORT_code {
+			apars_handle_shortCode(fc);
+			fgoto main;
+		}
+
 		# --- Main parser loop ---
 
 		main :=
@@ -197,9 +207,8 @@ ansi_parser(const char *newdata, size_t len)
 				(NOESC @plain_char)* ESC (
 					'[' @CSI_start |
 					']' @OSC_start |
-					'c' @RESET_cmd |
-			        '7' @CSI_SaveCursorAttrs |
-					'8' @CSI_RestoreCursorAttrs
+					'#' digit @HASH_code |
+					[a-zA-Z0-9] @SHORT_code
 				)
 			)+ $!errBadSeq;
 

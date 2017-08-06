@@ -241,23 +241,33 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 	}
 }
 
-void ICACHE_FLASH_ATTR apars_handle_saveCursorAttrs(void)
+void ICACHE_FLASH_ATTR apars_handle_hashCode(char c)
 {
-	screen_cursor_save(1);
+	//
 }
 
-void ICACHE_FLASH_ATTR apars_handle_restoreCursorAttrs(void)
+void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 {
-	screen_cursor_restore(1);
-}
-
-/**
- * \brief Handle a request to reset the display device
- */
-void ICACHE_FLASH_ATTR
-apars_handle_RESET_cmd(void)
-{
-	screen_reset();
+	switch(c) {
+		case 'c': // screen reset
+			screen_reset();
+			break;
+		case '7': // save cursor + attrs
+			screen_cursor_save(1);
+			break;
+		case '8': // restore cursor + attrs
+			screen_cursor_restore(1);
+			break;
+		case 'E': // same as CR LF
+			// TODO
+			break;
+		case 'D': // move cursor down, scroll screen up if needed
+			// TODO
+			break;
+		case 'M': // move cursor up, scroll screen down if needed
+			// TODO
+			break;
+	}
 }
 
 /**
