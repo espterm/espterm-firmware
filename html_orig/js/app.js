@@ -1549,7 +1549,8 @@ var Input = (function() {
 
 	return {
 		init: init,
-		onTap: sendPosMsg
+		onTap: sendPosMsg,
+		sendString: sendStrMsg,
 	};
 })();
 

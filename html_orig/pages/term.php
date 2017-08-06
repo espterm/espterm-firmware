@@ -22,7 +22,7 @@
 	</div>
 </div>
 
-<textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<input id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
 <nav id="botnav">
 	<a href="#" onclick="toggleSoftKb(true); return false" class="icn-keyboard mq-tablet-max"></a><!--
@@ -39,7 +39,11 @@
 
 		// auto-clear the input box
 		$('#softkb-input').on('input', function(e) {
-			setTimeout(function(){$('#softkb-input').val('');}, 1);
+			setTimeout(function(){
+				var str = $('#softkb-input').val();
+				$('#softkb-input').val('');
+				Input.sendString(str);
+			}, 1);
 		});
 	} catch(e) {
 		console.error(e);
