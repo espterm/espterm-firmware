@@ -1,11 +1,24 @@
 #include <esp8266.h>
 #include "ansi_parser.h"
+#include "screen.h"
 
 /* Ragel constants block */
 %%{
 	machine ansi;
 	write data;
 }%%
+
+static volatile int cs = -1;
+
+static ETSTimer resetTim;
+
+static void ICACHE_FLASH_ATTR
+resetParserCb(void *arg) {
+	if (cs != ansi_start) {
+		cs = ansi_start;
+		warn("Parser timeout, state reset");
+	}
+}
 
 /**
  * \brief Linear ANSI chars stream parser
@@ -23,8 +36,6 @@
 void ICACHE_FLASH_ATTR
 ansi_parser(const char *newdata, size_t len)
 {
-	static int cs = -1;
-
 	// The CSI code is built here
 	static char csi_leading;      //!< Leading char, 0 if none
 	static int  csi_ni;           //!< Number of the active digit
@@ -43,6 +54,13 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		%% write init;
+	}
+
+	// schedule state reset
+	if (termconf->parser_tout_ms > 0) {
+		os_timer_disarm(&resetTim);
+		os_timer_setfn(&resetTim, resetParserCb, NULL);
+		os_timer_arm(&resetTim, termconf->parser_tout_ms, 0);
 	}
 
 	// The parser

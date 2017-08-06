@@ -6,7 +6,7 @@
 #include "uart_driver.h"
 #include "screen.h"
 
-#define SOCK_BUF_LEN 2048
+#define SOCK_BUF_LEN 1024
 static char sock_buff[SOCK_BUF_LEN];
 
 volatile bool notify_available = true;

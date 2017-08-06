@@ -20,7 +20,7 @@ verify_admin_pw(const char *pw)
 httpd_cgi_state ICACHE_FLASH_ATTR
 cgiPersistWriteDefaults(HttpdConnData *connData)
 {
-	char buff[50];
+	char buff[PASSWORD_LEN];
 
 	if (connData->conn == NULL) {
 		//Connection aborted. Clean up.

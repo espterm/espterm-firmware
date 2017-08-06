@@ -18,6 +18,9 @@ if (! function_exists('pg')) {
 	}
 }
 
+pg('cfg_term',        'cfg', 'terminal', '/cfg/term');
+pg('term_set',        'api', '', '/cfg/term/set');
+
 pg('cfg_wifi',        'cfg', 'wifi', '/cfg/wifi');
 pg('cfg_wifi_conn',   '',    '', '/cfg/wifi/connecting');
 pg('wifi_connstatus', 'api', '', '/cfg/wifi/connstatus');
@@ -26,9 +29,6 @@ pg('wifi_scan',       'api', '', '/cfg/wifi/scan');
 
 pg('cfg_network',     'cfg', 'network', '/cfg/network');
 pg('network_set',     'api', '', '/cfg/network/set');
-
-pg('cfg_term',        'cfg', 'terminal', '/cfg/term');
-pg('term_set',        'api', '', '/cfg/term/set');
 
 pg('cfg_system',        'cfg', 'configure', '/cfg/system');
 pg('system_set',        'api', '', '/cfg/system/set');

@@ -56,18 +56,7 @@ typedef struct {
 	char title[TERM_TITLE_LEN];
 	char btn[5][TERM_BTN_LEN];
 	u8 theme;
-
-	u8 _filler[
-		TERMCONF_SIZE
-		- 4
-		- 4
-		- 1
-		- 1
-		- 1
-		- TERM_TITLE_LEN
-		- TERM_BTN_LEN * 5
-	];
-
+	u32 parser_tout_ms;
 } TerminalConfigBundle;
 
 // Live config

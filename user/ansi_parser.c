@@ -2,10 +2,11 @@
 /* #line 1 "user/ansi_parser.rl" */
 #include <esp8266.h>
 #include "ansi_parser.h"
+#include "screen.h"
 
 /* Ragel constants block */
 
-/* #line 9 "user/ansi_parser.c" */
+/* #line 10 "user/ansi_parser.c" */
 static const char _ansi_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
@@ -30,8 +31,20 @@ static const int ansi_en_OSC_body = 5;
 static const int ansi_en_main = 1;
 
 
-/* #line 8 "user/ansi_parser.rl" */
+/* #line 9 "user/ansi_parser.rl" */
 
+
+static volatile int cs = -1;
+
+static ETSTimer resetTim;
+
+static void ICACHE_FLASH_ATTR
+resetParserCb(void *arg) {
+	if (cs != ansi_start) {
+		cs = ansi_start;
+		warn("Parser timeout, state reset");
+	}
+}
 
 /**
  * \brief Linear ANSI chars stream parser
@@ -49,8 +62,6 @@ static const int ansi_en_main = 1;
 void ICACHE_FLASH_ATTR
 ansi_parser(const char *newdata, size_t len)
 {
-	static int cs = -1;
-
 	// The CSI code is built here
 	static char csi_leading;      //!< Leading char, 0 if none
 	static int  csi_ni;           //!< Number of the active digit
@@ -69,17 +80,24 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 73 "user/ansi_parser.c" */
+/* #line 84 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
 
-/* #line 46 "user/ansi_parser.rl" */
+/* #line 57 "user/ansi_parser.rl" */
+	}
+
+	// schedule state reset
+	if (termconf->parser_tout_ms > 0) {
+		os_timer_disarm(&resetTim);
+		os_timer_setfn(&resetTim, resetParserCb, NULL);
+		os_timer_arm(&resetTim, termconf->parser_tout_ms, 0);
 	}
 
 	// The parser
 	
-/* #line 83 "user/ansi_parser.c" */
+/* #line 101 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -315,13 +333,13 @@ execFuncs:
 	while ( _nacts-- > 0 ) {
 		switch ( *_acts++ ) {
 	case 0:
-/* #line 58 "user/ansi_parser.rl" */
+/* #line 76 "user/ansi_parser.rl" */
 	{
 			apars_handle_plainchar((*p));
 		}
 	break;
 	case 1:
-/* #line 65 "user/ansi_parser.rl" */
+/* #line 83 "user/ansi_parser.rl" */
 	{
 			// Reset the CSI builder
 			csi_leading = csi_char = 0;
@@ -336,13 +354,13 @@ execFuncs:
 		}
 	break;
 	case 2:
-/* #line 78 "user/ansi_parser.rl" */
+/* #line 96 "user/ansi_parser.rl" */
 	{
 			csi_leading = (*p);
 		}
 	break;
 	case 3:
-/* #line 82 "user/ansi_parser.rl" */
+/* #line 100 "user/ansi_parser.rl" */
 	{
 			// x10 + digit
 			if (csi_ni < CSI_N_MAX) {
@@ -351,13 +369,13 @@ execFuncs:
 		}
 	break;
 	case 4:
-/* #line 89 "user/ansi_parser.rl" */
+/* #line 107 "user/ansi_parser.rl" */
 	{
 			csi_ni++;
 		}
 	break;
 	case 5:
-/* #line 93 "user/ansi_parser.rl" */
+/* #line 111 "user/ansi_parser.rl" */
 	{
 			csi_char = (*p);
 
@@ -367,14 +385,14 @@ execFuncs:
 		}
 	break;
 	case 6:
-/* #line 101 "user/ansi_parser.rl" */
+/* #line 119 "user/ansi_parser.rl" */
 	{
 			apars_handle_badseq();
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 7:
-/* #line 118 "user/ansi_parser.rl" */
+/* #line 136 "user/ansi_parser.rl" */
 	{
 			csi_ni = 0;
 
@@ -390,20 +408,20 @@ execFuncs:
 		}
 	break;
 	case 8:
-/* #line 132 "user/ansi_parser.rl" */
+/* #line 150 "user/ansi_parser.rl" */
 	{
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 9:
-/* #line 137 "user/ansi_parser.rl" */
+/* #line 155 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = (*p);
 		}
 	break;
 	case 10:
-/* #line 141 "user/ansi_parser.rl" */
+/* #line 159 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetTitle(osc_buffer);
@@ -411,7 +429,7 @@ execFuncs:
 		}
 	break;
 	case 11:
-/* #line 147 "user/ansi_parser.rl" */
+/* #line 165 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
@@ -419,7 +437,7 @@ execFuncs:
 		}
 	break;
 	case 12:
-/* #line 159 "user/ansi_parser.rl" */
+/* #line 177 "user/ansi_parser.rl" */
 	{
 			// Reset screen
 			apars_handle_RESET_cmd();
@@ -427,20 +445,20 @@ execFuncs:
 		}
 	break;
 	case 13:
-/* #line 165 "user/ansi_parser.rl" */
+/* #line 183 "user/ansi_parser.rl" */
 	{
 			apars_handle_saveCursorAttrs();
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 14:
-/* #line 170 "user/ansi_parser.rl" */
+/* #line 188 "user/ansi_parser.rl" */
 	{
 			apars_handle_restoreCursorAttrs();
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 444 "user/ansi_parser.c" */
+/* #line 462 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -458,7 +476,7 @@ _again:
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
 	case 6:
-/* #line 101 "user/ansi_parser.rl" */
+/* #line 119 "user/ansi_parser.rl" */
 	{
 			apars_handle_badseq();
 			{cs = 1;	if ( p == pe )
@@ -466,7 +484,7 @@ _again:
 goto _again;}
 		}
 	break;
-/* #line 470 "user/ansi_parser.c" */
+/* #line 488 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -474,6 +492,6 @@ goto _again;}
 	_out: {}
 	}
 
-/* #line 190 "user/ansi_parser.rl" */
+/* #line 208 "user/ansi_parser.rl" */
 
 }

@@ -19,8 +19,9 @@ httpd_cgi_state ICACHE_FLASH_ATTR
 cgiTermCfgSetParams(HttpdConnData *connData)
 {
 	char buff[50];
+	char redir_url_buf[100];
+	int n, w, h;
 
-	char redir_url_buf[300];
 	char *redir_url = redir_url_buf;
 	redir_url += sprintf(redir_url, SET_REDIR_ERR);
 	// we'll test if anything was printed by looking for \0 in failed_keys_buf
@@ -33,11 +34,11 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	// width and height must always go together so we can do max size validation
 	if (GET_ARG("term_width")) {
 		dbg("Default screen width: %s", buff);
-		int w = atoi(buff);
+		w = atoi(buff);
 		if (w > 1) {
 			if (GET_ARG("term_height")) {
 				dbg("Default screen height: %s", buff);
-				int h = atoi(buff);
+				h = atoi(buff);
 				if (h > 1) {
 					if (w * h <= MAX_SCREEN_SIZE) {
 						termconf->width = w;
@@ -63,20 +64,31 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 	if (GET_ARG("default_bg")) {
 		dbg("Screen default BG: %s", buff);
-		int color = atoi(buff);
-		if (color >= 0 && color < 16) {
-			termconf->default_bg = (u8) color;
+		n = atoi(buff);
+		if (n >= 0 && n < 16) {
+			termconf->default_bg = (u8) n;
 		} else {
 			warn("Bad color %s", buff);
 			redir_url += sprintf(redir_url, "default_bg,");
 		}
 	}
 
+	if (GET_ARG("parser_tout_ms")) {
+		dbg("Parser timeout: %s ms", buff);
+		n = atoi(buff);
+		if (n >= 0) {
+			termconf->parser_tout_ms = (u8) n;
+		} else {
+			warn("Bad timeout %s", buff);
+			redir_url += sprintf(redir_url, "parser_tout_ms,");
+		}
+	}
+
 	if (GET_ARG("default_fg")) {
 		dbg("Screen default FG: %s", buff);
-		int color = atoi(buff);
-		if (color >= 0 && color < 16) {
-			termconf->default_fg = (u8) color;
+		n = atoi(buff);
+		if (n >= 0 && n < 16) {
+			termconf->default_fg = (u8) n;
 		} else {
 			warn("Bad color %s", buff);
 			redir_url += sprintf(redir_url, "default_fg,");
@@ -85,9 +97,9 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 	if (GET_ARG("theme")) {
 		dbg("Screen color theme: %s", buff);
-		int theme = atoi(buff);
-		if (theme >= 0 && theme <= 5) { // ALWAYS ADJUST WHEN ADDING NEW THEME!
-			termconf->theme = (u8) theme;
+		n = atoi(buff);
+		if (n >= 0 && n <= 5) { // ALWAYS ADJUST WHEN ADDING NEW THEME!
+			termconf->theme = (u8) n;
 		} else {
 			warn("Bad theme num: %s", buff);
 			redir_url += sprintf(redir_url, "theme,");
@@ -127,7 +139,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 httpd_cgi_state ICACHE_FLASH_ATTR
 tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 {
-#define BUFLEN 100
+#define BUFLEN TERM_TITLE_LEN
 	char buff[BUFLEN];
 	char buff2[10];
 
@@ -143,6 +155,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "term_height")) {
 		sprintf(buff, "%d", termconf->height);
+	}
+	else if (streq(token, "parser_tout_ms")) {
+		sprintf(buff, "%d", termconf->parser_tout_ms);
 	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);

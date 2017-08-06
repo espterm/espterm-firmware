@@ -15,13 +15,6 @@ typedef struct {
 	u32 uart_baudrate;
 	u8 uart_parity;
 	u8 uart_stopbits;
-
-	u8 _filler[
-		SYSCONF_SIZE
-		- 4
-		- 1
-		- 1
-	];
 } SystemConfigBundle;
 
 extern SystemConfigBundle * const sysconf;

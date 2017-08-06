@@ -8,6 +8,9 @@
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
 
+#define W termconf_scratch.width
+#define H termconf_scratch.height
+
 /**
  * Restore hard defaults
  */
@@ -17,6 +20,7 @@ void terminal_restore_defaults(void)
 	termconf->default_fg = 7;
 	termconf->width = 26;
 	termconf->height = 10;
+	termconf->parser_tout_ms = 10;
 	sprintf(termconf->title, "ESPTerm");
 	for(int i=1; i <= 5; i++) {
 		sprintf(termconf->btn[i-1], "%d", i);
@@ -29,11 +33,15 @@ void terminal_restore_defaults(void)
 void terminal_apply_settings(void)
 {
 	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+	if (W*H >= MAX_SCREEN_SIZE) {
+		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
+		error("reverting terminal settings to default");
+		terminal_restore_defaults();
+		persist_store();
+		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+	}
 	screen_init();
 }
-
-#define W termconf_scratch.width
-#define H termconf_scratch.height
 
 /**
  * Highest permissible value of the color attribute
@@ -105,6 +113,7 @@ static volatile int notifyLock = 0;
 static inline void
 clear_range(unsigned int from, unsigned int to)
 {
+	if (to >= W*H) to = W*H-1;
 	Color fg = cursor.inverse ? cursor.bg : cursor.fg;
 	Color bg = cursor.inverse ? cursor.fg : cursor.bg;
 	for (unsigned int i = from; i <= to; i++) {

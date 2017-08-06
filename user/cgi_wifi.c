@@ -325,8 +325,8 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	static ETSTimer timer;
 
 	char buff[50];
+	char redir_url_buf[100]; // this is just barely enough - but it's split into two forms, so we never have error in all fields
 
-	char redir_url_buf[300];
 	char *redir_url = redir_url_buf;
 	redir_url += sprintf(redir_url, SET_REDIR_ERR);
 	// we'll test if anything was printed by looking for \0 in failed_keys_buf
@@ -507,7 +507,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 //Template code for the WLAN page.
 httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, void **arg)
 {
-	char buff[100];
+	char buff[PASSWORD_LEN];
 	int x;
 	int connectStatus;
 

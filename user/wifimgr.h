@@ -27,42 +27,21 @@ typedef struct {
 	WIFI_MODE opmode : 8;
 	u8 tpw;
 
-	// --- AP config ---
+	// AP config
 	u8 ap_channel;
 	u8 ap_ssid[SSID_LEN];
 	u8 ap_password[PASSWORD_LEN];
 	bool ap_hidden;
+	//
 	u16 ap_dhcp_time; // in minutes
 	struct dhcps_lease ap_dhcp_range;
-
 	struct ip_info ap_addr;
 
-	// --- Client config ---
+	// Client config
 	u8 sta_ssid[SSID_LEN];
 	u8 sta_password[PASSWORD_LEN];
 	bool sta_dhcp_enable;
 	struct ip_info sta_addr;
-
-	u8 _filler[
-		WIFICONF_SIZE
-		- 1
-		- 1
-
-		- 1
-		- SSID_LEN
-		- PASSWORD_LEN
-		- 1
-		- 2
-		- sizeof(struct dhcps_lease)
-
-		- sizeof(struct ip_info)
-
-	 	- SSID_LEN
-	 	- PASSWORD_LEN
-		- 1
-		- sizeof(struct ip_info)
-		- 8 // padding?
-	];
 } WiFiConfigBundle;
 
 typedef struct  {

@@ -26,7 +26,7 @@
 
 <nav id="botnav">
 	<a href="#" onclick="toggleSoftKb(true); return false" class="icn-keyboard mq-tablet-max"></a><!--
-	--><a href="<?= url('cfg_wifi') ?>"><?= tr('menu.settings') ?></a><!--
+	--><a href="<?= url('cfg_term') ?>"><?= tr('menu.settings') ?></a><!--
 	--><a href="<?= url('help') ?>">Help</a><!--
 	--><a href="<?= url('about') ?>">About</a>
 </nav>

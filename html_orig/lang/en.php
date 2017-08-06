@@ -36,6 +36,7 @@ return [
 	'term.default_fg_bg' => 'Text / background',
 	'term.buttons' => 'Button labels',
 	'term.theme' => 'Color scheme',
+	'term.parser_tout_ms' => 'Parser timeout',
 
 	// terminal color labels
 	'color.0' => 'Black',
@@ -115,14 +116,13 @@ return [
 	'system.confirm_store_defaults' =>
 		'Enter admin password to confirm you want to store the current settings as defaults.',
 	'system.password' => 'Admin password:',
-	'system.restore_defaults' => 'Reset to default settings',
-	'system.write_defaults' => 'Save current settings as default',
-	'system.restore_hard' => 'Reset to firmware default settings',
+	'system.restore_defaults' => 'Reset active settings to defaults',
+	'system.write_defaults' => 'Save active settings as defaults',
+	'system.restore_hard' => 'Reset active settings to firmware defaults',
 	'system.explain_persist' => '
 		ESPTerm contains two persistent memory banks, one for default and 
 		one for active settings. Active settings can be stored as defaults 
-		by the administrator. Use the following button to revert all 
-		active settings to their stored default values.  
+		by the administrator (password required).
 		',
 	'system.uart' => 'Serial Port',
 	'system.explain_uart' => '

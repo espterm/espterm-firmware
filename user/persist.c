@@ -17,22 +17,44 @@ static void ICACHE_FLASH_ATTR
 apply_live_settings(void)
 {
 	dbg("[Persist] Applying live settings...");
-	terminal_apply_settings();
-	wifimgr_apply_settings();
+
+	dbg("[Persist] > system");
 	sysconf_apply_settings();
+
+	dbg("[Persist] > wifi");
+	wifimgr_apply_settings();
+
+	dbg("[Persist] > terminal");
+	terminal_apply_settings();
+
+	dbg("[Persist] Live settings applied.");
 	// ...
 }
 
 static void ICACHE_FLASH_ATTR
 restore_live_settings_to_hard_defaults(void)
 {
-	wifimgr_restore_defaults();
-	terminal_restore_defaults();
+	dbg("[Persist] Restore to hard defaults...");
+
+	dbg("[Persist] > system");
 	sysconf_restore_defaults();
+
+	dbg("[Persist] > wifi");
+	wifimgr_restore_defaults();
+
+	dbg("[Persist] > terminal");
+	terminal_restore_defaults();
+
+	dbg("[Persist] Restored to hard defaults.");
 	// ...
 }
 
 //endregion
+
+const u32 wconf_at = (u32)&persist.defaults.wificonf - (u32)&persist.defaults;
+const u32 tconf_at = (u32)&persist.defaults.termconf - (u32)&persist.defaults;
+const u32 sconf_at = (u32)&persist.defaults.sysconf  - (u32)&persist.defaults;
+const u32 cksum_at = (u32)&persist.defaults.checksum - (u32)&persist.defaults;
 
 /**
  * Compute CRC32. Adapted from https://github.com/esp8266/Arduino
@@ -43,7 +65,9 @@ restore_live_settings_to_hard_defaults(void)
 static uint32_t ICACHE_FLASH_ATTR
 calculateCRC32(const uint8_t *data, size_t length)
 {
-	uint32_t crc = 0xffffffff + CHECKSUM_SALT;
+	// the salt here should ensure settings are wiped when the structure changes
+	// CHECKSUM_SALT can be adjusted manually to force a reset.
+	uint32_t crc = 0xffffffff + CHECKSUM_SALT + ((wconf_at << 16) ^ (tconf_at << 10) ^ (sconf_at << 5));
 	while (length--) {
 		uint8_t c = *data++;
 		for (uint32_t i = 0x80; i > 0; i >>= 1) {
@@ -81,13 +105,12 @@ persist_load(void)
 {
 	info("[Persist] Loading stored settings from FLASH...");
 
-	dbg("sizeof(AppConfigBundle)        = %d bytes", sizeof(AppConfigBundle));
-	dbg("> sizeof(WiFiConfigBundle)     = %d bytes", sizeof(WiFiConfigBundle));
-	dbg("> sizeof(TerminalConfigBundle) = %d bytes", sizeof(TerminalConfigBundle));
-	dbg("> sizeof(SystemConfigBundle)   = %d bytes", sizeof(SystemConfigBundle));
-	dbg("> sizeof(checksum)             = %d bytes", sizeof(uint32_t));
-	dbg("> filler                       = %d bytes",
-		sizeof(AppConfigBundle) - (sizeof(WiFiConfigBundle) + sizeof(TerminalConfigBundle) + sizeof(SystemConfigBundle)));
+	dbg("AppConfigBundle memory map:");
+	dbg("> WiFiConfigBundle      at %4d (error %2d)", wconf_at, wconf_at - 0);
+	dbg("> SystemConfigBundle    at %4d (error %2d)", sconf_at, sconf_at - WIFICONF_SIZE);
+	dbg("> TerminalConfigBundle  at %4d (error %2d)", tconf_at, tconf_at - WIFICONF_SIZE - SYSCONF_SIZE);
+	dbg("> Checksum              at %4d (error %2d)", cksum_at, cksum_at - (APPCONF_SIZE - 4));
+	dbg("> Total size = %d bytes (error %d)", sizeof(AppConfigBundle), APPCONF_SIZE - sizeof(AppConfigBundle));
 
 	bool hard_reset = false;
 

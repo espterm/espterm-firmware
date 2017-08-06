@@ -104,6 +104,12 @@
 		<input class="short" type="text" name="btn5" id="btn5" value="%h:btn5%">
 	</div>
 
+	<div class="Row">
+		<label for="parser_tout_ms"><?= tr('term.parser_tout_ms') ?><span class="mq-phone">&nbsp;(ms)</span></label>
+		<input type="number" step=1 min=0 name="parser_tout_ms" id="parser_tout_ms" value="%parser_tout_ms%" required>
+		<span class="mq-no-phone">&nbsp;ms</span>
+	</div>
+
 	<div class="Row buttons">
 		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
 	</div>

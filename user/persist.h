@@ -16,15 +16,20 @@
 
 // Changing this could be used to force-erase the config area
 // after a firmware upgrade
-#define CHECKSUM_SALT 2
+#define CHECKSUM_SALT 3
 
 #define APPCONF_SIZE 2048
 
 /** Struct for current or default settings */
 typedef struct { // the entire block should be 1024 bytes long (for compatibility across upgrades)
 	WiFiConfigBundle wificonf;
-	TerminalConfigBundle termconf;
+	uint8_t _filler1[WIFICONF_SIZE - sizeof(WiFiConfigBundle)];
+
 	SystemConfigBundle sysconf;
+	uint8_t _filler3[SYSCONF_SIZE - sizeof(SystemConfigBundle)];
+
+	TerminalConfigBundle termconf;
+	uint8_t _filler2[TERMCONF_SIZE - sizeof(TerminalConfigBundle)];
 
 	// --- Space for future settings ---
 	// The size must be appropriately reduced each time something is added,
@@ -34,12 +39,12 @@ typedef struct { // the entire block should be 1024 bytes long (for compatibilit
 	// This ensures user settings are not lost each time they upgrade the firmware,
 	// which would lead to a checksum mismatch if the structure was changed and
 	// it grew to a different memory area.
-	uint8_t filler[
+	uint8_t _filler_end[
 		APPCONF_SIZE
 		- sizeof(uint32_t) // checksum
-		- sizeof(WiFiConfigBundle)
-		- sizeof(TerminalConfigBundle)
-		- sizeof(SystemConfigBundle)
+		- WIFICONF_SIZE
+		- SYSCONF_SIZE
+		- TERMCONF_SIZE
 	];
 
 	uint32_t checksum; // computed before write and tested on load. If it doesn't match, values are reset to hard defaults.
