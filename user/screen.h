@@ -70,6 +70,7 @@ extern TerminalConfigBundle termconf_scratch;
 
 void terminal_restore_defaults(void);
 void terminal_apply_settings(void);
+void terminal_apply_settings_noclear(void); // the same, but with no screen reset / init
 
 /**
  * Maximum screen size (determines size of the static data array)

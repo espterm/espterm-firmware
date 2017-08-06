@@ -169,8 +169,8 @@ ansi_parser(const char *newdata, size_t len)
 		}
 		
 		OSC_body := (
-			("BTN" digit @CSI_digit '=' (NOESC @OSC_text_char)+ OSC_END @OSC_button) |
-			("TITLE=" (NOESC @OSC_text_char)+ OSC_END @OSC_title) |
+			("BTN" digit @CSI_digit '=' (NOESC @OSC_text_char)* OSC_END @OSC_button) |
+			("TITLE=" (NOESC @OSC_text_char)* OSC_END @OSC_title) |
 			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ OSC_END @OSC_resize)
 		) $!errBadSeq;
 

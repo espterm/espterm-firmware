@@ -32,6 +32,12 @@ void terminal_restore_defaults(void)
  */
 void terminal_apply_settings(void)
 {
+	terminal_apply_settings_noclear();
+	screen_init();
+}
+
+void terminal_apply_settings_noclear(void)
+{
 	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
 	if (W*H >= MAX_SCREEN_SIZE) {
 		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
@@ -39,8 +45,8 @@ void terminal_apply_settings(void)
 		terminal_restore_defaults();
 		persist_store();
 		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+		screen_init();
 	}
-	screen_init();
 }
 
 /**

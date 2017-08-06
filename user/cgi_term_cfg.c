@@ -22,6 +22,8 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	char redir_url_buf[100];
 	int n, w, h;
 
+	bool shall_clear_screen = false;
+
 	char *redir_url = redir_url_buf;
 	redir_url += sprintf(redir_url, SET_REDIR_ERR);
 	// we'll test if anything was printed by looking for \0 in failed_keys_buf
@@ -41,8 +43,11 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 				h = atoi(buff);
 				if (h > 1) {
 					if (w * h <= MAX_SCREEN_SIZE) {
-						termconf->width = w;
-						termconf->height = h;
+						if (termconf->width != w || termconf->height != h) {
+							termconf->width = w;
+							termconf->height = h;
+							shall_clear_screen = true;
+						}
 					} else {
 						warn("Bad dimensions: %d x %d (total %d)", w, h, w*h);
 						redir_url += sprintf(redir_url, "term_width,term_height,");
@@ -66,7 +71,10 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		dbg("Screen default BG: %s", buff);
 		n = atoi(buff);
 		if (n >= 0 && n < 16) {
-			termconf->default_bg = (u8) n;
+			if (termconf->default_bg != n) {
+				termconf->default_bg = (u8) n;
+				shall_clear_screen = true;
+			}
 		} else {
 			warn("Bad color %s", buff);
 			redir_url += sprintf(redir_url, "default_bg,");
@@ -88,7 +96,10 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		dbg("Screen default FG: %s", buff);
 		n = atoi(buff);
 		if (n >= 0 && n < 16) {
-			termconf->default_fg = (u8) n;
+			if (termconf->default_fg != n) {
+				termconf->default_fg = (u8) n;
+				shall_clear_screen = true;
+			}
 		} else {
 			warn("Bad color %s", buff);
 			redir_url += sprintf(redir_url, "default_fg,");
@@ -123,8 +134,13 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		// All was OK
 		info("Set term params - success, saving...");
 
-		terminal_apply_settings();
 		persist_store();
+
+		if (shall_clear_screen) {
+			terminal_apply_settings();
+		} else {
+			terminal_apply_settings_noclear();
+		}
 
 		httpdRedirect(connData, SET_REDIR_SUC);
 	} else {
