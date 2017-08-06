@@ -1,6 +1,7 @@
 #include <esp8266.h>
 #include <httpd.h>
 #include <helpers.h>
+#include <httpdespfs.h>
 
 #include "cgi_system.h"
 #include "persist.h"
@@ -159,6 +160,6 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 		sprintf(buff, "%d", sysconf->uart_stopbits);
 	}
 
-	httpdSend(connData, buff, -1);
+	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }

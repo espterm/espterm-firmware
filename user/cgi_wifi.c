@@ -14,6 +14,7 @@ Cgi/template routines for the /wifi url.
  */
 
 #include <esp8266.h>
+#include <httpdespfs.h>
 #include "cgi_wifi.h"
 #include "wifimgr.h"
 #include "persist.h"
@@ -302,7 +303,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnStatus(HttpdConnData *connData)
 			break;
 	}
 
-	httpdSend(connData, buff, -1);
+	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }
 
@@ -585,6 +586,6 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 		}
 	}
 
-	httpdSend(connData, buff, -1);
+	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }

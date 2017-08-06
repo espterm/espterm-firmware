@@ -3,6 +3,7 @@ Cgi/template routines for configuring non-wifi settings
 */
 
 #include <esp8266.h>
+#include <httpdespfs.h>
 #include "cgi_term_cfg.h"
 #include "persist.h"
 #include "screen.h"
@@ -165,6 +166,6 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 		}
 	}
 
-	httpdSend(connData, buff, -1);
+	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }

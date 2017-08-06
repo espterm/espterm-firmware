@@ -92,16 +92,16 @@
 
 	<div class="Row">
 		<label for="term_title"><?= tr('term.term_title') ?></label>
-		<input type="text" name="term_title" id="term_title" value="%term_title%" required>
+		<input type="text" name="term_title" id="term_title" value="%h:term_title%" required>
 	</div>
 
 	<div class="Row">
 		<label><?= tr("term.buttons") ?></label>
-		<input class="short" type="text" name="btn1" id="btn1" value="%btn1%">&nbsp;
-		<input class="short" type="text" name="btn2" id="btn2" value="%btn2%">&nbsp;
-		<input class="short" type="text" name="btn3" id="btn3" value="%btn3%">&nbsp;
-		<input class="short" type="text" name="btn4" id="btn4" value="%btn4%">&nbsp;
-		<input class="short" type="text" name="btn5" id="btn5" value="%btn5%">
+		<input class="short" type="text" name="btn1" id="btn1" value="%h:btn1%">&nbsp;
+		<input class="short" type="text" name="btn2" id="btn2" value="%h:btn2%">&nbsp;
+		<input class="short" type="text" name="btn3" id="btn3" value="%h:btn3%">&nbsp;
+		<input class="short" type="text" name="btn4" id="btn4" value="%h:btn4%">&nbsp;
+		<input class="short" type="text" name="btn5" id="btn5" value="%h:btn5%">
 	</div>
 
 	<div class="Row buttons">

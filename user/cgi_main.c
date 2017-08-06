@@ -1,6 +1,7 @@
 #include <esp8266.h>
 #include <httpd.h>
 #include <esp_sdk_ver.h>
+#include <httpdespfs.h>
 
 #include "cgi_main.h"
 #include "screen.h"
@@ -26,11 +27,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 
 	if (streq(token, "labels_seq")) {
 		screenSerializeLabelsToBuffer(buff, 150);
-		httpdSend(connData, buff, -1);
+		tplSend(connData, buff, -1);
 	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);
-		httpdSend(connData, buff, -1);
+		tplSend(connData, buff, -1);
 	}
 
 	return HTTPD_CGI_DONE;
@@ -56,7 +57,7 @@ cgiTermInitialImage(HttpdConnData *connData)
 	}
 
 	httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &connData->cgiData);
-	httpdSend(connData, buff, -1);
+	httpdSend(connData, buff, -1); // no encode
 	return cont;
 }
 
@@ -67,22 +68,22 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 	if (token == NULL) return HTTPD_CGI_DONE;
 
 	if (streq(token, "vers_fw")) {
-		httpdSend(connData, FIRMWARE_VERSION, -1);
+		tplSend(connData, FIRMWARE_VERSION, -1);
 	}
 	else if (streq(token, "date")) {
-		httpdSend(connData, __DATE__, -1);
+		tplSend(connData, __DATE__, -1);
 	}
 	else if (streq(token, "time")) {
-		httpdSend(connData, __TIME__, -1);
+		tplSend(connData, __TIME__, -1);
 	}
 	else if (streq(token, "vers_httpd")) {
-		httpdSend(connData, HTTPDVER, -1);
+		tplSend(connData, HTTPDVER, -1);
 	}
 	else if (streq(token, "vers_sdk")) {
-		httpdSend(connData, STR(ESP_SDK_VERSION), -1);
+		tplSend(connData, STR(ESP_SDK_VERSION), -1);
 	}
 	else if (streq(token, "githubrepo")) {
-		httpdSend(connData, TERMINAL_GITHUB_REPO, -1);
+		tplSend(connData, TERMINAL_GITHUB_REPO, -1);
 	}
 
 	return HTTPD_CGI_DONE;

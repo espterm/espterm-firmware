@@ -35,7 +35,7 @@
 	try {
 		window.noAutoShow = true;
 		termInit(); // the screen will be loaded via ajax
-		Screen.load('%labels_seq%');
+		Screen.load('%j:labels_seq%');
 
 		// auto-clear the input box
 		$('#softkb-input').on('input', function(e) {

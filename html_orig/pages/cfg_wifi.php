@@ -9,12 +9,12 @@
 
 	<div class="Row x-ap-on">
 		<label for="ap_ssid"><?= tr('wifi.ap_ssid') ?></label>
-		<input type="text" name="ap_ssid" id="ap_ssid" value="%ap_ssid%" required>
+		<input type="text" name="ap_ssid" id="ap_ssid" value="%h:ap_ssid%" required>
 	</div>
 
 	<div class="Row x-ap-on">
 		<label for="ap_password"><?= tr('wifi.ap_password') ?></label>
-		<input type="text" name="ap_password" id="ap_password" value="%ap_password%">
+		<input type="text" name="ap_password" id="ap_password" value="%h:ap_password%">
 	</div>
 
 	<div class="Row x-ap-on">
@@ -92,10 +92,10 @@
 <script>
 	WiFi.scan_url = '<?= url('wifi_scan', true) ?>';
 	WiFi.init({
-		sta_ssid: '%sta_ssid%',
-		sta_password: '%sta_password%',
-		sta_active_ip: '%sta_active_ip%',
-		sta_active_ssid: '%sta_active_ssid%',
+		sta_ssid: '%j:sta_ssid%',
+		sta_password: '%j:sta_password%',
+		sta_active_ip: '%j:sta_active_ip%',
+		sta_active_ssid: '%j:sta_active_ssid%',
 	});
 
 	function updateApDisp() {

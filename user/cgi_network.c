@@ -3,6 +3,7 @@ configuring the network settings
 */
 
 #include <esp8266.h>
+#include <httpdespfs.h>
 #include "cgi_network.h"
 #include "wifimgr.h"
 #include "persist.h"
@@ -246,6 +247,6 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplNetwork(HttpdConnData *connData, char *toke
 		sprintf(buff, MACSTR, MAC2STR(mac));
 	}
 
-	httpdSend(connData, buff, -1);
+	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }

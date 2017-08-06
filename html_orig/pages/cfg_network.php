@@ -17,17 +17,17 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 
 	<div class="Row x-static">
 		<label for="sta_addr_ip"><?= tr('net.sta_addr_ip') ?></label>
-		<input type="text" name="sta_addr_ip" id="sta_addr_ip" value="%sta_addr_ip%" <?=$ipmask?> required>
+		<input type="text" name="sta_addr_ip" id="sta_addr_ip" value="%h:sta_addr_ip%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row x-static">
 		<label for="sta_addr_mask"><?= tr('net.sta_addr_mask') ?></label>
-		<input type="text" name="sta_addr_mask" id="sta_addr_mask" value="%sta_addr_mask%" <?=$ipmask?> required>
+		<input type="text" name="sta_addr_mask" id="sta_addr_mask" value="%h:sta_addr_mask%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row x-static">
 		<label for="sta_addr_gw"><?= tr('net.sta_addr_gw') ?></label>
-		<input type="text" name="sta_addr_gw" id="sta_addr_gw" value="%sta_addr_gw%" <?=$ipmask?> required>
+		<input type="text" name="sta_addr_gw" id="sta_addr_gw" value="%h:sta_addr_gw%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row buttons">
@@ -44,22 +44,22 @@ $ipmask='pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"';
 
 	<div class="Row">
 		<label for="ap_addr_mask"><?= tr('net.ap_addr_mask') ?></label>
-		<input type="text" name="ap_addr_mask" id="ap_addr_mask" value="%ap_addr_mask%" <?=$ipmask?> required>
+		<input type="text" name="ap_addr_mask" id="ap_addr_mask" value="%h:ap_addr_mask%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row">
 		<label for="ap_addr_ip"><?= tr('net.ap_addr_ip') ?></label>
-		<input type="text" name="ap_addr_ip" id="ap_addr_ip" value="%ap_addr_ip%" <?=$ipmask?> required>
+		<input type="text" name="ap_addr_ip" id="ap_addr_ip" value="%h:ap_addr_ip%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row">
 		<label for="ap_dhcp_start"><?= tr('net.ap_dhcp_start') ?></label>
-		<input type="text" name="ap_dhcp_start" id="ap_dhcp_start" value="%ap_dhcp_start%" <?=$ipmask?> required>
+		<input type="text" name="ap_dhcp_start" id="ap_dhcp_start" value="%h:ap_dhcp_start%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row">
 		<label for="ap_dhcp_end"><?= tr('net.ap_dhcp_end') ?></label>
-		<input type="text" name="ap_dhcp_end" id="ap_dhcp_end" value="%ap_dhcp_end%" <?=$ipmask?> required>
+		<input type="text" name="ap_dhcp_end" id="ap_dhcp_end" value="%h:ap_dhcp_end%" <?=$ipmask?> required>
 	</div>
 
 	<div class="Row">
