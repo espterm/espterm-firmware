@@ -105,10 +105,20 @@ return [
 
 	'wifi.conn.status' => 'Status:',
 	'wifi.conn.back_to_config' => 'Back to WiFi config',
-	'wifi.conn.telemetry_lost' => 'Telemetry lost, something went wrong. Try again...',
+	'wifi.conn.telemetry_lost' => 'Telemetry lost; something went wrong, or your device disconnected.',
+	'wifi.conn.explain_android_sucks' => '
+		If you\'re configuring ESPTerm via a smartphone, or were connected
+		from another external network, your device may lose connection and this 
+		progress indicator won\'t work. Please wait a while (~ 15 seconds), 
+		then check if the connection succeeded.',
+
+	'wifi.conn.explain_reset' => '
+		To force enable the built-in AP, hold the BOOT 
+		button until the blue LED starts flashing. Hold the button longer (until the LED 
+		flashes rapidly) for a "factory reset".',
 
 	'wifi.conn.disabled' =>"Station mode is disabled.",
-	'wifi.conn.idle' =>"Idle, not connected and with no IP.",
+	'wifi.conn.idle' =>"Idle, not connected and has no IP.",
 	'wifi.conn.success' => "Connected! Received IP ",
 	'wifi.conn.working' => "Connecting to selected AP",
 	'wifi.conn.fail' => "Connection failed, check settings & try again. Cause: ",

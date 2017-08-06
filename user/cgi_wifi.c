@@ -193,6 +193,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiScan(HttpdConnData *connData)
 	int len;
 	char buff[256];
 
+	if (connData->conn == NULL) {
+		//Connection aborted. Clean up.
+		return HTTPD_CGI_DONE;
+	}
+
 	// auto-turn on STA
 	if ((wificonf->opmode & STATION_MODE) == 0) {
 		wificonf->opmode |= STATION_MODE;
@@ -265,6 +270,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnStatus(HttpdConnData *connData)
 	char buff[100];
 	struct ip_info info;
 
+	buff[0] = 0; // avoid unitialized read
+
+	if (connData->conn == NULL) {
+		//Connection aborted. Clean up.
+		return HTTPD_CGI_DONE;
+	}
+
 	httpdStartResponse(connData, 200);
 	httpdHeader(connData, "Content-Type", "application/json");
 	httpdEndHeaders(connData);
@@ -276,6 +288,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnStatus(HttpdConnData *connData)
 	}
 
 	STATION_STATUS st = wifi_station_get_connect_status();
+	dbg("CONN STATE = %d", st);
 	switch(st) {
 		case STATION_IDLE:
 			sprintf(buff, "{\"status\": \"idle\"}"); // unclear when this is used
@@ -301,9 +314,14 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnStatus(HttpdConnData *connData)
 			wifi_get_ip_info(STATION_IF, &info);
 			sprintf(buff, "{\"status\": \"success\", \"ip\": \""IPSTR"\"}", GOOD_IP2STR(info.ip.addr));
 			break;
+
+		default:
+			sprintf(buff, "{\"status\": \"working\", \"wtf\": \"state = %d\"}", st);
+			break;
+
 	}
 
-	tplSend(connData, buff, -1);
+	httpdSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }
 
@@ -336,6 +354,9 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		return HTTPD_CGI_DONE;
 	}
 
+	bool sta_turned_on = false;
+	bool sta_ssid_pw_changed = false;
+
 	// ---- WiFi opmode ----
 
 	if (GET_ARG("opmode")) {
@@ -366,6 +387,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 
 		if (enable) {
 			wificonf->opmode |= STATION_MODE;
+			sta_turned_on = true;
 		} else {
 			wificonf->opmode &= ~STATION_MODE;
 		}
@@ -463,6 +485,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 			info("Setting station SSID to: \"%s\"", buff);
 			strncpy_safe(wificonf->sta_ssid, buff, SSID_LEN);
 			wifi_change_flags.sta = true;
+			sta_ssid_pw_changed = true;
 		}
 	}
 
@@ -474,12 +497,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 			info("Setting station password to: \"%s\"", buff);
 			strncpy_safe(wificonf->sta_password, buff, PASSWORD_LEN);
 			wifi_change_flags.sta = true;
+			sta_ssid_pw_changed = true;
 		}
 	}
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
-		info("Set WiFi params - success, applying in 1000 ms");
+		info("Set WiFi params - success, applying in 2000 ms");
 
 		// Settings are applied only if all was OK
 		//
@@ -492,9 +516,19 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		// If user connects via the Station IF, they may not even notice the connection reset.
 		os_timer_disarm(&timer);
 		os_timer_setfn(&timer, applyWifiSettingsLaterCb, NULL);
-		os_timer_arm(&timer, 1000, false);
+		os_timer_arm(&timer, 2000, false);
 
-		httpdRedirect(connData, SET_REDIR_SUC);
+		if ((sta_ssid_pw_changed || sta_turned_on)
+			&& wificonf->opmode != SOFTAP_MODE
+			&& wificonf->sta_ssid[0] != 0) {
+			// User wants to connect
+
+			info("User wants to connect to SSID, redirecting to ConnStatus page.");
+			httpdRedirect(connData, "/cfg/wifi/connecting");
+		}
+		else {
+			httpdRedirect(connData, SET_REDIR_SUC);
+		}
 	} else {
 		warn("Some WiFi settings did not validate, asking for correction");
 		// Some errors, appended to the URL as ?err=
@@ -558,7 +592,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 		// For display of our current SSID
 		connectStatus = wifi_station_get_connect_status();
 		x = wifi_get_opmode();
-		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP) {
+		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP || wificonf->opmode == SOFTAP_MODE) {
 			strcpy(buff, "");
 		}
 		else {
@@ -571,7 +605,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 		x = wifi_get_opmode();
 		connectStatus = wifi_station_get_connect_status();
 
-		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP) {
+		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP || wificonf->opmode == SOFTAP_MODE) {
 			strcpy(buff, "");
 		}
 		else {

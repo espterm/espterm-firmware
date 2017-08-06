@@ -65,7 +65,7 @@ LIBS += esphttpd
 # compiler flags using during compilation of source files
 CFLAGS		= -Os -ggdb -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
-		-Wno-address -Wno-unused -DHTTPD_MAX_BACKLOG_SIZE=4096 -DADMIN_PASSWORD=$(ADMIN_PASSWORD) \
+		-Wno-address -Wno-unused -DHTTPD_MAX_BACKLOG_SIZE=8192 -DADMIN_PASSWORD=$(ADMIN_PASSWORD) \
 		-DGIT_HASH='"$(shell git rev-parse --short HEAD)"'
 
 # linker flags used to generate the main object file
