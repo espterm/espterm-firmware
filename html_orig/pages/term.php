@@ -22,7 +22,7 @@
 	</div>
 </div>
 
-<input id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+<textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
 <nav id="botnav">
 	<a href="#" onclick="toggleSoftKb(true); return false" class="icn-keyboard mq-tablet-max"></a><!--
@@ -47,8 +47,10 @@
 		});
 	} catch(e) {
 		console.error(e);
-		console.error("Fail, reloading…");
-		location.reload(true);
+		console.error("Fail, reloading in 1s…");
+		setTimeout(function() {
+			location.reload(true);
+		}, 1000);
 	}
 
 	function toggleSoftKb(yes) {
