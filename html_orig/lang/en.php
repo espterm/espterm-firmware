@@ -16,6 +16,11 @@ return [
 
 	'title.term' => 'Terminal',
 
+	'term_nav.config' => 'Config',
+	'term_nav.wifi' => 'WiFi',
+	'term_nav.help' => 'Help',
+	'term_nav.about' => 'About',
+
 	'net.ap' => 'DHCP Server (AP)',
 	'net.sta' => 'DHCP Client (Station)',
 	'net.sta_mac' => 'Station MAC',

@@ -42,7 +42,7 @@
 	</div>
 </form>
 
-<form class="Box str mobcol" action="<?= e(url('wifi_set')) ?>" method="GET" id="form-2">
+<form class="Box str mobcol expanded" action="<?= e(url('wifi_set')) ?>" method="GET" id="form-2">
 	<h2 tabindex=0><?= tr('wifi.sta') ?></h2>
 
 	<div class="Row checkbox x-sta-toggle">
