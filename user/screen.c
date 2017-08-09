@@ -243,7 +243,7 @@ screen_clear_line(ClearMode mode)
 void ICACHE_FLASH_ATTR
 screen_clear_in_line(unsigned int count)
 {
-	if (cursor.x + count > W) {
+	if (cursor.x + count >= W) {
 		screen_clear_line(CLEAR_FROM_CURSOR);
 	}
 	else {

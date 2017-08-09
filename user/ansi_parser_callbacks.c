@@ -305,7 +305,7 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			screen_cursor_save(true);
 			break;
 		case '8': // restore cursor + attrs
-			screen_cursor_restore(false);
+			screen_cursor_restore(true);
 			break;
 		case 'E': // same as CR LF
 			screen_cursor_move(1, 0, false);
