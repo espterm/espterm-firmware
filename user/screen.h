@@ -122,6 +122,12 @@ void screen_scroll_down(unsigned int lines);
 /** esc # 8 - fill entire screen with E of default colors */
 void screen_fill_with_E(void);
 
+// --- insert / delete ---
+void screen_insert_lines(unsigned int lines);
+void screen_delete_lines(unsigned int lines);
+void screen_insert_characters(unsigned int count);
+void screen_delete_characters(unsigned int count);
+
 // --- Cursor control ---
 
 /** Set cursor position */

@@ -276,6 +276,34 @@ screen_fill_with_E(void)
 
 //region Screen manipulation
 
+void screen_insert_lines(unsigned int lines)
+{
+	NOTIFY_LOCK();
+	// TODO
+	NOTIFY_DONE();
+}
+
+void screen_delete_lines(unsigned int lines)
+{
+	NOTIFY_LOCK();
+	// TODO
+	NOTIFY_DONE();
+}
+
+void screen_insert_characters(unsigned int count)
+{
+	NOTIFY_LOCK();
+	// TODO
+	NOTIFY_DONE();
+}
+
+void screen_delete_characters(unsigned int count)
+{
+	NOTIFY_LOCK();
+	// TODO
+	NOTIFY_DONE();
+}
+
 /**
  * Change the screen size
  *

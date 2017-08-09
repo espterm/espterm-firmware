@@ -267,19 +267,19 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			break;
 
 		case 'L':
-			// TODO insert line
+			screen_insert_lines(n1);
 			break;
 
 		case 'M':
-			// TODO delete line
+			screen_delete_lines(n1);
 			break;
 
 		case '@':
-			// TODO insert character (in line)
+			screen_insert_characters(n1);
 			break;
 
 		case 'P':
-			// TODO delete character (in line)
+			screen_delete_characters(n1);
 			break;
 	}
 }
