@@ -90,7 +90,6 @@ httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **dat
 
 void screenSerializeLabelsToBuffer(char *buffer, size_t buf_len);
 
-
 typedef struct {
 	u8 lsb;
 	u8 msb;
@@ -101,10 +100,8 @@ void encode2B(u16 number, WordB2 *stru);
 
 /** Init the screen */
 void screen_init(void);
-
 /** Change the screen size */
 void screen_resize(int rows, int cols);
-
 /** Check if coord is valid */
 bool screen_isCoordValid(int y, int x);
 
@@ -112,48 +109,39 @@ bool screen_isCoordValid(int y, int x);
 
 /** Screen reset to default state */
 void screen_reset(void);
-
-/** Clear entire screen, set all to 7 on 0 */
+/** Clear entire screen */
 void screen_clear(ClearMode mode);
-
-/** Line reset to gray-on-white, empty */
+/** Clear line */
 void screen_clear_line(ClearMode mode);
-
+/** Clear part of line */
+void screen_clear_in_line(unsigned int count);
 /** Shift screen upwards */
 void screen_scroll_up(unsigned int lines);
-
 /** Shift screen downwards */
 void screen_scroll_down(unsigned int lines);
+/** esc # 8 - fill entire screen with E of default colors */
+void screen_fill_with_E(void);
 
 // --- Cursor control ---
 
 /** Set cursor position */
 void screen_cursor_set(int y, int x);
-
 /** Read cursor pos to given vars */
 void screen_cursor_get(int *y, int *x);
-
 /** Set cursor X position */
 void screen_cursor_set_x(int x);
-
 /** Set cursor Y position */
 void screen_cursor_set_y(int y);
-
 /** Reset cursor attribs */
 void screen_reset_cursor(void);
-
 /** Relative cursor move */
-void screen_cursor_move(int dy, int dx);
-
+void screen_cursor_move(int dy, int dx, bool scroll);
 /** Save the cursor pos */
 void screen_cursor_save(bool withAttrs);
-
 /** Restore the cursor pos */
 void screen_cursor_restore(bool withAttrs);
-
 /** Enable cursor display */
 void screen_cursor_enable(bool enable);
-
 /** Enable auto wrap */
 void screen_wrap_enable(bool enable);
 
@@ -161,19 +149,14 @@ void screen_wrap_enable(bool enable);
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);
-
 /** Set cursor background coloor */
 void screen_set_bg(Color color);
-
 /** make foreground bright */
 void screen_set_bold(bool bold);
-
 /** Set cursor foreground and background color */
 void screen_set_colors(Color fg, Color bg);
-
 /** Invert colors */
 void screen_inverse(bool inverse);
-
 
 /**
  * Set a character in the cursor color, move to right with wrap.

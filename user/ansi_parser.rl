@@ -147,6 +147,13 @@ ansi_parser(const char *newdata, size_t len)
 			fgoto OSC_body;
 		}
 
+		# collecting title string; this can also be entered by ESC k
+		action SetTitle_start {
+			osc_bi = 0;
+			osc_buffer[0] = '\0';
+			fgoto TITLE_body;
+		}
+
 		action OSC_resize {
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
 			fgoto main;
@@ -167,12 +174,16 @@ ansi_parser(const char *newdata, size_t len)
 			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
 			fgoto main;
 		}
-		
+
+		# 0; is xterm title hack
 		OSC_body := (
 			("BTN" digit @CSI_digit '=' (NOESC @OSC_text_char)* OSC_END @OSC_button) |
-			("TITLE=" (NOESC @OSC_text_char)* OSC_END @OSC_title) |
+			("TITLE=" @SetTitle_start) |
+			("0;" (NOESC @OSC_text_char)* OSC_END @OSC_title) |
 			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ OSC_END @OSC_resize)
 		) $!errBadSeq;
+
+		TITLE_body := (NOESC @OSC_text_char)* OSC_END @OSC_title $!errBadSeq;
 
 		action RESET_cmd {
 			// Reset screen
@@ -208,7 +219,8 @@ ansi_parser(const char *newdata, size_t len)
 					'[' @CSI_start |
 					']' @OSC_start |
 					'#' digit @HASH_code |
-					[a-zA-Z0-9] @SHORT_code
+					'k' @SetTitle_start |
+					[a-jl-zA-Z0-9] @SHORT_code
 				)
 			)+ $!errBadSeq;
 
@@ -216,3 +228,5 @@ ansi_parser(const char *newdata, size_t len)
 #*/
 	}%%
 }
+
+// 'ESC k blah OSC_end' is a shortcut for setting title (k is defined in GNU screen as Title Definition String)

@@ -9,7 +9,8 @@
 #include "screen.h"
 #include "ansi_parser.h"
 #include "uart_driver.h"
-#include "persist.h"
+
+// screen manpage - https://www.gnu.org/software/screen/manual/html_node/Control-Sequences.html
 
 static char utf_collect[4];
 static int utf_i = 0;
@@ -93,6 +94,8 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 		CSI u	RCP – Restore Cursor Position
 		CSI ?25l	DECTCEM	Hides the cursor
 		CSI ?25h	DECTCEM	Shows the cursor
+
+	    and some others
 	*/
 
 	int n1 = params[0];
@@ -101,15 +104,22 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 
 	// defaults
 	switch (keychar) {
-		case 'A':
+		case 'A': // move
 		case 'B':
 		case 'C':
 		case 'D':
 		case 'E':
 		case 'F':
-		case 'G':
-		case 'S':
+		case 'G': // set X
+		case '`':
+		case 'S': // scrolling
 		case 'T':
+		case 'X': // clear in line
+		case 'd': // set Y
+		case 'L':
+		case 'M':
+		case '@':
+		case 'P':
 			if (n1 == 0) n1 = 1;
 			break;
 
@@ -127,35 +137,48 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 
 	switch (keychar) {
 		// CUU CUD CUF CUB
-		case 'A': screen_cursor_move(-n1, 0); break;
-		case 'B': screen_cursor_move(n1, 0);  break;
-		case 'C': screen_cursor_move(0, n1);  break;
-		case 'D': screen_cursor_move(0, -n1); break;
+		case 'A': screen_cursor_move(-n1, 0, false); break;
+		case 'B': screen_cursor_move(n1, 0, false);  break;
+		case 'C': screen_cursor_move(0, n1, false);  break;
+		case 'D': screen_cursor_move(0, -n1, false); break;
 
-		case 'E': // CNL
-			screen_cursor_move(n1, 0);
+		case 'E': // CNL - Cursor Next Line
+			screen_cursor_move(n1, 0, false);
 			screen_cursor_set_x(0);
 			break;
 
-		case 'F': // CPL
-			screen_cursor_move(-n1, 0);
+		case 'F': // CPL - Cursor Prev Line
+			screen_cursor_move(-n1, 0, false);
 			screen_cursor_set_x(0);
 			break;
 
-			// CHA
+			// Set X
 		case 'G':
-			screen_cursor_set_x(n1 - 1); break; // 1-based
+		case '`': // alternate code
+			screen_cursor_set_x(n1 - 1);
+			break; // 1-based
 
-			// SU, SD
+			// Set Y
+		case 'd':
+			screen_cursor_set_y(n1 - 1);
+			break; // 1-based
+
+			// clear in line
+		case 'X':
+			screen_clear_in_line(n1);
+			break; // 1-based
+
+			// SU, SD - scroll up/down
 		case 'S': screen_scroll_up(n1);	  break;
 		case 'T': screen_scroll_down(n1); break;
 
-			// CUP,HVP
+			// CUP,HVP - set position
 		case 'H':
 		case 'f':
-			screen_cursor_set(n1-1, n2-1); break; // 1-based
+			screen_cursor_set(n1-1, n2-1);
+			break; // 1-based
 
-		case 'J': // ED
+		case 'J': // ED - clear screen
 			if (n1 == 0) {
 				screen_clear(CLEAR_TO_CURSOR);
 			} else if (n1 == 1) {
@@ -166,7 +189,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			break;
 
-		case 'K': // EL
+		case 'K': // EL - clear line
 			if (n1 == 0) {
 				screen_clear_line(CLEAR_TO_CURSOR);
 			} else if (n1 == 1) {
@@ -176,11 +199,11 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			break;
 
-			// SCP, RCP
+			// SCP, RCP - save/restore position
 		case 's': screen_cursor_save(0); break;
 		case 'u': screen_cursor_restore(0); break;
 
-		case 'n':
+		case 'n': // queries
 			if (n1 == 6) {
 				// Query cursor position
 				char buf[20];
@@ -197,7 +220,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 
 			// DECTCEM feature enable / disable
 
-		case 'h':
+		case 'h': // feature enable
 			if (leadchar == '?') {
 				if (n1 == 25) {
 					screen_cursor_enable(1);
@@ -207,7 +230,7 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			break;
 
-		case 'l':
+		case 'l': // feature disable
 			if (leadchar == '?') {
 				if (n1 == 25) {
 					screen_cursor_enable(0);
@@ -217,35 +240,61 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 			}
 			break;
 
-		case 'm': // SGR
+		case 'm': // SGR - graphics rendition aka attributes
 			// iterate arguments
 			for (int i = 0; i < CSI_N_MAX; i++) {
 				int n = params[i];
 
 				if (i == 0 && n == 0) { // reset SGR
 					screen_reset_cursor(); // resets colors, inverse and bold.
-					break; // cannot combine reset with others
+					break; // cannot combine reset with others - discard
 				}
-				else if (n >= 30 && n <= 37) screen_set_fg(n-30); // ANSI normal fg
-				else if (n >= 40 && n <= 47) screen_set_bg(n-40); // ANSI normal bg
-				else if (n == 39) screen_set_fg(7); // default fg
-				else if (n == 49) screen_set_bg(false); // default bg
+				else if (n >= 30 && n <= 37) screen_set_fg((Color) (n - 30)); // ANSI normal fg
+				else if (n >= 40 && n <= 47) screen_set_bg((Color) (n - 40)); // ANSI normal bg
+				else if (n == 39) screen_set_fg(termconf_scratch.default_fg); // default fg
+				else if (n == 49) screen_set_bg(termconf_scratch.default_bg); // default bg
 				else if (n == 7) screen_inverse(true); // inverse
 				else if (n == 27) screen_inverse(false); // positive
 				else if (n == 1) screen_set_bold(true); // bold
 				else if (n == 21 || n == 22) screen_set_bold(false); // bold off
-				else if (n >= 90 && n <= 97) screen_set_fg(n-90+8); // AIX bright fg
-				else if (n >= 100 && n <= 107) screen_set_bg(n-100+8); // AIX bright bg
+				else if (n >= 90 && n <= 97) screen_set_fg((Color) (n - 90 + 8)); // AIX bright fg
+				else if (n >= 100 && n <= 107) screen_set_bg((Color) (n - 100 + 8)); // AIX bright bg
 			}
+			break;
+
+		case 't': // SunView code to set screen size (from GNU Screen)
+			screen_resize(n1, n2);
+			break;
+
+		case 'L':
+			// TODO insert line
+			break;
+
+		case 'M':
+			// TODO delete line
+			break;
+
+		case '@':
+			// TODO insert character (in line)
+			break;
+
+		case 'P':
+			// TODO delete character (in line)
 			break;
 	}
 }
 
+/** codes in the format ESC # n */
 void ICACHE_FLASH_ATTR apars_handle_hashCode(char c)
 {
-	//
+	switch(c) {
+		case '8':
+			screen_fill_with_E();
+			break;
+	}
 }
 
+/** those are single-character escape codes (ESC x) */
 void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 {
 	switch(c) {
@@ -253,19 +302,20 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			screen_reset();
 			break;
 		case '7': // save cursor + attrs
-			screen_cursor_save(1);
+			screen_cursor_save(true);
 			break;
 		case '8': // restore cursor + attrs
-			screen_cursor_restore(1);
+			screen_cursor_restore(false);
 			break;
 		case 'E': // same as CR LF
-			// TODO
+			screen_cursor_move(1, 0, false);
+			screen_cursor_set_x(0);
 			break;
 		case 'D': // move cursor down, scroll screen up if needed
-			// TODO
+			screen_cursor_move(1, 0, true);
 			break;
 		case 'M': // move cursor up, scroll screen down if needed
-			// TODO
+			screen_cursor_move(-1, 0, true);
 			break;
 	}
 }

@@ -122,14 +122,18 @@ clear_range(unsigned int from, unsigned int to)
 	if (to >= W*H) to = W*H-1;
 	Color fg = cursor.inverse ? cursor.bg : cursor.fg;
 	Color bg = cursor.inverse ? cursor.fg : cursor.bg;
+
+	Cell sample;
+	sample.c[0] = ' ';
+	sample.c[1] = 0;
+	sample.c[2] = 0;
+	sample.c[3] = 0;
+	sample.fg = fg;
+	sample.bg = bg;
+	sample.bold = false;
+
 	for (unsigned int i = from; i <= to; i++) {
-		screen[i].c[0] = ' ';
-		screen[i].c[1] = 0;
-		screen[i].c[2] = 0;
-		screen[i].c[3] = 0;
-		screen[i].fg = fg;
-		screen[i].bg = bg;
-		screen[i].bold = false;
+		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
 }
 
@@ -234,6 +238,36 @@ screen_clear_line(ClearMode mode)
 			break;
 	}
 	NOTIFY_DONE();
+}
+
+void ICACHE_FLASH_ATTR
+screen_clear_in_line(unsigned int count)
+{
+	if (cursor.x + count > W) {
+		screen_clear_line(CLEAR_FROM_CURSOR);
+	}
+	else {
+		NOTIFY_LOCK();
+		clear_range(cursor.y * W + cursor.x, cursor.y * W + cursor.x + count - 1);
+		NOTIFY_DONE();
+	}
+}
+
+void ICACHE_FLASH_ATTR
+screen_fill_with_E(void)
+{
+	Cell sample;
+	sample.c[0] = 'E';
+	sample.c[1] = 0;
+	sample.c[2] = 0;
+	sample.c[3] = 0;
+	sample.fg = termconf_scratch.default_fg;
+	sample.bg = termconf_scratch.default_fg;
+	sample.bold = false;
+
+	for (unsigned int i = 0; i <= W*H-1; i++) {
+		memcpy(&screen[i], &sample, sizeof(Cell));
+	}
 }
 
 //endregion
@@ -379,7 +413,7 @@ screen_cursor_set_y(int y)
  * Relative cursor move
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_move(int dy, int dx)
+screen_cursor_move(int dy, int dx, bool scroll)
 {
 	NOTIFY_LOCK();
 	int move;
@@ -392,13 +426,13 @@ screen_cursor_move(int dy, int dx)
 	if (cursor.y < 0) {
 		move = -cursor.y;
 		cursor.y = 0;
-		screen_scroll_down((unsigned int)move);
+		if (scroll) screen_scroll_down((unsigned int)move);
 	}
 
 	if (cursor.y >= H) {
 		move = cursor.y - (H - 1);
 		cursor.y = H - 1;
-		screen_scroll_up((unsigned int)move);
+		if (scroll) screen_scroll_up((unsigned int)move);
 	}
 
 	NOTIFY_DONE();
@@ -561,7 +595,7 @@ screen_putchar(const char *ch)
 			goto done;
 
 		case '\n':
-			screen_cursor_move(1, 0);
+			screen_cursor_move(1, 0, true); // can scroll
 			goto done;
 
 		case 8: // BS

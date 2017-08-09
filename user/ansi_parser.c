@@ -11,23 +11,25 @@ static const char _ansi_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 8, 1, 9, 1, 10, 1, 
-	11, 1, 12, 1, 13, 2, 9, 10, 
-	2, 9, 11
+	11, 1, 12, 1, 13, 1, 14, 2, 
+	10, 11, 2, 10, 12
 };
 
 static const char _ansi_eof_actions[] = {
 	0, 13, 13, 13, 13, 13, 13, 13, 
 	13, 13, 13, 13, 13, 13, 13, 13, 
 	13, 13, 13, 13, 13, 13, 13, 13, 
-	13, 0, 0, 0, 0, 0
+	13, 13, 13, 13, 0, 0, 0, 0, 
+	0, 0, 0
 };
 
 static const int ansi_start = 1;
-static const int ansi_first_final = 25;
+static const int ansi_first_final = 28;
 static const int ansi_error = 0;
 
 static const int ansi_en_CSI_body = 4;
 static const int ansi_en_OSC_body = 6;
+static const int ansi_en_TITLE_body = 26;
 static const int ansi_en_main = 1;
 
 
@@ -80,7 +82,7 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 84 "user/ansi_parser.c" */
+/* #line 86 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
@@ -97,7 +99,7 @@ ansi_parser(const char *newdata, size_t len)
 
 	// The parser
 	
-/* #line 101 "user/ansi_parser.c" */
+/* #line 103 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -117,6 +119,7 @@ case 2:
 		case 35: goto tr3;
 		case 91: goto tr5;
 		case 93: goto tr6;
+		case 107: goto tr7;
 	}
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
@@ -131,146 +134,169 @@ case 0:
 	goto _out;
 case 3:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr7;
+		goto tr8;
 	goto tr2;
-case 25:
+case 28:
 	if ( (*p) == 27 )
 		goto tr1;
 	goto tr0;
 case 4:
 	if ( (*p) == 59 )
-		goto tr10;
+		goto tr11;
 	if ( (*p) < 60 ) {
 		if ( (*p) > 47 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr9;
+				goto tr10;
 		} else if ( (*p) >= 32 )
-			goto tr8;
+			goto tr9;
 	} else if ( (*p) > 64 ) {
 		if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr11;
+				goto tr12;
 		} else if ( (*p) >= 65 )
-			goto tr11;
+			goto tr12;
 	} else
-		goto tr8;
+		goto tr9;
 	goto tr2;
 case 5:
 	if ( (*p) == 59 )
-		goto tr10;
+		goto tr11;
 	if ( (*p) < 65 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
-			goto tr9;
+			goto tr10;
 	} else if ( (*p) > 90 ) {
 		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr11;
+			goto tr12;
 	} else
-		goto tr11;
+		goto tr12;
 	goto tr2;
-case 26:
+case 29:
 	goto tr2;
 case 6:
 	switch( (*p) ) {
-		case 66: goto tr12;
-		case 84: goto tr13;
-		case 87: goto tr14;
+		case 48: goto tr13;
+		case 66: goto tr14;
+		case 84: goto tr15;
+		case 87: goto tr16;
 	}
 	goto tr2;
 case 7:
-	if ( (*p) == 84 )
-		goto tr15;
-	goto tr2;
-case 8:
-	if ( (*p) == 78 )
-		goto tr16;
-	goto tr2;
-case 9:
-	if ( 48 <= (*p) && (*p) <= 57 )
+	if ( (*p) == 59 )
 		goto tr17;
 	goto tr2;
-case 10:
-	if ( (*p) == 61 )
-		goto tr18;
-	goto tr2;
-case 11:
+case 8:
 	switch( (*p) ) {
-		case 7: goto tr20;
-		case 27: goto tr21;
+		case 7: goto tr19;
+		case 27: goto tr20;
 	}
-	goto tr19;
-case 27:
+	goto tr18;
+case 30:
 	switch( (*p) ) {
-		case 7: goto tr20;
-		case 27: goto tr21;
+		case 7: goto tr19;
+		case 27: goto tr20;
 	}
-	goto tr19;
-case 12:
+	goto tr18;
+case 9:
 	if ( (*p) == 92 )
+		goto tr21;
+	goto tr2;
+case 31:
+	goto tr2;
+case 10:
+	if ( (*p) == 84 )
 		goto tr22;
 	goto tr2;
-case 28:
-	goto tr2;
-case 13:
-	if ( (*p) == 73 )
+case 11:
+	if ( (*p) == 78 )
 		goto tr23;
 	goto tr2;
-case 14:
-	if ( (*p) == 84 )
+case 12:
+	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr24;
 	goto tr2;
-case 15:
-	if ( (*p) == 76 )
+case 13:
+	if ( (*p) == 61 )
 		goto tr25;
 	goto tr2;
+case 14:
+	switch( (*p) ) {
+		case 7: goto tr27;
+		case 27: goto tr28;
+	}
+	goto tr26;
+case 32:
+	switch( (*p) ) {
+		case 7: goto tr27;
+		case 27: goto tr28;
+	}
+	goto tr26;
+case 15:
+	if ( (*p) == 92 )
+		goto tr29;
+	goto tr2;
 case 16:
-	if ( (*p) == 69 )
-		goto tr26;
+	if ( (*p) == 73 )
+		goto tr30;
 	goto tr2;
 case 17:
-	if ( (*p) == 61 )
-		goto tr27;
-	goto tr2;
-case 18:
-	switch( (*p) ) {
-		case 7: goto tr29;
-		case 27: goto tr30;
-	}
-	goto tr28;
-case 29:
-	switch( (*p) ) {
-		case 7: goto tr29;
-		case 27: goto tr30;
-	}
-	goto tr28;
-case 19:
-	if ( (*p) == 92 )
+	if ( (*p) == 84 )
 		goto tr31;
 	goto tr2;
-case 20:
-	if ( 48 <= (*p) && (*p) <= 57 )
+case 18:
+	if ( (*p) == 76 )
 		goto tr32;
+	goto tr2;
+case 19:
+	if ( (*p) == 69 )
+		goto tr33;
+	goto tr2;
+case 20:
+	if ( (*p) == 61 )
+		goto tr34;
 	goto tr2;
 case 21:
-	if ( (*p) == 59 )
-		goto tr33;
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr32;
+		goto tr35;
 	goto tr2;
 case 22:
+	if ( (*p) == 59 )
+		goto tr36;
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr34;
+		goto tr35;
 	goto tr2;
 case 23:
-	switch( (*p) ) {
-		case 7: goto tr35;
-		case 27: goto tr36;
-	}
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr34;
+		goto tr37;
 	goto tr2;
 case 24:
+	switch( (*p) ) {
+		case 7: goto tr38;
+		case 27: goto tr39;
+	}
+	if ( 48 <= (*p) && (*p) <= 57 )
+		goto tr37;
+	goto tr2;
+case 25:
 	if ( (*p) == 92 )
-		goto tr35;
+		goto tr38;
+	goto tr2;
+case 26:
+	switch( (*p) ) {
+		case 7: goto tr41;
+		case 27: goto tr42;
+	}
+	goto tr40;
+case 33:
+	switch( (*p) ) {
+		case 7: goto tr41;
+		case 27: goto tr42;
+	}
+	goto tr40;
+case 27:
+	if ( (*p) == 92 )
+		goto tr43;
+	goto tr2;
+case 34:
 	goto tr2;
 	}
 
@@ -278,56 +304,64 @@ case 24:
 	tr0: cs = 1; goto f1;
 	tr1: cs = 2; goto _again;
 	tr3: cs = 3; goto _again;
-	tr8: cs = 5; goto f6;
 	tr9: cs = 5; goto f7;
 	tr10: cs = 5; goto f8;
-	tr12: cs = 7; goto _again;
-	tr15: cs = 8; goto _again;
-	tr16: cs = 9; goto _again;
-	tr17: cs = 10; goto f7;
-	tr18: cs = 11; goto _again;
-	tr19: cs = 11; goto f10;
-	tr21: cs = 12; goto _again;
-	tr13: cs = 13; goto _again;
-	tr23: cs = 14; goto _again;
-	tr24: cs = 15; goto _again;
-	tr25: cs = 16; goto _again;
-	tr26: cs = 17; goto _again;
-	tr27: cs = 18; goto _again;
-	tr28: cs = 18; goto f10;
-	tr30: cs = 19; goto _again;
-	tr14: cs = 20; goto _again;
-	tr32: cs = 21; goto f7;
-	tr33: cs = 22; goto f8;
-	tr34: cs = 23; goto f7;
-	tr36: cs = 24; goto _again;
-	tr4: cs = 25; goto f2;
-	tr5: cs = 25; goto f3;
-	tr6: cs = 25; goto f4;
-	tr7: cs = 25; goto f5;
-	tr11: cs = 26; goto f9;
-	tr20: cs = 27; goto f11;
-	tr22: cs = 28; goto f12;
-	tr31: cs = 28; goto f14;
-	tr35: cs = 28; goto f15;
-	tr29: cs = 29; goto f13;
+	tr11: cs = 5; goto f9;
+	tr13: cs = 7; goto _again;
+	tr17: cs = 8; goto _again;
+	tr18: cs = 8; goto f11;
+	tr20: cs = 9; goto _again;
+	tr14: cs = 10; goto _again;
+	tr22: cs = 11; goto _again;
+	tr23: cs = 12; goto _again;
+	tr24: cs = 13; goto f8;
+	tr25: cs = 14; goto _again;
+	tr26: cs = 14; goto f11;
+	tr28: cs = 15; goto _again;
+	tr15: cs = 16; goto _again;
+	tr30: cs = 17; goto _again;
+	tr31: cs = 18; goto _again;
+	tr32: cs = 19; goto _again;
+	tr33: cs = 20; goto _again;
+	tr16: cs = 21; goto _again;
+	tr35: cs = 22; goto f8;
+	tr36: cs = 23; goto f9;
+	tr37: cs = 24; goto f8;
+	tr39: cs = 25; goto _again;
+	tr40: cs = 26; goto f11;
+	tr42: cs = 27; goto _again;
+	tr4: cs = 28; goto f2;
+	tr5: cs = 28; goto f3;
+	tr6: cs = 28; goto f4;
+	tr7: cs = 28; goto f5;
+	tr8: cs = 28; goto f6;
+	tr12: cs = 29; goto f10;
+	tr19: cs = 30; goto f12;
+	tr34: cs = 31; goto f5;
+	tr21: cs = 31; goto f13;
+	tr29: cs = 31; goto f15;
+	tr38: cs = 31; goto f16;
+	tr27: cs = 32; goto f14;
+	tr41: cs = 33; goto f12;
+	tr43: cs = 34; goto f13;
 
 	f1: _acts = _ansi_actions + 1; goto execFuncs;
 	f3: _acts = _ansi_actions + 3; goto execFuncs;
-	f6: _acts = _ansi_actions + 5; goto execFuncs;
-	f7: _acts = _ansi_actions + 7; goto execFuncs;
-	f8: _acts = _ansi_actions + 9; goto execFuncs;
-	f9: _acts = _ansi_actions + 11; goto execFuncs;
+	f7: _acts = _ansi_actions + 5; goto execFuncs;
+	f8: _acts = _ansi_actions + 7; goto execFuncs;
+	f9: _acts = _ansi_actions + 9; goto execFuncs;
+	f10: _acts = _ansi_actions + 11; goto execFuncs;
 	f0: _acts = _ansi_actions + 13; goto execFuncs;
 	f4: _acts = _ansi_actions + 15; goto execFuncs;
-	f15: _acts = _ansi_actions + 17; goto execFuncs;
-	f10: _acts = _ansi_actions + 19; goto execFuncs;
-	f14: _acts = _ansi_actions + 21; goto execFuncs;
-	f12: _acts = _ansi_actions + 23; goto execFuncs;
-	f5: _acts = _ansi_actions + 25; goto execFuncs;
-	f2: _acts = _ansi_actions + 27; goto execFuncs;
-	f13: _acts = _ansi_actions + 29; goto execFuncs;
-	f11: _acts = _ansi_actions + 32; goto execFuncs;
+	f5: _acts = _ansi_actions + 17; goto execFuncs;
+	f16: _acts = _ansi_actions + 19; goto execFuncs;
+	f11: _acts = _ansi_actions + 21; goto execFuncs;
+	f13: _acts = _ansi_actions + 23; goto execFuncs;
+	f15: _acts = _ansi_actions + 25; goto execFuncs;
+	f6: _acts = _ansi_actions + 27; goto execFuncs;
+	f2: _acts = _ansi_actions + 29; goto execFuncs;
+	f12: _acts = _ansi_actions + 31; goto execFuncs;
+	f14: _acts = _ansi_actions + 34; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
@@ -409,49 +443,57 @@ execFuncs:
 		}
 	break;
 	case 8:
-/* #line 150 "user/ansi_parser.rl" */
+/* #line 151 "user/ansi_parser.rl" */
+	{
+			osc_bi = 0;
+			osc_buffer[0] = '\0';
+			{cs = 26;goto _again;}
+		}
+	break;
+	case 9:
+/* #line 157 "user/ansi_parser.rl" */
 	{
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 9:
-/* #line 155 "user/ansi_parser.rl" */
+	case 10:
+/* #line 162 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = (*p);
 		}
 	break;
-	case 10:
-/* #line 159 "user/ansi_parser.rl" */
+	case 11:
+/* #line 166 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetTitle(osc_buffer);
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 11:
-/* #line 165 "user/ansi_parser.rl" */
+	case 12:
+/* #line 172 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 12:
-/* #line 193 "user/ansi_parser.rl" */
+	case 13:
+/* #line 204 "user/ansi_parser.rl" */
 	{
 			apars_handle_hashCode((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 13:
-/* #line 198 "user/ansi_parser.rl" */
+	case 14:
+/* #line 209 "user/ansi_parser.rl" */
 	{
 			apars_handle_shortCode((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 455 "user/ansi_parser.c" */
+/* #line 497 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -477,7 +519,7 @@ _again:
 goto _again;}
 		}
 	break;
-/* #line 481 "user/ansi_parser.c" */
+/* #line 523 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -485,6 +527,8 @@ goto _again;}
 	_out: {}
 	}
 
-/* #line 217 "user/ansi_parser.rl" */
+/* #line 229 "user/ansi_parser.rl" */
 
 }
+
+// 'ESC k blah OSC_end' is a shortcut for setting title (k is defined in GNU screen as Title Definition String)
