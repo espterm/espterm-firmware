@@ -12,7 +12,8 @@ static const char _ansi_actions[] = {
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 8, 1, 9, 1, 10, 1, 
 	11, 1, 12, 1, 13, 1, 14, 2, 
-	10, 11, 2, 10, 12
+	2, 5, 2, 10, 11, 2, 10, 12
+	
 };
 
 static const char _ansi_eof_actions[] = {
@@ -20,7 +21,7 @@ static const char _ansi_eof_actions[] = {
 	13, 13, 13, 13, 13, 13, 13, 13, 
 	13, 13, 13, 13, 13, 13, 13, 13, 
 	13, 13, 13, 13, 0, 0, 0, 0, 
-	0, 0, 0
+	0, 0, 0, 0
 };
 
 static const int ansi_start = 1;
@@ -82,7 +83,7 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 86 "user/ansi_parser.c" */
+/* #line 87 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
@@ -99,7 +100,7 @@ ansi_parser(const char *newdata, size_t len)
 
 	// The parser
 	
-/* #line 103 "user/ansi_parser.c" */
+/* #line 104 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -141,162 +142,176 @@ case 28:
 		goto tr1;
 	goto tr0;
 case 4:
-	if ( (*p) == 59 )
-		goto tr11;
+	switch( (*p) ) {
+		case 59: goto tr11;
+		case 64: goto tr12;
+	}
 	if ( (*p) < 60 ) {
 		if ( (*p) > 47 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
 				goto tr10;
 		} else if ( (*p) >= 32 )
 			goto tr9;
-	} else if ( (*p) > 64 ) {
+	} else if ( (*p) > 63 ) {
 		if ( (*p) > 90 ) {
-			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr12;
+			if ( 96 <= (*p) && (*p) <= 122 )
+				goto tr13;
 		} else if ( (*p) >= 65 )
-			goto tr12;
+			goto tr13;
 	} else
 		goto tr9;
 	goto tr2;
 case 5:
 	if ( (*p) == 59 )
 		goto tr11;
-	if ( (*p) < 65 ) {
+	if ( (*p) < 64 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
 			goto tr10;
 	} else if ( (*p) > 90 ) {
-		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr12;
+		if ( 96 <= (*p) && (*p) <= 122 )
+			goto tr13;
 	} else
-		goto tr12;
+		goto tr13;
 	goto tr2;
 case 29:
 	goto tr2;
+case 30:
+	if ( (*p) == 59 )
+		goto tr11;
+	if ( (*p) < 64 ) {
+		if ( 48 <= (*p) && (*p) <= 57 )
+			goto tr10;
+	} else if ( (*p) > 90 ) {
+		if ( 96 <= (*p) && (*p) <= 122 )
+			goto tr13;
+	} else
+		goto tr13;
+	goto tr2;
 case 6:
 	switch( (*p) ) {
-		case 48: goto tr13;
-		case 66: goto tr14;
-		case 84: goto tr15;
-		case 87: goto tr16;
+		case 48: goto tr14;
+		case 66: goto tr15;
+		case 84: goto tr16;
+		case 87: goto tr17;
 	}
 	goto tr2;
 case 7:
 	if ( (*p) == 59 )
-		goto tr17;
+		goto tr18;
 	goto tr2;
 case 8:
 	switch( (*p) ) {
-		case 7: goto tr19;
-		case 27: goto tr20;
+		case 7: goto tr20;
+		case 27: goto tr21;
 	}
-	goto tr18;
-case 30:
+	goto tr19;
+case 31:
 	switch( (*p) ) {
-		case 7: goto tr19;
-		case 27: goto tr20;
+		case 7: goto tr20;
+		case 27: goto tr21;
 	}
-	goto tr18;
+	goto tr19;
 case 9:
 	if ( (*p) == 92 )
-		goto tr21;
+		goto tr22;
 	goto tr2;
-case 31:
+case 32:
 	goto tr2;
 case 10:
 	if ( (*p) == 84 )
-		goto tr22;
+		goto tr23;
 	goto tr2;
 case 11:
 	if ( (*p) == 78 )
-		goto tr23;
+		goto tr24;
 	goto tr2;
 case 12:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr24;
+		goto tr25;
 	goto tr2;
 case 13:
 	if ( (*p) == 61 )
-		goto tr25;
+		goto tr26;
 	goto tr2;
 case 14:
 	switch( (*p) ) {
-		case 7: goto tr27;
-		case 27: goto tr28;
+		case 7: goto tr28;
+		case 27: goto tr29;
 	}
-	goto tr26;
-case 32:
+	goto tr27;
+case 33:
 	switch( (*p) ) {
-		case 7: goto tr27;
-		case 27: goto tr28;
+		case 7: goto tr28;
+		case 27: goto tr29;
 	}
-	goto tr26;
+	goto tr27;
 case 15:
 	if ( (*p) == 92 )
-		goto tr29;
+		goto tr30;
 	goto tr2;
 case 16:
 	if ( (*p) == 73 )
-		goto tr30;
+		goto tr31;
 	goto tr2;
 case 17:
 	if ( (*p) == 84 )
-		goto tr31;
+		goto tr32;
 	goto tr2;
 case 18:
 	if ( (*p) == 76 )
-		goto tr32;
+		goto tr33;
 	goto tr2;
 case 19:
 	if ( (*p) == 69 )
-		goto tr33;
+		goto tr34;
 	goto tr2;
 case 20:
 	if ( (*p) == 61 )
-		goto tr34;
+		goto tr35;
 	goto tr2;
 case 21:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr35;
+		goto tr36;
 	goto tr2;
 case 22:
 	if ( (*p) == 59 )
-		goto tr36;
+		goto tr37;
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr35;
+		goto tr36;
 	goto tr2;
 case 23:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr37;
+		goto tr38;
 	goto tr2;
 case 24:
 	switch( (*p) ) {
-		case 7: goto tr38;
-		case 27: goto tr39;
+		case 7: goto tr39;
+		case 27: goto tr40;
 	}
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr37;
+		goto tr38;
 	goto tr2;
 case 25:
 	if ( (*p) == 92 )
-		goto tr38;
+		goto tr39;
 	goto tr2;
 case 26:
 	switch( (*p) ) {
-		case 7: goto tr41;
-		case 27: goto tr42;
+		case 7: goto tr42;
+		case 27: goto tr43;
 	}
-	goto tr40;
-case 33:
+	goto tr41;
+case 34:
 	switch( (*p) ) {
-		case 7: goto tr41;
-		case 27: goto tr42;
+		case 7: goto tr42;
+		case 27: goto tr43;
 	}
-	goto tr40;
+	goto tr41;
 case 27:
 	if ( (*p) == 92 )
-		goto tr43;
+		goto tr44;
 	goto tr2;
-case 34:
+case 35:
 	goto tr2;
 	}
 
@@ -307,61 +322,63 @@ case 34:
 	tr9: cs = 5; goto f7;
 	tr10: cs = 5; goto f8;
 	tr11: cs = 5; goto f9;
-	tr13: cs = 7; goto _again;
-	tr17: cs = 8; goto _again;
-	tr18: cs = 8; goto f11;
-	tr20: cs = 9; goto _again;
-	tr14: cs = 10; goto _again;
-	tr22: cs = 11; goto _again;
-	tr23: cs = 12; goto _again;
-	tr24: cs = 13; goto f8;
-	tr25: cs = 14; goto _again;
-	tr26: cs = 14; goto f11;
-	tr28: cs = 15; goto _again;
-	tr15: cs = 16; goto _again;
-	tr30: cs = 17; goto _again;
-	tr31: cs = 18; goto _again;
-	tr32: cs = 19; goto _again;
-	tr33: cs = 20; goto _again;
-	tr16: cs = 21; goto _again;
-	tr35: cs = 22; goto f8;
-	tr36: cs = 23; goto f9;
-	tr37: cs = 24; goto f8;
-	tr39: cs = 25; goto _again;
-	tr40: cs = 26; goto f11;
-	tr42: cs = 27; goto _again;
+	tr14: cs = 7; goto _again;
+	tr18: cs = 8; goto _again;
+	tr19: cs = 8; goto f12;
+	tr21: cs = 9; goto _again;
+	tr15: cs = 10; goto _again;
+	tr23: cs = 11; goto _again;
+	tr24: cs = 12; goto _again;
+	tr25: cs = 13; goto f8;
+	tr26: cs = 14; goto _again;
+	tr27: cs = 14; goto f12;
+	tr29: cs = 15; goto _again;
+	tr16: cs = 16; goto _again;
+	tr31: cs = 17; goto _again;
+	tr32: cs = 18; goto _again;
+	tr33: cs = 19; goto _again;
+	tr34: cs = 20; goto _again;
+	tr17: cs = 21; goto _again;
+	tr36: cs = 22; goto f8;
+	tr37: cs = 23; goto f9;
+	tr38: cs = 24; goto f8;
+	tr40: cs = 25; goto _again;
+	tr41: cs = 26; goto f12;
+	tr43: cs = 27; goto _again;
 	tr4: cs = 28; goto f2;
 	tr5: cs = 28; goto f3;
 	tr6: cs = 28; goto f4;
 	tr7: cs = 28; goto f5;
 	tr8: cs = 28; goto f6;
-	tr12: cs = 29; goto f10;
-	tr19: cs = 30; goto f12;
-	tr34: cs = 31; goto f5;
-	tr21: cs = 31; goto f13;
-	tr29: cs = 31; goto f15;
-	tr38: cs = 31; goto f16;
-	tr27: cs = 32; goto f14;
-	tr41: cs = 33; goto f12;
-	tr43: cs = 34; goto f13;
+	tr13: cs = 29; goto f11;
+	tr12: cs = 30; goto f10;
+	tr20: cs = 31; goto f13;
+	tr35: cs = 32; goto f5;
+	tr22: cs = 32; goto f14;
+	tr30: cs = 32; goto f16;
+	tr39: cs = 32; goto f17;
+	tr28: cs = 33; goto f15;
+	tr42: cs = 34; goto f13;
+	tr44: cs = 35; goto f14;
 
 	f1: _acts = _ansi_actions + 1; goto execFuncs;
 	f3: _acts = _ansi_actions + 3; goto execFuncs;
 	f7: _acts = _ansi_actions + 5; goto execFuncs;
 	f8: _acts = _ansi_actions + 7; goto execFuncs;
 	f9: _acts = _ansi_actions + 9; goto execFuncs;
-	f10: _acts = _ansi_actions + 11; goto execFuncs;
+	f11: _acts = _ansi_actions + 11; goto execFuncs;
 	f0: _acts = _ansi_actions + 13; goto execFuncs;
 	f4: _acts = _ansi_actions + 15; goto execFuncs;
 	f5: _acts = _ansi_actions + 17; goto execFuncs;
-	f16: _acts = _ansi_actions + 19; goto execFuncs;
-	f11: _acts = _ansi_actions + 21; goto execFuncs;
-	f13: _acts = _ansi_actions + 23; goto execFuncs;
-	f15: _acts = _ansi_actions + 25; goto execFuncs;
+	f17: _acts = _ansi_actions + 19; goto execFuncs;
+	f12: _acts = _ansi_actions + 21; goto execFuncs;
+	f14: _acts = _ansi_actions + 23; goto execFuncs;
+	f16: _acts = _ansi_actions + 25; goto execFuncs;
 	f6: _acts = _ansi_actions + 27; goto execFuncs;
 	f2: _acts = _ansi_actions + 29; goto execFuncs;
-	f12: _acts = _ansi_actions + 31; goto execFuncs;
-	f14: _acts = _ansi_actions + 34; goto execFuncs;
+	f10: _acts = _ansi_actions + 31; goto execFuncs;
+	f13: _acts = _ansi_actions + 34; goto execFuncs;
+	f15: _acts = _ansi_actions + 37; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
@@ -493,7 +510,7 @@ execFuncs:
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 497 "user/ansi_parser.c" */
+/* #line 514 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -519,7 +536,7 @@ _again:
 goto _again;}
 		}
 	break;
-/* #line 523 "user/ansi_parser.c" */
+/* #line 540 "user/ansi_parser.c" */
 		}
 	}
 	}

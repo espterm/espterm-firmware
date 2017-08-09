@@ -127,7 +127,7 @@ ansi_parser(const char *newdata, size_t len)
 
 		CSI_body := ((32..47|60..64) @CSI_leading)?
 			((digit @CSI_digit)* ';' @CSI_semi)*
-			(digit @CSI_digit)* alpha @CSI_end $!errBadSeq;
+			(digit @CSI_digit)* (alpha|'`'|'@') @CSI_end $!errBadSeq;
 
 
 		# --- OSC commands (Operating System Commands) ---
@@ -216,11 +216,11 @@ ansi_parser(const char *newdata, size_t len)
 		main :=
 			(
 				(NOESC @plain_char)* ESC (
-					'[' @CSI_start |
-					']' @OSC_start |
-					'#' digit @HASH_code |
-					'k' @SetTitle_start |
-					[a-jl-zA-Z0-9] @SHORT_code
+					('[' @CSI_start) |
+					(']' @OSC_start) |
+					('#' digit @HASH_code) |
+					('k' @SetTitle_start) |
+					([a-jl-zA-Z0-9] @SHORT_code)
 				)
 			)+ $!errBadSeq;
 

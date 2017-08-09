@@ -256,18 +256,20 @@ screen_clear_in_line(unsigned int count)
 void ICACHE_FLASH_ATTR
 screen_fill_with_E(void)
 {
+	NOTIFY_LOCK();
 	Cell sample;
 	sample.c[0] = 'E';
 	sample.c[1] = 0;
 	sample.c[2] = 0;
 	sample.c[3] = 0;
 	sample.fg = termconf_scratch.default_fg;
-	sample.bg = termconf_scratch.default_fg;
+	sample.bg = termconf_scratch.default_bg;
 	sample.bold = false;
 
 	for (unsigned int i = 0; i <= W*H-1; i++) {
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
+	NOTIFY_DONE();
 }
 
 //endregion
