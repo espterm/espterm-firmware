@@ -279,28 +279,79 @@ screen_fill_with_E(void)
 void screen_insert_lines(unsigned int lines)
 {
 	NOTIFY_LOCK();
-	// TODO
+	// shift the following lines
+	int targetStart = cursor.y + lines;
+	if (targetStart >= H) {
+		targetStart = H;
+	} else {
+		// do the moving
+		for (int i = H-1; i >= targetStart; i--) {
+			memcpy(screen+i*W, screen+(i-lines)*W, sizeof(Cell)*W);
+		}
+	}
+
+	// clear the first line
+	screen_clear_line(CLEAR_ALL);
+	// copy it to the rest of the cleared region
+	for (int i = cursor.y+1; i < targetStart; i++) {
+		memcpy(screen+i*W, screen+cursor.y*W, sizeof(Cell)*W);
+	}
 	NOTIFY_DONE();
 }
 
 void screen_delete_lines(unsigned int lines)
 {
 	NOTIFY_LOCK();
-	// TODO
+	// shift lines up
+	int targetEnd = H - 1 - lines;
+	if (targetEnd <= cursor.y) {
+		targetEnd = cursor.y;
+	} else {
+		// do the moving
+		for (int i = cursor.y; i <= targetEnd; i++) {
+			memcpy(screen+i*W, screen+(i+lines)*W, sizeof(Cell)*W);
+		}
+	}
+
+	// clear the rest
+	clear_range(targetEnd*W, W*H-1);
 	NOTIFY_DONE();
 }
 
 void screen_insert_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
-	// TODO
+	int targetStart = cursor.x + count;
+	if (targetStart >= W) {
+		targetStart = W-1;
+	} else {
+		// do the moving
+		for (int i = W-1; i >= targetStart; i--) {
+			memcpy(screen+cursor.y*W+i, screen+cursor.y*W+(i-count), sizeof(Cell));
+		}
+	}
+
+	clear_range(cursor.y*W+cursor.x, cursor.y*W+targetStart-1);
 	NOTIFY_DONE();
 }
 
 void screen_delete_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
-	// TODO
+	int targetEnd = W - count;
+	if (targetEnd > cursor.x) {
+		// do the moving
+		for (int i = cursor.x; i <= targetEnd; i++) {
+			memcpy(screen+cursor.y*W+i, screen+cursor.y*W+(i+count), sizeof(Cell));
+		}
+	}
+
+	if (targetEnd <= cursor.x) {
+		screen_clear_line(CLEAR_FROM_CURSOR);
+	}
+	else {
+		clear_range(cursor.y * W + (W - count), (cursor.y + 1) * W - 1);
+	}
 	NOTIFY_DONE();
 }
 
