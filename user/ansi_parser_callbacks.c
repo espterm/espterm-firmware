@@ -180,9 +180,9 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 
 		case 'J': // ED - clear screen
 			if (n1 == 0) {
-				screen_clear(CLEAR_TO_CURSOR);
-			} else if (n1 == 1) {
 				screen_clear(CLEAR_FROM_CURSOR);
+			} else if (n1 == 1) {
+				screen_clear(CLEAR_TO_CURSOR);
 			} else {
 				screen_clear(CLEAR_ALL);
 				screen_cursor_set(0, 0);
@@ -191,9 +191,9 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 
 		case 'K': // EL - clear line
 			if (n1 == 0) {
-				screen_clear_line(CLEAR_TO_CURSOR);
-			} else if (n1 == 1) {
 				screen_clear_line(CLEAR_FROM_CURSOR);
+			} else if (n1 == 1) {
+				screen_clear_line(CLEAR_TO_CURSOR);
 			} else {
 				screen_clear_line(CLEAR_ALL);
 			}
