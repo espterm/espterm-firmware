@@ -5,7 +5,7 @@
 #include <screen.h>
 
 // Max nr of CSI parameters
-#define CSI_N_MAX 3
+#define CSI_N_MAX 10
 #define OSC_CHAR_MAX TERM_TITLE_LEN
 
 extern void apars_handle_plainchar(char c);
@@ -22,7 +22,7 @@ extern void apars_reset_utf8buffer(void);
 // defined in the makefile
 #if DEBUG_ANSI
 #define ansi_warn warn
-#define ansi_dbg warn
+#define ansi_dbg dbg
 #else
 #define ansi_warn(...)
 #define ansi_dbg(...)

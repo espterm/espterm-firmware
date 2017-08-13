@@ -1022,6 +1022,70 @@ $.ready(function() {
 		}, 1);
 	}
 });
+
+
+/*! http://mths.be/fromcodepoint v0.1.0 by @mathias */
+if (!String.fromCodePoint) {
+	(function() {
+		var defineProperty = (function() {
+			// IE 8 only supports `Object.defineProperty` on DOM elements
+			try {
+				var object = {};
+				var $defineProperty = Object.defineProperty;
+				var result = $defineProperty(object, object, object) && $defineProperty;
+			} catch(error) {}
+			return result;
+		}());
+		var stringFromCharCode = String.fromCharCode;
+		var floor = Math.floor;
+		var fromCodePoint = function() {
+			var MAX_SIZE = 0x4000;
+			var codeUnits = [];
+			var highSurrogate;
+			var lowSurrogate;
+			var index = -1;
+			var length = arguments.length;
+			if (!length) {
+				return '';
+			}
+			var result = '';
+			while (++index < length) {
+				var codePoint = Number(arguments[index]);
+				if (
+					!isFinite(codePoint) ||       // `NaN`, `+Infinity`, or `-Infinity`
+					codePoint < 0 ||              // not a valid Unicode code point
+					codePoint > 0x10FFFF ||       // not a valid Unicode code point
+					floor(codePoint) != codePoint // not an integer
+				) {
+					throw RangeError('Invalid code point: ' + codePoint);
+				}
+				if (codePoint <= 0xFFFF) { // BMP code point
+					codeUnits.push(codePoint);
+				} else { // Astral code point; split in surrogate halves
+					// http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+					codePoint -= 0x10000;
+					highSurrogate = (codePoint >> 10) + 0xD800;
+					lowSurrogate = (codePoint % 0x400) + 0xDC00;
+					codeUnits.push(highSurrogate, lowSurrogate);
+				}
+				if (index + 1 == length || codeUnits.length > MAX_SIZE) {
+					result += stringFromCharCode.apply(null, codeUnits);
+					codeUnits.length = 0;
+				}
+			}
+			return result;
+		};
+		if (defineProperty) {
+			defineProperty(String, 'fromCodePoint', {
+				'value': fromCodePoint,
+				'configurable': true,
+				'writable': true
+			});
+		} else {
+			String.fromCodePoint = fromCodePoint;
+		}
+	}());
+}
 // Generated from PHP locale file
 var _tr = {
     "wifi.connected_ip_is": "Connected, IP is ",
@@ -1200,7 +1264,7 @@ var Screen = (function () {
 		y: 0,
 		fg: 7,           // colors 0-15
 		bg: 0,
-		bold: false,
+		attrs: 0,
 		suppress: false, // do not turn on in blink interval (for safe moving)
 		hidden: false    // do not show
 	};
@@ -1208,33 +1272,17 @@ var Screen = (function () {
 	var screen = [];
 	var blinkIval;
 
-	/** Clear screen */
-	function _clear() {
-		for (var i = W*H-1; i>=0; i--) {
-			var cell = screen[i];
-			cell.t = ' ';
-			cell.bg = cursor.bg;
-			cell.fg = cursor.fg;
-			cell.bold = false;
-			_draw(cell);
-		}
-	}
-
-	/** Set text and color at XY */
-	function _cellAt(y, x) {
-		return screen[y*W+x];
-	}
+	var frakturExceptions = {
+		'C': '\u212d',
+		'H': '\u210c',
+		'I': '\u2111',
+		'R': '\u211c',
+		'Z': '\u2128',
+	};
 
 	/** Get cell under cursor */
 	function _curCell() {
 		return screen[cursor.y*W + cursor.x];
-	}
-
-	/** Enable or disable cursor visibility */
-	function _cursorEnable(enable) {
-		cursor.hidden = !enable;
-		cursor.a &= enable;
-		_draw(_curCell());
 	}
 
 	/** Safely move cursor */
@@ -1255,13 +1303,44 @@ var Screen = (function () {
 			inv = cursor.a && cursor.x == cell.x && cursor.y == cell.y;
 		}
 
-		var e = cell.e, fg, bg;
+		var elem = cell.e, fg, bg, cn, t;
 		// Colors
 		fg = inv ? cell.bg : cell.fg;
 		bg = inv ? cell.fg : cell.bg;
 		// Update
-		e.innerText = (cell.t + ' ')[0];
-		e.className = 'fg' + fg + ' bg' + bg + (cell.bold ? ' bold' : '');
+		elem.textContent = t = (cell.t + ' ')[0];
+
+		cn = 'fg' + fg + ' bg' + bg;
+		if (cell.attrs & (1<<0)) cn += ' bold';
+		if (cell.attrs & (1<<2)) cn += ' italic';
+		if (cell.attrs & (1<<3)) cn += ' under';
+		if (cell.attrs & (1<<4)) cn += ' blink';
+		if (cell.attrs & (1<<5)) {
+			cn += ' fraktur';
+			// perform substitution
+			if (t >= 'a' && t <= 'z') {
+				t = String.fromCodePoint(0x1d51e - 97 + t.charCodeAt(0));
+			}
+			else if (t >= 'A' && t <= 'Z') {
+				// this set is incomplete, some exceptions are needed
+				if (frakturExceptions.hasOwnProperty(t)) {
+					t = frakturExceptions[t];
+				} else {
+					t = String.fromCodePoint(0x1d504 - 65 + t.charCodeAt(0));
+				}
+			}
+			elem.textContent = t;
+		}
+		if (cell.attrs & (1<<6)) cn += ' strike';
+
+		if (cell.attrs & (1<<1)) {
+			cn += ' faint';
+			// faint requires special html - otherwise it would also dim the background.
+			// we use opacity on the text...
+			elem.innerHTML = '<span>' + e(elem.textContent) + '</span>';
+		}
+
+		elem.className = cn;
 	}
 
 	/** Show entire screen */
@@ -1305,6 +1384,7 @@ var Screen = (function () {
 				t: ' ',
 				fg: cursor.fg,
 				bg: cursor.bg,
+				attrs: 0,
 				e: e,
 				x: i % W,
 				y: Math.floor(i / W),
@@ -1328,6 +1408,15 @@ var Screen = (function () {
 				_draw(_curCell(), cursor.a);
 			}
 		}, 500);
+
+		// blink attribute
+		setInterval(function () {
+			$('#screen').removeClass('blink-hide');
+			setTimeout(function() {
+				$('#screen').addClass('blink-hide');
+			}, 800); // 200 ms ON
+		}, 1000);
+
 		inited = true;
 	}
 
@@ -1336,11 +1425,18 @@ var Screen = (function () {
 		return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
 	}
 
-	var SEQ_SET_COLOR = 1;
+	/** Decode three-byte number */
+	function parse3B(s, i) {
+		return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
+	}
+
+	var SEQ_SET_COLOR_ATTR = 1;
 	var SEQ_REPEAT = 2;
+	var SEQ_SET_COLOR = 3;
+	var SEQ_SET_ATTR = 4;
 
 	function _load_content(str) {
-		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, bold, cell;
+		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, attrs, cell;
 
 		if (!inited) _init();
 
@@ -1362,25 +1458,31 @@ var Screen = (function () {
 		num = parse2B(str, i); i += 2; // fg bg bold hidden
 		cursor.fg = num & 0x0F;
 		cursor.bg = (num & 0xF0) >> 4;
-		cursor.bold = !!(num & 0x100);
-		cursor.hidden = !(num & 0x200);
-		// console.log("FG ",cursor.fg, ", BG ", cursor.bg,", BOLD ", cursor.bold, ", HIDE ", cursor.hidden);
+		cursor.hidden = !(num & 0x100);
 
 		fg = cursor.fg;
 		bg = cursor.bg;
-		bold = cursor.bold;
+		attrs = 0;
 
 		// Here come the content
 		while(i < str.length && ci<W*H) {
 
 			j = str[i++];
 			jc = j.charCodeAt(0);
-			if (jc == SEQ_SET_COLOR) {
+			if (jc == SEQ_SET_COLOR_ATTR) {
+				num = parse3B(str, i); i += 3;
+				fg = num & 0x0F;
+				bg = (num & 0xF0) >> 4;
+				attrs = (num & 0xFF00)>>8;
+			}
+			else if (jc == SEQ_SET_COLOR) {
 				num = parse2B(str, i); i += 2;
 				fg = num & 0x0F;
 				bg = (num & 0xF0) >> 4;
-				bold = !!(num & 0x100);
-				// console.log("Switch to ",fg,bg,bold);
+			}
+			else if (jc == SEQ_SET_ATTR) {
+				num = parse2B(str, i); i += 2;
+				attrs = num & 0xFF;
 			}
 			else if (jc == SEQ_REPEAT) {
 				num = parse2B(str, i); i += 2;
@@ -1390,7 +1492,7 @@ var Screen = (function () {
 					cell.fg = fg;
 					cell.bg = bg;
 					cell.t = t;
-					cell.bold = bold;
+					cell.attrs = attrs;
 				}
 			}
 			else {
@@ -1399,7 +1501,7 @@ var Screen = (function () {
 				t = cell.t = j;
 				cell.fg = fg;
 				cell.bg = bg;
-				cell.bold = bold;
+				cell.attrs = attrs;
 				// console.log("Symbol ", j);
 			}
 		}
@@ -1450,12 +1552,14 @@ var Conn = (function() {
 		console.warn("SOCKET CLOSED, code "+evt.code+". Reconnecting...");
 		setTimeout(function() {
 			init();
-		}, 1000);
+		}, 200);
+		// this happens when the buffer gets fucked up via invalid unicode.
+		// we basically use polling instead of socket then
 	}
 
 	function onMessage(evt) {
 		try {
-			console.log("RX: ", evt.data);
+			//console.log("RX: ", evt.data);
 			// Assume all our messages are screen updates
 			Screen.load(evt.data);
 		} catch(e) {
@@ -1530,6 +1634,7 @@ var Input = (function() {
 			//console.log("Down ", code, e);
 			switch(code) {
 				case 8: sendStrMsg('\x08'); break;
+				case 9: sendStrMsg('\x09'); break;
 				case 10:
 				case 13: sendStrMsg('\x0d\x0a'); break;
 				case 27: sendStrMsg('\x1b'); break; // this allows to directly enter control sequences

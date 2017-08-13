@@ -46,6 +46,14 @@ typedef enum {
 	CHANGE_LABELS,
 } ScreenNotifyChangeTopic;
 
+#define ATTR_BOLD (1<<0)
+#define ATTR_FAINT (1<<1)
+#define ATTR_ITALIC (1<<2)
+#define ATTR_UNDERLINE (1<<3)
+#define ATTR_BLINK (1<<4)
+#define ATTR_FRAKTUR (1<<5)
+#define ATTR_STRIKE (1<<6)
+
 #define SCREEN_NOTIFY_DELAY_MS 20
 
 typedef struct {
@@ -95,6 +103,12 @@ typedef struct {
 	u8 msb;
 } WordB2;
 
+typedef struct {
+	u8 lsb;
+	u8 msb;
+	u8 xsb;
+} WordB3;
+
 /** Encode number to two nice ASCII bytes */
 void encode2B(u16 number, WordB2 *stru);
 
@@ -119,7 +133,7 @@ void screen_clear_in_line(unsigned int count);
 void screen_scroll_up(unsigned int lines);
 /** Shift screen downwards */
 void screen_scroll_down(unsigned int lines);
-/** esc # 8 - fill entire screen with E of default colors */
+/** esc # 8 - fill entire screen with E of default colors (DEC alignment display) */
 void screen_fill_with_E(void);
 
 // --- insert / delete ---
@@ -157,12 +171,14 @@ void screen_wrap_enable(bool enable);
 void screen_set_fg(Color color);
 /** Set cursor background coloor */
 void screen_set_bg(Color color);
-/** make foreground bright */
-void screen_set_bold(bool bold);
-/** Set cursor foreground and background color */
-void screen_set_colors(Color fg, Color bg);
-/** Invert colors */
-void screen_inverse(bool inverse);
+
+// enable or disable attrs by bitmask
+void screen_attr_enable(u8 attrs);
+void screen_attr_disable(u8 attrs);
+void screen_inverse_enable(bool ena);
+
+void screen_set_charset_n(int Gx);
+void screen_set_charset(int Gx, char charset);
 
 /**
  * Set a character in the cursor color, move to right with wrap.

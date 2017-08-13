@@ -1152,9 +1152,6 @@ body.term #botnav {
   position: absolute;
   top: -9999px; }
 
-.nb {
-  font-weight: normal !important; }
-
 .theme-0 .fg0 {
   color: #111213; }
 .theme-0 .bg0 {
@@ -1547,6 +1544,24 @@ body.term #botnav {
 
 .bold {
   font-weight: bold !important; }
+
+.faint span {
+  opacity: 0.6; }
+
+.italic {
+  font-style: italic; }
+
+.under {
+  text-decoration: underline; }
+
+.strike {
+  text-decoration: line-through; }
+
+.underline.strike {
+  text-decoration: underline line-through; }
+
+.blink-hide .blink {
+  color: transparent; }
 
 .Row.color-preview {
   font-family: monospace;

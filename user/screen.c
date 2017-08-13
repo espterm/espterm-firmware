@@ -8,6 +8,9 @@
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
 
+// forward declare
+static void utf8_remap(char* out, char g, char table);
+
 #define W termconf_scratch.width
 #define H termconf_scratch.height
 
@@ -61,7 +64,7 @@ typedef struct __attribute__((packed)){
 	char c[4]; // space for a full unicode character
 	Color fg : 4;
 	Color bg : 4;
-	bool bold : 1;
+	u8 attrs;
 } Cell;
 
 /**
@@ -75,10 +78,15 @@ static Cell screen[MAX_SCREEN_SIZE];
 static struct {
 	int x;    //!< X coordinate
 	int y;    //!< Y coordinate
-	bool visible;    //!< Visible
-	bool inverse;    //!< Inverse colors
 	bool autowrap;   //!< Wrapping when EOL
-	bool bold;       //!< Bold style
+	bool visible;    //!< Visible (not attribute, DEC special)
+	bool inverse;
+	u8 attrs;
+
+	char charset0;
+	char charset1;
+	int charsetN;
+
 	Color fg;        //!< Foreground color for writing
 	Color bg;        //!< Background color for writing
 } cursor;
@@ -89,10 +97,10 @@ static struct {
 static struct {
 	int x;
 	int y;
-
-	// optionally saved attrs
+	// mark that attrs are saved
 	bool withAttrs;
-	bool inverse;
+	u8 attrs;
+	bool inverse; // attribute that's not in the bitfield
 	Color fg;
 	Color bg;
 } cursor_sav;
@@ -120,8 +128,8 @@ static inline void
 clear_range(unsigned int from, unsigned int to)
 {
 	if (to >= W*H) to = W*H-1;
-	Color fg = cursor.inverse ? cursor.bg : cursor.fg;
-	Color bg = cursor.inverse ? cursor.fg : cursor.bg;
+	Color fg = (cursor.inverse) ? cursor.bg : cursor.fg;
+	Color bg = (cursor.inverse) ? cursor.fg : cursor.bg;
 
 	Cell sample;
 	sample.c[0] = ' ';
@@ -130,7 +138,7 @@ clear_range(unsigned int from, unsigned int to)
 	sample.c[3] = 0;
 	sample.fg = fg;
 	sample.bg = bg;
-	sample.bold = false;
+	sample.attrs = 0;
 
 	for (unsigned int i = from; i <= to; i++) {
 		memcpy(&screen[i], &sample, sizeof(Cell));
@@ -148,9 +156,12 @@ cursor_reset(void)
 	cursor.fg = termconf_scratch.default_fg;
 	cursor.bg = termconf_scratch.default_bg;
 	cursor.visible = 1;
-	cursor.inverse = 0;
 	cursor.autowrap = 1;
-	cursor.bold = 0;
+	cursor.attrs = 0;
+
+	cursor.charset0 = 'B';
+	cursor.charset1 = '0';
+	cursor.charsetN = 0;
 }
 
 //endregion
@@ -188,8 +199,8 @@ screen_reset_cursor(void)
 {
 	cursor.fg = termconf_scratch.default_fg;
 	cursor.bg = termconf_scratch.default_bg;
-	cursor.inverse = 0;
-	cursor.bold = 0;
+	cursor.attrs = 0;
+	cursor.inverse = false;
 }
 
 /**
@@ -262,7 +273,7 @@ screen_fill_with_E(void)
 	sample.c[3] = 0;
 	sample.fg = termconf_scratch.default_fg;
 	sample.bg = termconf_scratch.default_bg;
-	sample.bold = false;
+	sample.attrs = 0;
 
 	for (unsigned int i = 0; i <= W*H-1; i++) {
 		memcpy(&screen[i], &sample, sizeof(Cell));
@@ -531,11 +542,11 @@ screen_cursor_save(bool withAttrs)
 	if (withAttrs) {
 		cursor_sav.fg = cursor.fg;
 		cursor_sav.bg = cursor.bg;
-		cursor_sav.inverse = cursor.inverse;
+		cursor_sav.attrs = cursor.attrs;
 	} else {
 		cursor_sav.fg = termconf_scratch.default_fg;
 		cursor_sav.bg = termconf_scratch.default_bg;
-		cursor_sav.inverse = 0;
+		cursor_sav.attrs = 0; // avoid leftovers if the wrong restore is used
 	}
 }
 
@@ -552,7 +563,7 @@ screen_cursor_restore(bool withAttrs)
 	if (withAttrs) {
 		cursor.fg = cursor_sav.fg;
 		cursor.bg = cursor_sav.bg;
-		cursor.inverse = cursor_sav.inverse;
+		cursor.attrs = cursor_sav.attrs;
 	}
 
 	NOTIFY_DONE();
@@ -604,43 +615,19 @@ screen_set_bg(Color color)
 	cursor.bg = color;
 }
 
-/**
- * Set cursor foreground and background color
- */
-void ICACHE_FLASH_ATTR
-screen_set_colors(Color fg, Color bg)
+void screen_attr_enable(u8 attrs)
 {
-	screen_set_fg(fg);
-	screen_set_bg(bg);
+	cursor.attrs |= attrs;
 }
 
-/**
- * Invert colors
- */
-void ICACHE_FLASH_ATTR
-screen_inverse(bool inverse)
+void screen_attr_disable(u8 attrs)
 {
-	cursor.inverse = inverse;
+	cursor.attrs &= ~attrs;
 }
 
-/**
- * Make foreground bright.
- *
- * This relates to the '1' SGR command which originally means
- * "bold font". We interpret that as "Bright", similar to other
- * terminal emulators.
- *
- * Note that the bright colors can be used without bold using the 90+ codes
- */
-void ICACHE_FLASH_ATTR
-screen_set_bold(bool bold)
+void screen_inverse_enable(bool ena)
 {
-	if (!bold) {
-		cursor.fg = (Color) (cursor.fg % 8);
-	} else {
-		cursor.fg = (Color) ((cursor.fg % 8) + 8); // change anything to the bright colors
-	}
-	cursor.bold = bold;
+	cursor.inverse = ena;
 }
 
 //endregion
@@ -657,12 +644,26 @@ bool ICACHE_FLASH_ATTR screen_isCoordValid(int y, int x)
 	return x >= 0 && y >= 0 && x < W && y < H;
 }
 
+
+void ICACHE_FLASH_ATTR screen_set_charset_n(int Gx)
+{
+	if (Gx < 0 || Gx > 1) return; // bad n
+	cursor.charsetN = Gx;
+}
+
+void ICACHE_FLASH_ATTR screen_set_charset(int Gx, char charset)
+{
+	if (Gx == 0) cursor.charset0 = charset;
+	if (Gx == 1) cursor.charset1 = charset;
+}
+
 /**
  * Set a character in the cursor color, move to right with wrap.
  */
 void ICACHE_FLASH_ATTR
 screen_putchar(const char *ch)
 {
+	char buf[4];
 	NOTIFY_LOCK();
 
 	Cell *c = &screen[cursor.x + cursor.y * W];
@@ -687,15 +688,11 @@ screen_putchar(const char *ch)
 					cursor.y--;
 				}
 			}
-			// erase target cell
-			c = &screen[cursor.x + cursor.y * W];
-			c->c[0] = ' ';
-			c->c[1] = 0;
-			c->c[2] = 0;
-			c->c[3] = 0;
+			// apparently backspace should not clear the cell
 			goto done;
 
 		case 9: // TAB
+			// TODO change if tab setting is ever implemented
 			if (cursor.x<((W-1)-(W-1)%4)) {
 				c->c[0] = ' ';
 				c->c[1] = 0;
@@ -715,8 +712,14 @@ screen_putchar(const char *ch)
 			}
 	}
 
-	// copy unicode char
-	strncpy(c->c, ch, 4);
+	if (ch[1] == 0 && ch[0] <= 0x7f) {
+		// we have len=1 and ASCII
+		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+	}
+	else {
+		// copy unicode char
+		strncpy(c->c, ch, 4);
+	}
 
 	if (cursor.inverse) {
 		c->fg = cursor.bg;
@@ -725,7 +728,7 @@ screen_putchar(const char *ch)
 		c->fg = cursor.fg;
 		c->bg = cursor.bg;
 	}
-	c->bold = cursor.bold;
+	c->attrs = cursor.attrs;
 
 	cursor.x++;
 	// X wrap
@@ -747,6 +750,84 @@ screen_putchar(const char *ch)
 done:
 	NOTIFY_DONE();
 }
+
+/**
+ * translates VT100 ACS escape codes to Unicode values.
+ * Based on rxvt-unicode screen.C table.
+ */
+static const u16 vt100_to_unicode[62] =
+{
+// ?       ?       ?       ?       ?       ?       ?
+// A=UPARR B=DNARR C=RTARR D=LFARR E=FLBLK F=3/4BL G=SNOMN
+	0x2191, 0x2193, 0x2192, 0x2190, 0x2588, 0x259a, 0x2603,
+// H=      I=      J=      K=      L=      M=      N=
+	0,      0,      0,      0,      0,      0,      0,
+// O=      P=      Q=      R=      S=      T=      U=
+	0,      0,      0,      0,      0,      0,      0,
+// V=      W=      X=      Y=      Z=      [=      \=
+	0,      0,      0,      0,      0,      0,      0,
+// ?       ?       v->0    v->1    v->2    v->3    v->4
+// ]=      ^=      _=SPC   `=DIAMN a=HSMED b=HT    c=FF
+	0,      0,      0x0020, 0x25c6, 0x2592, 0x2409, 0x240c,
+// v->5    v->6    v->7    v->8    v->9    v->a    v->b
+// d=CR    e=LF    f=DEGRE g=PLSMN h=NL    i=VT    j=SL-BR
+	0x240d, 0x240a, 0x00b0, 0x00b1, 0x2424, 0x240b, 0x2518,
+// v->c    v->d    v->e    v->f    v->10   v->11   v->12
+// k=SL-TR l=SL-TL m=SL-BL n=SL-+  o=SL-T1 p=SL-T2 q=SL-HZ
+	0x2510, 0x250c, 0x2514, 0x253c, 0x23ba, 0x23bb, 0x2500,
+// v->13   v->14   v->15   v->16   v->17   v->18   v->19
+// r=SL-T4 s=SL-T5 t=SL-VR u=SL-VL v=SL-HU w=Sl-HD x=SL-VT
+	0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c, 0x2502,
+// v->1a   v->1b   b->1c   v->1d   v->1e/a3 v->1f
+// y=LT-EQ z=GT-EQ {=PI    |=NOTEQ }=POUND ~=DOT
+	0x2264, 0x2265, 0x03c0, 0x2260, 0x20a4, 0x00b7
+};
+
+/**
+ * UTF remap
+ * @param out - output char[4]
+ * @param g  - ASCII char
+ * @param table - table name (0, A, B)
+ */
+static void ICACHE_FLASH_ATTR
+utf8_remap(char *out, char g, char table)
+{
+	u16 utf = 0;
+
+	switch (table)
+	{
+		case '0': /* DEC Special Character & Line Drawing Set */
+			if ((g >= 0x41) && (g <= 0x7e) && (vt100_to_unicode[g - 0x41])) {
+				utf = vt100_to_unicode[g - 0x41];
+			}
+			break;
+		case 'A': /* UK, replaces # with GBP */
+			if (g == '#') utf = 0x20a4;
+			break;
+	}
+
+	if (utf > 0x7F) {
+		// formulas taken from: https://gist.github.com/yamamushi/5823402
+		if ((utf >= 0x80) && (utf <= 0x07FF)) {
+			out[0] = (char) ((utf >> 0x06) ^ 0xC0);
+			out[1] = (char) (((utf ^ 0xFFC0) | 0x80) & ~0x40);
+			out[2]=0;
+		}
+		else if ((utf >= 0x0800) && (utf <= 0xFFFF)) {
+			out[0] = (char) (((utf ^ 0xFC0FFF) >> 0x0C) | 0xE0);
+			out[1] = (char) ((((utf ^ 0xFFF03F) >> 0x06) | 0x80) & ~0x40);
+			out[2] = (char) (((utf ^ 0xFFFC0) | 0x80) & ~0x40);
+			out[3]=0;
+		} else {
+			out[0] = g;
+			out[1] = 0;
+		}
+	} else {
+		out[0] = g;
+		out[1] = 0;
+	}
+}
+
 
 
 //region Serialization
@@ -789,7 +870,7 @@ void screen_dd(void)
 struct ScreenSerializeState {
 	Color lastFg;
 	Color lastBg;
-	bool lastBold;
+	bool lastAttrs;
 	char lastChar[4];
 	int index;
 };
@@ -798,8 +879,24 @@ void ICACHE_FLASH_ATTR
 encode2B(u16 number, WordB2 *stru)
 {
 	stru->lsb = (u8) (number % 127);
-	stru->msb = (u8) ((number - stru->lsb) / 127 + 1);
+	number = (u16) ((number - stru->lsb) / 127);
 	stru->lsb += 1;
+
+	stru->msb = (u8) (number + 1);
+}
+
+void ICACHE_FLASH_ATTR
+encode3B(u32 number, WordB3 *stru)
+{
+	stru->lsb = (u8) (number % 127);
+	number = (number - stru->lsb) / 127;
+	stru->lsb += 1;
+
+	stru->msb = (u8) (number % 127);
+	number = (number - stru->msb) / 127;
+	stru->msb += 1;
+
+	stru->xsb = (u8) (number + 1);
 }
 
 /**
@@ -845,6 +942,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 	Cell *cell, *cell0;
 	WordB2 w1, w2, w3, w4, w5;
+	WordB3 lw1;
 
 	size_t remain = buf_len; int used = 0;
 	char *bb = buffer;
@@ -860,7 +958,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->index = 0;
 		ss->lastBg = 0;
 		ss->lastFg = 0;
-		ss->lastBold = false;
+		ss->lastAttrs = 0;
 		memset(ss->lastChar, 0, 4); // this ensures the first char is never "repeat"
 
 		encode2B((u16) H, &w1);
@@ -870,8 +968,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		encode2B((u16) (
 			cursor.fg |
 			(cursor.bg<<4) |
-			(cursor.bold?0x100:0) |
-			(cursor.visible?0x200:0))
+			(cursor.visible ? 1<<8 : 0))
 			, &w5);
 
 		// H W X Y Attribs
@@ -887,7 +984,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		while (i < W*H
 		       && cell->fg == ss->lastFg
 		       && cell->bg == ss->lastBg
-		       && cell->bold == ss->lastBold
+		       && cell->attrs == ss->lastAttrs
 		       && strneq(cell->c, ss->lastChar, 4)) {
 			// Repeat
 			repCnt++;
@@ -896,13 +993,25 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 		if (repCnt == 0) {
 			// No repeat
-			if (cell0->bold != ss->lastBold || cell0->fg != ss->lastFg || cell0->bg != ss->lastBg) {
-				encode2B((u16) (
+			bool changeAttrs = cell0->attrs != ss->lastAttrs;
+			bool changeColors = (cell0->fg != ss->lastFg || cell0->bg != ss->lastBg);
+			if (!changeAttrs && changeColors) {
+				encode2B(cell0->fg | (cell0->bg<<4), &w1);
+				bufprint("\x03%c%c", w1.lsb, w1.msb);
+			}
+			else if (changeAttrs && !changeColors) {
+				// attrs only
+				encode2B(cell0->attrs, &w1);
+				bufprint("\x04%c%c", w1.lsb, w1.msb);
+			}
+			else if (changeAttrs && changeColors) {
+				// colors and attrs
+				encode3B((u32) (
 							 cell0->fg |
 							 (cell0->bg<<4) |
-							 (cell0->bold?0x100:0))
-					, &w1);
-				bufprint("\x01%c%c", w1.lsb, w1.msb);
+							 (cell0->attrs<<8))
+					, &lw1);
+				bufprint("\x01%c%c%c", lw1.lsb, lw1.msb, lw1.xsb);
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
@@ -914,7 +1023,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 			ss->lastFg = cell0->fg;
 			ss->lastBg = cell0->bg;
-			ss->lastBold = cell0->bold;
+			ss->lastAttrs = cell0->attrs;
 			memcpy(ss->lastChar, cell0->c, 4);
 
 			i++;

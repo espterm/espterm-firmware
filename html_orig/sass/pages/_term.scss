@@ -86,11 +86,6 @@ body.term {
 	top: -9999px;
 }
 
-// "non-bold"
-.nb {
-	font-weight: normal !important;
-}
-
 // Tango
 .theme-0 {
 	$term-colors:
@@ -163,9 +158,35 @@ body.term {
 	}
 }
 
+// Attributes
 .bold {
 	font-weight: bold !important;
 }
+
+.faint span { // content of faint is wrapped in span
+	opacity: 0.6;
+}
+
+.italic {
+	font-style: italic;
+}
+
+.under {
+	text-decoration: underline;
+}
+
+.strike {
+	text-decoration: line-through;
+}
+
+.underline.strike {
+	text-decoration: underline line-through;
+}
+
+.blink-hide .blink {
+	color: transparent;
+}
+//
 
 .Row.color-preview {
 	font-family: monospace;
