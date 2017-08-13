@@ -186,12 +186,10 @@ screen_reset(void)
 void ICACHE_FLASH_ATTR
 screen_reset_cursor(void)
 {
-	NOTIFY_LOCK();
 	cursor.fg = termconf_scratch.default_fg;
 	cursor.bg = termconf_scratch.default_bg;
 	cursor.inverse = 0;
 	cursor.bold = 0;
-	NOTIFY_DONE();
 }
 
 /**
@@ -712,7 +710,7 @@ screen_putchar(const char *ch)
 		default:
 			if (ch[0] < ' ') {
 				// Discard
-				warn("Ignoring control char %d", (int)ch);
+				warn("Ignoring control char %d", (int)ch[0]);
 				goto done;
 			}
 	}

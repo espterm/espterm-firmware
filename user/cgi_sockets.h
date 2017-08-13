@@ -9,4 +9,15 @@
 void updateSockConnect(Websock *ws);
 void screen_notifyChange(ScreenNotifyChangeTopic topic);
 
+// defined in the makefile
+#if DEBUG_INPUT
+#define ws_warn warn
+#define ws_dbg dbg
+#define ws_info info
+#else
+#define ws_warn(...)
+#define ws_dbg(...)
+#define ws_info(...)
+#endif
+
 #endif //CGI_SOCKETS_H

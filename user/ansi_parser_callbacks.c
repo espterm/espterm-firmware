@@ -39,28 +39,53 @@ apars_handle_plainchar(char c)
 			utf_j = 1;
 		}
 		else {
-			utf_collect[utf_j++] = c;
-			if (utf_j >= utf_i) {
-				screen_putchar(utf_collect);
-				utf_i = 0;
-				utf_j = 0;
-				memset(utf_collect, 0, 4);
+			if ((c & 0xC0) != 0x80) {
+				// bad UTF
+				ansi_warn("Bad UTF-8");
+				apars_reset_utf8buffer();
+			}
+			else {
+				utf_collect[utf_j++] = c;
+				if (utf_j >= utf_i) {
+					screen_putchar(utf_collect);
+					apars_reset_utf8buffer();
+				}
 			}
 		}
 	}
 	else {
+		if (c == 14 || c == 15) { // pushIn, pushOut
+			//ansi_warn("char %d ignored", c);
+			// TODO implement for charset switching
+			return;
+		}
+
 		utf_collect[0] = c;
 		utf_collect[1] = 0; // just to make sure it's closed...
 		screen_putchar(utf_collect);
 	}
 }
 
-/**
- * Bad sequence received, show warning
- */
-void apars_handle_badseq(void)
+void ICACHE_FLASH_ATTR
+apars_reset_utf8buffer(void)
 {
-	warn("Invalid escape sequence discarded.");
+	utf_i = 0;
+	utf_j = 0;
+	memset(utf_collect, 0, 4);
+}
+
+void ICACHE_FLASH_ATTR
+apars_handle_characterSet(char leadchar, char c)
+{
+	// TODO implement for charset switching
+//	ansi_warn("NOIMPL charset cmd %c%c", leadchar, c);
+}
+
+void ICACHE_FLASH_ATTR
+apars_handle_setXCtrls(char c)
+{
+	// this does not seem to do anything, sent by some unix programs
+//	ansi_warn("NOIMPL Select %cbit ctrls", c=='F'? '7':'8');
 }
 
 /**
@@ -70,7 +95,7 @@ void apars_handle_badseq(void)
  * \param keychar - the char terminating the sequence
  */
 void ICACHE_FLASH_ATTR
-apars_handle_CSI(char leadchar, int *params, char keychar)
+apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 {
 	/*
 		Implemented codes (from Wikipedia)
@@ -216,38 +241,66 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 				// Query device status - reply "Device is OK"
 				UART_WriteString(UART0, "\033[0n", UART_TIMEOUT_US);
 			}
+			else {
+				ansi_warn("NOIMPL query %d", n1);
+			}
 			break;
 
 			// DECTCEM feature enable / disable
 
 		case 'h': // feature enable
 			if (leadchar == '?') {
-				if (n1 == 25) {
-					screen_cursor_enable(1);
-				} else if (n1 == 7) {
-					screen_wrap_enable(1);
+				if (n1 == 25) screen_cursor_enable(1);
+				else if (n1 == 7) screen_wrap_enable(1);
+				else if (n1 == 1) {
+					// TODO something with arrow keys??
+				}
+				else {
+					ansi_warn("NOIMPL DEC opt %d", n1);
+				}
+			}
+			else {
+				if (n1 == 4) {
+					// TODO insert mode, i think this is to suppress user input
+				}
+				else {
+					ansi_warn("NOIMPL flag %d", n1);
 				}
 			}
 			break;
 
 		case 'l': // feature disable
 			if (leadchar == '?') {
-				if (n1 == 25) {
-					screen_cursor_enable(0);
-				} else if (n1 == 7) {
-					screen_wrap_enable(0);
+				if (n1 == 25) screen_cursor_enable(0);
+				else if (n1 == 7) screen_wrap_enable(0);
+				else if (n1 == 1) {
+					// TODO see above
+				}
+				else {
+					ansi_warn("NOIMPL DEC opt %d", n1);
+				}
+			}
+			else {
+				if (n1 == 4) {
+					// TODO see above
+				}
+				else {
+					ansi_warn("NOIMPL flag %d", n1);
 				}
 			}
 			break;
 
 		case 'm': // SGR - graphics rendition aka attributes
+			if (count == 0) {
+				count = 1; // this makes it work as 0 (reset)
+			}
+
 			// iterate arguments
-			for (int i = 0; i < CSI_N_MAX; i++) {
+			for (int i = 0; i < count; i++) {
 				int n = params[i];
 
-				if (i == 0 && n == 0) { // reset SGR
+				if (n == 0) { // reset SGR
 					screen_reset_cursor(); // resets colors, inverse and bold.
-					break; // cannot combine reset with others - discard
 				}
 				else if (n >= 30 && n <= 37) screen_set_fg((Color) (n - 30)); // ANSI normal fg
 				else if (n >= 40 && n <= 47) screen_set_bg((Color) (n - 40)); // ANSI normal bg
@@ -259,6 +312,9 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 				else if (n == 21 || n == 22) screen_set_bold(false); // bold off
 				else if (n >= 90 && n <= 97) screen_set_fg((Color) (n - 90 + 8)); // AIX bright fg
 				else if (n >= 100 && n <= 107) screen_set_bg((Color) (n - 100 + 8)); // AIX bright bg
+				else {
+					ansi_warn("NOIMPL SGR attr %d", n);
+				}
 			}
 			break;
 
@@ -281,6 +337,30 @@ apars_handle_CSI(char leadchar, int *params, char keychar)
 		case 'P':
 			screen_delete_characters(n1);
 			break;
+
+		case 'r':
+			// TODO scrolling region
+			ansi_warn("NOIMPL scrolling region");
+			break;
+
+		case 'g':
+			// TODO clear tab
+			ansi_warn("NOIMPL clear tab");
+			break;
+
+		case 'Z':
+			// TODO back tab
+			ansi_warn("NOIMPL cursor back tab");
+			break;
+
+		case 'q':
+			// TODO setmode (??)
+			ansi_warn("NOIMPL CSI setmode %d", n1);
+			break;
+
+		default:
+			ansi_warn("Unknown CSI: %c", keychar);
+			apars_handle_badseq();
 	}
 }
 
@@ -291,6 +371,9 @@ void ICACHE_FLASH_ATTR apars_handle_hashCode(char c)
 		case '8':
 			screen_fill_with_E();
 			break;
+
+		default:
+			ansi_warn("Unknown # sequence: %c", c);
 	}
 }
 
@@ -301,22 +384,48 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 		case 'c': // screen reset
 			screen_reset();
 			break;
+
 		case '7': // save cursor + attrs
 			screen_cursor_save(true);
 			break;
+
 		case '8': // restore cursor + attrs
 			screen_cursor_restore(true);
 			break;
+
 		case 'E': // same as CR LF
 			screen_cursor_move(1, 0, false);
 			screen_cursor_set_x(0);
 			break;
+
 		case 'D': // move cursor down, scroll screen up if needed
 			screen_cursor_move(1, 0, true);
 			break;
+
 		case 'M': // move cursor up, scroll screen down if needed
 			screen_cursor_move(-1, 0, true);
 			break;
+
+		case 'H':
+			// TODO set tab
+//			ansi_warn("NOIMPL set tab");
+			break;
+
+		// TODO those don't seem to do anything
+		case '>':
+//			ansi_warn("NOIMPL NUMKP");
+			break;
+
+		case '<':
+//			ansi_warn("NOIMPL SETANSI");
+			break;
+
+		case '=':
+//			ansi_warn("NOIMPL ALTKP");
+			break;
+
+		default:
+			ansi_warn("Unknown 1-char seq %c", c);
 	}
 }
 

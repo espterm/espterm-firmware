@@ -16,8 +16,37 @@ static void ICACHE_FLASH_ATTR
 resetParserCb(void *arg) {
 	if (cs != ansi_start) {
 		cs = ansi_start;
-		warn("Parser timeout, state reset");
+		apars_reset_utf8buffer();
+		ansi_warn("Parser timeout, state reset");
 	}
+}
+
+#define HISTORY_LEN 16
+
+#if DEBUG_ANSI
+static char history[HISTORY_LEN + 1];
+#endif
+
+void ICACHE_FLASH_ATTR
+apars_handle_badseq(void)
+{
+#if DEBUG_ANSI
+	char buf1[HISTORY_LEN*3+2];
+	char buf2[HISTORY_LEN*3+2];
+	char *b1 = buf1;
+	char *b2 = buf2;
+	char c;
+
+	for(int i=0;i<HISTORY_LEN;i++) {
+		c = history[i];
+		b1 += sprintf(b1, "%2X ", c);
+		if (c < 32 || c > 127) c = '.';
+		b2 += sprintf(b2, "%c  ", c);
+	}
+
+	ansi_dbg("Context: %s", buf2);
+	ansi_dbg("         %s", buf1);
+#endif
 }
 
 /**
@@ -39,6 +68,7 @@ ansi_parser(const char *newdata, size_t len)
 	// The CSI code is built here
 	static char csi_leading;      //!< Leading char, 0 if none
 	static int  csi_ni;           //!< Number of the active digit
+	static int  csi_cnt;          //!< Digit count
 	static int  csi_n[CSI_N_MAX]; //!< Param digits
 	static char csi_char;         //!< CSI action char (end)
 	static char osc_buffer[OSC_CHAR_MAX];
@@ -54,14 +84,25 @@ ansi_parser(const char *newdata, size_t len)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		%% write init;
+
+#if DEBUG_ANSI
+		memset(history, 0, sizeof(history));
+#endif
 	}
 
-	// schedule state reset
+	// schedule state reset after idle timeout
 	if (termconf->parser_tout_ms > 0) {
 		os_timer_disarm(&resetTim);
 		os_timer_setfn(&resetTim, resetParserCb, NULL);
 		os_timer_arm(&resetTim, termconf->parser_tout_ms, 0);
 	}
+
+#if DEBUG_ANSI
+	for(int i=len; i<HISTORY_LEN; i++) {
+		history[i-len] = history[i];
+	}
+	strcpy(&history[HISTORY_LEN-len], newdata);
+#endif
 
 	// The parser
 	%%{
@@ -74,7 +115,9 @@ ansi_parser(const char *newdata, size_t len)
 		# --- Regular characters to be printed ---
 
 		action plain_char {
-			apars_handle_plainchar(fc);
+			if (fc != 0) {
+				apars_handle_plainchar(fc);
+			}
 		}
 
 		# --- CSI CSI commands (Select Graphic Rendition) ---
@@ -84,6 +127,7 @@ ansi_parser(const char *newdata, size_t len)
 			// Reset the CSI builder
 			csi_leading = csi_char = 0;
 			csi_ni = 0;
+			csi_cnt = 0;
 
 			// Zero out digits
 			for(int i = 0; i < CSI_N_MAX; i++) {
@@ -98,6 +142,7 @@ ansi_parser(const char *newdata, size_t len)
 		}
 
 		action CSI_digit {
+			if (csi_cnt == 0) csi_cnt = 1;
 			// x10 + digit
 			if (csi_ni < CSI_N_MAX) {
 				csi_n[csi_ni] = csi_n[csi_ni]*10 + (fc - '0');
@@ -105,18 +150,19 @@ ansi_parser(const char *newdata, size_t len)
 		}
 
 		action CSI_semi {
+			if (csi_cnt == 0) csi_cnt = 1; // handle case when first arg is empty
+			csi_cnt++;
 			csi_ni++;
 		}
 
 		action CSI_end {
 			csi_char = fc;
-
-			apars_handle_CSI(csi_leading, csi_n, csi_char);
-
+			apars_handle_CSI(csi_leading, csi_n, csi_cnt, csi_char);
 			fgoto main;
 		}
 
 		action errBadSeq {
+			ansi_warn("Invalid escape sequence discarded.");
 			apars_handle_badseq();
 			fgoto main;
 		}
@@ -211,6 +257,24 @@ ansi_parser(const char *newdata, size_t len)
 			fgoto main;
 		}
 
+		action SetXCtrls {
+			apars_handle_setXCtrls(fc);
+			fgoto main;
+		}
+
+		action CharsetCmd_start {
+			// abuse the buffer for storing the leading char
+			osc_buffer[0] = fc;
+			fgoto charsetcmd_body;
+		}
+
+		action CharsetCmd_end {
+			apars_handle_characterSet(osc_buffer[0], fc);
+			fgoto main;
+		}
+
+		charsetcmd_body := (any @CharsetCmd_end) $!errBadSeq;
+
 		# --- Main parser loop ---
 
 		main :=
@@ -220,7 +284,9 @@ ansi_parser(const char *newdata, size_t len)
 					(']' @OSC_start) |
 					('#' digit @HASH_code) |
 					('k' @SetTitle_start) |
-					([a-jl-zA-Z0-9] @SHORT_code)
+					([a-jl-zA-Z0-9=<>] @SHORT_code) |
+					([()*+-./] @CharsetCmd_start) |
+					(' ' [FG] @SetXCtrls)
 				)
 			)+ $!errBadSeq;
 

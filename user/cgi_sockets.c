@@ -98,7 +98,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 
 	// TODO re-implement those, use single byte markers and B2 encoding
 
-	dbg("Sock RX str: %s, len %d", data, len);
+	ws_dbg("Sock RX str: %s, len %d", data, len);
 
 	if (strstarts(data, "STR:")) {
 		// pass string verbatim
@@ -134,24 +134,24 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 		}
 
 		if (!screen_isCoordValid(y, x)) {
-			warn("Mouse input at invalid coordinates");
+			ws_warn("Mouse input at invalid coordinates");
 			return;
 		}
 
-		dbg("Screen clicked at row %d, col %d", y+1, x+1);
+		ws_dbg("Screen clicked at row %d, col %d", y+1, x+1);
 
 		// Send as 1-based to user
 		sprintf(buf, "\033[%d;%dM", y+1, x+1);
 		UART_WriteString(UART0, buf, UART_TIMEOUT_US);
 	}
 	else {
-		warn("Bad command.");
+		ws_warn("Bad command.");
 	}
 }
 
 /** Socket connected for updates */
 void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 {
-	info("Socket connected to "URL_WS_UPDATE);
+	ws_info("Socket connected to "URL_WS_UPDATE);
 	ws->recvCb = updateSockRx;
 }
