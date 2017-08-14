@@ -363,32 +363,89 @@ var Input = (function() {
 		Conn.send("BTN:"+n);
 	}
 
+	function _initKeys() {
+		// This takes care of text characters typed
+		window.addEventListener('keypress', function(evt) {
+			var str = '';
+			if (evt.key) str = evt.key;
+			else if (evt.which) str = String.fromCodePoint(evt.which);
+			if (str.length>0 && str.charCodeAt(0) >= 32) {
+				console.log("Typed ", str);
+				sendStrMsg(str);
+			}
+		});
+
+		var keymap = {
+			'tab': '\x09',
+			'backspace': '\x08',
+			'enter': '\x0d',
+			'ctrl+enter': '\x0a',
+			'esc': '\x1b',
+			'up': '\x1b[A',
+			'down': '\x1b[B',
+			'right': '\x1b[C',
+			'left': '\x1b[D',
+			'home': '\x1b[1~',
+			'insert': '\x1b[2~',
+			'delete': '\x1b[3~',
+			'end': '\x1b[4~',
+			'pageup': '\x1b[5~',
+			'pagedown': '\x1b[6~',
+			'f1': '\x1b[11~',
+			'f2': '\x1b[12~',
+			'f3': '\x1b[13~',
+			'f4': '\x1b[14~',
+			'f5': '\x1b[15~', // disconnect
+			'f6': '\x1b[17~',
+			'f7': '\x1b[18~',
+			'f8': '\x1b[19~',
+			'f9': '\x1b[20~',
+			'f10': '\x1b[21~', // disconnect
+			'f11': '\x1b[23~',
+			'f12': '\x1b[24~',
+			'shift+f1': '\x1b[25~',
+			'shift+f2': '\x1b[26~', // disconnect
+			'shift+f3': '\x1b[28~',
+			'shift+f4': '\x1b[29~', // disconnect
+			'shift+f5': '\x1b[31~',
+			'shift+f6': '\x1b[32~',
+			'shift+f7': '\x1b[33~',
+			'shift+f8': '\x1b[34~',
+		};
+
+		function bind(combo, str) {
+			// mac fix - allow also cmd
+			if (combo.indexOf('ctrl+') !== -1) {
+				combo += ',' + combo.replace('ctrl', 'command');
+			}
+			key(combo, function (e) {
+				e.preventDefault();
+				console.log(combo);
+				sendStrMsg(str)
+			});
+		}
+
+		for (var k in keymap) {
+			if (keymap.hasOwnProperty(k)) {
+				bind(k, keymap[k]);
+			}
+		}
+
+		// ctrl-letter codes are sent as simple low ASCII codes
+		for (var i = 1; i<=26;i++) {
+			bind('ctrl+' + String.fromCharCode(96+i), String.fromCharCode(i));
+		}
+		bind('ctrl+]', '\x1b'); // alternate way to enter ESC
+		bind('ctrl+\\', '\x1c');
+		bind('ctrl+[', '\x1d');
+		bind('ctrl+^', '\x1e');
+		bind('ctrl+_', '\x1f');
+	}
+
 	function init() {
-		window.addEventListener('keypress', function(e) {
-			var code = +e.which;
-			if (code >= 32 && code < 127) {
-				var ch = String.fromCharCode(code);
-				//console.log("Typed ", ch, "code", code, e);
-				sendStrMsg(ch);
-			}
-		});
+		_initKeys();
 
-		window.addEventListener('keydown', function(e) {
-			var code = e.keyCode;
-			//console.log("Down ", code, e);
-			switch(code) {
-				case 8: sendStrMsg('\x08'); break;
-				case 9: sendStrMsg('\x09'); break;
-				case 10:
-				case 13: sendStrMsg('\x0d\x0a'); break;
-				case 27: sendStrMsg('\x1b'); break; // this allows to directly enter control sequences
-				case 37: sendStrMsg('\x1b[D'); break;
-				case 38: sendStrMsg('\x1b[A'); break;
-				case 39: sendStrMsg('\x1b[C'); break;
-				case 40: sendStrMsg('\x1b[B'); break;
-			}
-		});
-
+		// Button presses
 		qsa('#buttons button').forEach(function(s) {
 			s.addEventListener('click', function() {
 				sendBtnMsg(+this.dataset['n']);
