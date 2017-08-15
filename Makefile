@@ -73,7 +73,7 @@ CFLAGS += -DADMIN_PASSWORD=$(ADMIN_PASSWORD)
 
 # Debug logging
 CFLAGS += -DDEBUG_ANSI=1
-CFLAGS += -DDEBUG_INPUT=1
+CFLAGS += -DDEBUG_INPUT=0
 
 # linker flags used to generate the main object file
 LDFLAGS		= -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static

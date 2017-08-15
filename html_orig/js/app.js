@@ -1922,7 +1922,7 @@ var Input = (function() {
 			if (evt.key) str = evt.key;
 			else if (evt.which) str = String.fromCodePoint(evt.which);
 			if (str.length>0 && str.charCodeAt(0) >= 32) {
-				console.log("Typed ", str);
+//				console.log("Typed ", str);
 				sendStrMsg(str);
 			}
 		});
@@ -1972,7 +1972,7 @@ var Input = (function() {
 			}
 			key(combo, function (e) {
 				e.preventDefault();
-				console.log(combo);
+//				console.log(combo);
 				sendStrMsg(str)
 			});
 		}
