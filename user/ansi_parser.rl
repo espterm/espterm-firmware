@@ -10,10 +10,10 @@
 
 static volatile int cs = -1;
 
-static ETSTimer resetTim;
+volatile u32 ansi_parser_char_cnt = 0;
 
-static void ICACHE_FLASH_ATTR
-resetParserCb(void *arg) {
+void ICACHE_FLASH_ATTR
+ansi_parser_reset(void) {
 	if (cs != ansi_start) {
 		cs = ansi_start;
 		apars_reset_utf8buffer();
@@ -74,6 +74,8 @@ ansi_parser(const char *newdata, size_t len)
 	static char osc_buffer[OSC_CHAR_MAX];
 	static int  osc_bi;
 
+	ansi_parser_char_cnt++;
+
 	if (len == 0) len = strlen(newdata);
 	
 	// Load new data to Ragel vars
@@ -88,13 +90,6 @@ ansi_parser(const char *newdata, size_t len)
 #if DEBUG_ANSI
 		memset(history, 0, sizeof(history));
 #endif
-	}
-
-	// schedule state reset after idle timeout
-	if (termconf->parser_tout_ms > 0) {
-		os_timer_disarm(&resetTim);
-		os_timer_setfn(&resetTim, resetParserCb, NULL);
-		os_timer_arm(&resetTim, termconf->parser_tout_ms, 0);
 	}
 
 #if DEBUG_ANSI

@@ -13,6 +13,8 @@
 #include "ansi_parser_callbacks.h"
 #include "wifimgr.h"
 #include "persist.h"
+#include "screen.h"
+#include "ansi_parser.h"
 
 #define BTNGPIO 0
 
@@ -21,6 +23,28 @@ static bool enable_ap_button = false;
 
 static ETSTimer resetBtntimer;
 static ETSTimer blinkyTimer;
+static ETSTimer ansiParserResetTimer;
+
+static void ICACHE_FLASH_ATTR ansiParserResetTimerCb(void *arg) {
+	static u32 last_charcnt = 0;
+	static int same_charcnt = -1;
+	if (termconf->parser_tout_ms == 0) return;
+
+	if (last_charcnt != ansi_parser_char_cnt) {
+		last_charcnt = ansi_parser_char_cnt;
+		same_charcnt = 0;
+	}
+	else {
+		if (same_charcnt != -1) {
+			same_charcnt++;
+			if (same_charcnt > termconf->parser_tout_ms) {
+				ansi_parser_reset();
+				same_charcnt = -1;
+			}
+		}
+	}
+}
+
 
 // Holding BOOT pin triggers AP reset, then Factory Reset.
 // Indicate that by blinking the on-board LED.
@@ -101,6 +125,10 @@ void ICACHE_FLASH_ATTR ioInit() {
 	os_timer_disarm(&resetBtntimer);
 	os_timer_setfn(&resetBtntimer, resetBtnTimerCb, NULL);
 	os_timer_arm(&resetBtntimer, 500, 1);
+
+	os_timer_disarm(&ansiParserResetTimer);
+	os_timer_setfn(&ansiParserResetTimer, ansiParserResetTimerCb, NULL);
+	os_timer_arm(&ansiParserResetTimer, 1, 1);
 
 	// One way to enter AP mode - hold GPIO0 low.
 	if (GPIO_INPUT_GET(BTNGPIO) == 0) {

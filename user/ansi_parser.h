@@ -19,6 +19,10 @@ extern void apars_handle_characterSet(char leadchar, char c);
 extern void apars_handle_setXCtrls(char c);
 extern void apars_reset_utf8buffer(void);
 
+void ansi_parser_reset(void);
+
+extern volatile u32 ansi_parser_char_cnt;
+
 // defined in the makefile
 #if DEBUG_ANSI
 #define ansi_warn warn
