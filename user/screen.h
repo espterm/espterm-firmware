@@ -172,10 +172,18 @@ void screen_set_fg(Color color);
 /** Set cursor background coloor */
 void screen_set_bg(Color color);
 
-// enable or disable attrs by bitmask
+/** enable attrs by bitmask */
 void screen_attr_enable(u8 attrs);
+/** disable attrs by bitmask */
 void screen_attr_disable(u8 attrs);
+/** Set the inverse cursor attribute */
 void screen_inverse_enable(bool ena);
+/** Toggle INSERT / REPLACE */
+void screen_set_insert_mode(bool insert);
+/** Toggle application keypad mode */
+void screen_set_keypad_application_mode(bool app_mode);
+/** Toggle application cursor mode */
+void screen_set_cursor_application_mode(bool app_mode);
 
 void screen_set_charset_n(int Gx);
 void screen_set_charset(int Gx, char charset);

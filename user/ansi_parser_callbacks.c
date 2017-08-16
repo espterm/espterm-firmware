@@ -65,10 +65,12 @@ apars_handle_plainchar(char c)
 	}
 	else {
 		if (c == 14) {
+			// ShiftIN
 			screen_set_charset_n(1);
 			return;
 		}
 		if (c == 15) {
+			// ShiftOUT
 			screen_set_charset_n(0);
 			return;
 		}
@@ -97,6 +99,7 @@ apars_handle_characterSet(char leadchar, char c)
 {
 	if (leadchar == '(') screen_set_charset(0, c);
 	else if (leadchar == ')') screen_set_charset(1, c);
+	// other alternatives * + . - / not implemented
 }
 
 void ICACHE_FLASH_ATTR
@@ -119,6 +122,7 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 	int n2 = params[1];
 	int n3 = params[2];
 	static char buf[20];
+	bool yn = 0; // for ? l h
 
 	// defaults
 	switch (keychar) {
@@ -224,7 +228,6 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 		case 'n': // queries
 			if (n1 == 6) {
 				// Query cursor position
-				char buf[20];
 				int x, y;
 				screen_cursor_get(&y, &x);
 				sprintf(buf, "\033[%d;%dR", y+1, x+1);
@@ -242,43 +245,31 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 			// DECTCEM feature enable / disable
 
 		case 'h': // feature enable
-			if (leadchar == '?') {
-				if (n1 == 25) screen_cursor_enable(1);
-				else if (n1 == 7) screen_wrap_enable(1);
-				else if (n1 == 1) {
-					// TODO something with arrow keys??
-				}
-				else {
-					ansi_warn("NOIMPL DEC opt %d", n1);
-				}
-			}
-			else {
-				if (n1 == 4) {
-					// TODO insert mode, i think this is to suppress user input
-				}
-				else {
-					ansi_warn("NOIMPL flag %d", n1);
-				}
-			}
-			break;
-
+			yn = 1;
 		case 'l': // feature disable
-			if (leadchar == '?') {
-				if (n1 == 25) screen_cursor_enable(0);
-				else if (n1 == 7) screen_wrap_enable(0);
-				else if (n1 == 1) {
-					// TODO see above
+			for (int i = 0; i < count; i++) {
+				int n = params[i];
+				if (leadchar == '?') {
+					if (n == 25) {
+						screen_cursor_enable(yn);
+					}
+					else if (n == 7) {
+						screen_wrap_enable(yn);
+					}
+					else if (n == 1) {
+						screen_set_cursor_application_mode(yn);
+					}
+					else {
+						ansi_warn("NOIMPL DEC opt %d", n);
+					}
 				}
 				else {
-					ansi_warn("NOIMPL DEC opt %d", n1);
-				}
-			}
-			else {
-				if (n1 == 4) {
-					// TODO see above
-				}
-				else {
-					ansi_warn("NOIMPL flag %d", n1);
+					if (n == 4) {
+						screen_set_insert_mode(yn);
+					}
+					else {
+						ansi_warn("NOIMPL flag %d", n);
+					}
 				}
 			}
 			break;
@@ -320,7 +311,7 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 				else if (n >= 90 && n <= 97) screen_set_fg((Color) (n - 90 + 8)); // AIX bright fg
 				else if (n >= 100 && n <= 107) screen_set_bg((Color) (n - 100 + 8)); // AIX bright bg
 				else {
-						ansi_warn("NOIMPL SGR attr %d", n);
+					ansi_warn("NOIMPL SGR attr %d", n);
 				}
 			}
 			break;
@@ -379,19 +370,14 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 			ansi_warn("NOIMPL cursor back tab");
 			break;
 
-		case 'q':
-			// TODO setmode (??)
-			ansi_warn("NOIMPL CSI setmode %d", n1);
-			break;
-
 		case 'p':
 			if (leadchar == '!') {
 				info("SOFT RESET!");
-				system_restart();
+				screen_reset(); // TODO do soft reset
 			}
 			break;
 
-		case 'c':
+		case 'c': // CSI-c
 			// report capabilities (pretend we're vt4xx)
 			UART_WriteString(UART0, "\033[?64;22;c", UART_TIMEOUT_US);
 			break;
@@ -449,17 +435,16 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 //			ansi_warn("NOIMPL set tab");
 			break;
 
-		// TODO those don't seem to do anything
 		case '>':
-//			ansi_warn("NOIMPL NUMKP");
+			screen_set_keypad_application_mode(false);
 			break;
 
 		case '<':
-//			ansi_warn("NOIMPL SETANSI");
+			// "Enter ANSI / VT100 mode" - no-op
 			break;
 
 		case '=':
-//			ansi_warn("NOIMPL ALTKP");
+			screen_set_keypad_application_mode(true);
 			break;
 
 		default:

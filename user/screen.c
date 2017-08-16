@@ -15,44 +15,6 @@ static void utf8_remap(char* out, char g, char table);
 #define H termconf_scratch.height
 
 /**
- * Restore hard defaults
- */
-void terminal_restore_defaults(void)
-{
-	termconf->default_bg = 0;
-	termconf->default_fg = 7;
-	termconf->width = 26;
-	termconf->height = 10;
-	termconf->parser_tout_ms = 10;
-	sprintf(termconf->title, "ESPTerm");
-	for(int i=1; i <= 5; i++) {
-		sprintf(termconf->btn[i-1], "%d", i);
-	}
-}
-
-/**
- * Apply settings after eg. restore from defaults
- */
-void terminal_apply_settings(void)
-{
-	terminal_apply_settings_noclear();
-	screen_init();
-}
-
-void terminal_apply_settings_noclear(void)
-{
-	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
-	if (W*H >= MAX_SCREEN_SIZE) {
-		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
-		error("reverting terminal settings to default");
-		terminal_restore_defaults();
-		persist_store();
-		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
-		screen_init();
-	}
-}
-
-/**
  * Highest permissible value of the color attribute
  */
 #define COLOR_MAX 15
@@ -79,6 +41,12 @@ static struct {
 	int x;    //!< X coordinate
 	int y;    //!< Y coordinate
 	bool autowrap;   //!< Wrapping when EOL
+	bool insert_mode; //!< Insert mode (move rest of the line to the right)
+
+	// TODO use those for input processing
+	bool kp_alternate;   //!< Application Mode - affects how user input of control keys is sent
+	bool curs_alternate; //!< Application mode for cursor keys
+
 	bool visible;    //!< Visible (not attribute, DEC special)
 	bool inverse;
 	u8 attrs;
@@ -122,6 +90,45 @@ static volatile int notifyLock = 0;
 						} while(0)
 
 /**
+ * Restore hard defaults
+ */
+void terminal_restore_defaults(void)
+{
+	termconf->default_bg = 0;
+	termconf->default_fg = 7;
+	termconf->width = 26;
+	termconf->height = 10;
+	termconf->parser_tout_ms = 10;
+	sprintf(termconf->title, "ESPTerm");
+	for(int i=1; i <= 5; i++) {
+		sprintf(termconf->btn[i-1], "%d", i);
+	}
+}
+
+/**
+ * Apply settings after eg. restore from defaults
+ */
+void terminal_apply_settings(void)
+{
+	terminal_apply_settings_noclear();
+	screen_init();
+}
+
+/** this is used when changing terminal settings that do not affect the screen size */
+void terminal_apply_settings_noclear(void)
+{
+	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+	if (W*H >= MAX_SCREEN_SIZE) {
+		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
+		error("reverting terminal settings to default");
+		terminal_restore_defaults();
+		persist_store();
+		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+		screen_init();
+	}
+}
+
+/**
  * Clear range, inclusive
  */
 static inline void
@@ -151,6 +158,8 @@ clear_range(unsigned int from, unsigned int to)
 static void ICACHE_FLASH_ATTR
 cursor_reset(void)
 {
+	// TODO this should probably be public and invoked by "soft reset"
+
 	cursor.x = 0;
 	cursor.y = 0;
 	cursor.fg = termconf_scratch.default_fg;
@@ -158,6 +167,10 @@ cursor_reset(void)
 	cursor.visible = 1;
 	cursor.autowrap = 1;
 	cursor.attrs = 0;
+	cursor.insert_mode = 0;
+
+	cursor.kp_alternate = 0;
+	cursor.curs_alternate = 0;
 
 	cursor.charset0 = 'B';
 	cursor.charset1 = '0';
@@ -657,13 +670,27 @@ void ICACHE_FLASH_ATTR screen_set_charset(int Gx, char charset)
 	if (Gx == 1) cursor.charset1 = charset;
 }
 
+void ICACHE_FLASH_ATTR screen_set_insert_mode(bool insert)
+{
+	cursor.insert_mode = insert;
+}
+
+void ICACHE_FLASH_ATTR screen_set_keypad_application_mode(bool app_mode)
+{
+	cursor.kp_alternate = app_mode;
+}
+
+void ICACHE_FLASH_ATTR screen_set_cursor_application_mode(bool app_mode)
+{
+	cursor.curs_alternate = app_mode;
+}
+
 /**
  * Set a character in the cursor color, move to right with wrap.
  */
 void ICACHE_FLASH_ATTR
 screen_putchar(const char *ch)
 {
-	char buf[4];
 	NOTIFY_LOCK();
 
 	Cell *c = &screen[cursor.x + cursor.y * W];
@@ -681,18 +708,13 @@ screen_putchar(const char *ch)
 		case 8: // BS
 			if (cursor.x > 0) {
 				cursor.x--;
-			} else {
-				// wrap around start of line
-				if (cursor.autowrap && cursor.y>0) {
-					cursor.x=W-1;
-					cursor.y--;
-				}
 			}
-			// apparently backspace should not clear the cell
+			// we should not wrap around
+			// and apparently backspace should not even clear the cell
 			goto done;
 
 		case 9: // TAB
-			// TODO change if tab setting is ever implemented
+			// TODO change to "go to next tab stop"
 			if (cursor.x<((W-1)-(W-1)%4)) {
 				c->c[0] = ' ';
 				c->c[1] = 0;
@@ -711,6 +733,9 @@ screen_putchar(const char *ch)
 				goto done;
 			}
 	}
+
+	// move the rest of the line if we're in Insert Mode
+	if (cursor.x < W-1 && cursor.insert_mode) screen_insert_characters(1);
 
 	if (ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII
@@ -801,29 +826,36 @@ utf8_remap(char *out, char g, char table)
 				utf = vt100_to_unicode[g - 0x41];
 			}
 			break;
+
 		case 'A': /* UK, replaces # with GBP */
 			if (g == '#') utf = 0x20a4;
 			break;
+
+		default:
+			// no remap
+			utf = (unsigned char)g;
+			break;
 	}
 
+	// Encode to UTF-8
 	if (utf > 0x7F) {
 		// formulas taken from: https://gist.github.com/yamamushi/5823402
 		if ((utf >= 0x80) && (utf <= 0x07FF)) {
+			// 2-byte unicode
 			out[0] = (char) ((utf >> 0x06) ^ 0xC0);
 			out[1] = (char) (((utf ^ 0xFFC0) | 0x80) & ~0x40);
 			out[2]=0;
 		}
-		else if ((utf >= 0x0800) && (utf <= 0xFFFF)) {
+		else {
+			// 3-byte unicode
 			out[0] = (char) (((utf ^ 0xFC0FFF) >> 0x0C) | 0xE0);
 			out[1] = (char) ((((utf ^ 0xFFF03F) >> 0x06) | 0x80) & ~0x40);
 			out[2] = (char) (((utf ^ 0xFFFC0) | 0x80) & ~0x40);
 			out[3]=0;
-		} else {
-			out[0] = g;
-			out[1] = 0;
 		}
 	} else {
-		out[0] = g;
+		// low ASCII
+		out[0] = (char) utf;
 		out[1] = 0;
 	}
 }
