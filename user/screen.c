@@ -40,6 +40,8 @@ static Cell screen[MAX_SCREEN_SIZE];
 static struct {
 	int x;    //!< X coordinate
 	int y;    //!< Y coordinate
+	bool hanging; //!< xenl state
+
 	bool autowrap;   //!< Wrapping when EOL
 	bool insert_mode; //!< Insert mode (move rest of the line to the right)
 
@@ -65,6 +67,8 @@ static struct {
 static struct {
 	int x;
 	int y;
+	bool hanging; //!< xenl state
+
 	// mark that attrs are saved
 	bool withAttrs;
 	u8 attrs;
@@ -88,6 +92,8 @@ static volatile int notifyLock = 0;
 							if (notifyLock > 0) notifyLock--; \
 							if (notifyLock == 0) screen_notifyChange(CHANGE_CONTENT); \
 						} while(0)
+
+#define clear_invalid_hanging() do { if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; } while(false)
 
 /**
  * Restore hard defaults
@@ -162,15 +168,16 @@ cursor_reset(void)
 
 	cursor.x = 0;
 	cursor.y = 0;
+	cursor.hanging = false;
 	cursor.fg = termconf_scratch.default_fg;
 	cursor.bg = termconf_scratch.default_bg;
-	cursor.visible = 1;
-	cursor.autowrap = 1;
-	cursor.attrs = 0;
-	cursor.insert_mode = 0;
+	cursor.visible = true;
+	cursor.autowrap = true;
+	cursor.attrs = false;
+	cursor.insert_mode = false;
 
-	cursor.kp_alternate = 0;
-	cursor.curs_alternate = 0;
+	cursor.kp_alternate = false;
+	cursor.curs_alternate = false;
 
 	cursor.charset0 = 'B';
 	cursor.charset1 = '0';
@@ -208,7 +215,7 @@ screen_reset(void)
  * Reset the cursor
  */
 void ICACHE_FLASH_ATTR
-screen_reset_cursor(void)
+screen_reset_sgr(void)
 {
 	cursor.fg = termconf_scratch.default_fg;
 	cursor.bg = termconf_scratch.default_bg;
@@ -475,6 +482,7 @@ screen_cursor_set(int y, int x)
 	if (y >= H) y = H - 1;
 	cursor.x = x;
 	cursor.y = y;
+	clear_invalid_hanging();
 	NOTIFY_DONE();
 }
 
@@ -497,6 +505,7 @@ screen_cursor_set_x(int x)
 	NOTIFY_LOCK();
 	if (x >= W) x = W - 1;
 	cursor.x = x;
+	clear_invalid_hanging();
 	NOTIFY_DONE();
 }
 
@@ -520,6 +529,13 @@ screen_cursor_move(int dy, int dx, bool scroll)
 {
 	NOTIFY_LOCK();
 	int move;
+
+	clear_invalid_hanging();
+
+	if (cursor.hanging && dx < 0) {
+		dx += 1; // consume one step on the removal of "xenl"
+		cursor.hanging = false;
+	}
 
 	cursor.x += dx;
 	cursor.y += dy;
@@ -549,6 +565,7 @@ screen_cursor_save(bool withAttrs)
 {
 	cursor_sav.x = cursor.x;
 	cursor_sav.y = cursor.y;
+	cursor_sav.hanging = cursor.hanging;
 
 	cursor_sav.withAttrs = withAttrs;
 
@@ -572,6 +589,7 @@ screen_cursor_restore(bool withAttrs)
 	NOTIFY_LOCK();
 	cursor.x = cursor_sav.x;
 	cursor.y = cursor_sav.y;
+	cursor.hanging = cursor_sav.hanging;
 
 	if (withAttrs) {
 		cursor.fg = cursor_sav.fg;
@@ -628,17 +646,20 @@ screen_set_bg(Color color)
 	cursor.bg = color;
 }
 
-void screen_attr_enable(u8 attrs)
+void ICACHE_FLASH_ATTR
+screen_attr_enable(u8 attrs)
 {
 	cursor.attrs |= attrs;
 }
 
-void screen_attr_disable(u8 attrs)
+void ICACHE_FLASH_ATTR
+screen_attr_disable(u8 attrs)
 {
 	cursor.attrs &= ~attrs;
 }
 
-void screen_inverse_enable(bool ena)
+void ICACHE_FLASH_ATTR
+screen_inverse_enable(bool ena)
 {
 	cursor.inverse = ena;
 }
@@ -652,35 +673,40 @@ void screen_inverse_enable(bool ena)
  * @param x
  * @return OK
  */
-bool ICACHE_FLASH_ATTR screen_isCoordValid(int y, int x)
+bool ICACHE_FLASH_ATTR
+screen_isCoordValid(int y, int x)
 {
 	return x >= 0 && y >= 0 && x < W && y < H;
 }
 
-
-void ICACHE_FLASH_ATTR screen_set_charset_n(int Gx)
+void ICACHE_FLASH_ATTR
+screen_set_charset_n(int Gx)
 {
 	if (Gx < 0 || Gx > 1) return; // bad n
 	cursor.charsetN = Gx;
 }
 
-void ICACHE_FLASH_ATTR screen_set_charset(int Gx, char charset)
+void ICACHE_FLASH_ATTR
+screen_set_charset(int Gx, char charset)
 {
 	if (Gx == 0) cursor.charset0 = charset;
 	if (Gx == 1) cursor.charset1 = charset;
 }
 
-void ICACHE_FLASH_ATTR screen_set_insert_mode(bool insert)
+void ICACHE_FLASH_ATTR
+screen_set_insert_mode(bool insert)
 {
 	cursor.insert_mode = insert;
 }
 
-void ICACHE_FLASH_ATTR screen_set_keypad_application_mode(bool app_mode)
+void ICACHE_FLASH_ATTR
+screen_set_keypad_application_mode(bool app_mode)
 {
 	cursor.kp_alternate = app_mode;
 }
 
-void ICACHE_FLASH_ATTR screen_set_cursor_application_mode(bool app_mode)
+void ICACHE_FLASH_ATTR
+screen_set_cursor_application_mode(bool app_mode)
 {
 	cursor.curs_alternate = app_mode;
 }
@@ -693,7 +719,8 @@ screen_putchar(const char *ch)
 {
 	NOTIFY_LOCK();
 
-	Cell *c = &screen[cursor.x + cursor.y * W];
+	// clear "hanging" flag if not possible
+	clear_invalid_hanging();
 
 	// Special treatment for CRLF
 	switch (ch[0]) {
@@ -707,23 +734,27 @@ screen_putchar(const char *ch)
 
 		case 8: // BS
 			if (cursor.x > 0) {
-				cursor.x--;
+				if (cursor.hanging) {
+					cursor.hanging = false;
+				} else {
+					cursor.x--;
+				}
 			}
 			// we should not wrap around
 			// and apparently backspace should not even clear the cell
 			goto done;
 
 		case 9: // TAB
-			// TODO change to "go to next tab stop"
-			if (cursor.x<((W-1)-(W-1)%4)) {
-				c->c[0] = ' ';
-				c->c[1] = 0;
-				c->c[2] = 0;
-				c->c[3] = 0;
-				do {
-					screen_putchar(" ");
-				} while(cursor.x%4!=0);
-			}
+//			// TODO change to "go to next tab stop"
+//			if (cursor.x<((W-1)-(W-1)%4)) {
+//				c->c[0] = ' ';
+//				c->c[1] = 0;
+//				c->c[2] = 0;
+//				c->c[3] = 0;
+//				do {
+//					screen_putchar(" ");
+//				} while(cursor.x%4!=0);
+//			}
 			goto done;
 
 		default:
@@ -733,6 +764,25 @@ screen_putchar(const char *ch)
 				goto done;
 			}
 	}
+
+	if (cursor.hanging) {
+		// perform the scheduled wrap if hanging
+		// if autowrap = off, it overwrites the last char
+		if (cursor.autowrap) {
+			cursor.x = 0;
+			cursor.y++;
+			// Y wrap
+			if (cursor.y > H - 1) {
+				// Scroll up, so we have space for writing
+				screen_scroll_up(1);
+				cursor.y = H - 1;
+			}
+
+			cursor.hanging = false;
+		}
+	}
+
+	Cell *c = &screen[cursor.x + cursor.y * W];
 
 	// move the rest of the line if we're in Insert Mode
 	if (cursor.x < W-1 && cursor.insert_mode) screen_insert_characters(1);
@@ -758,18 +808,8 @@ screen_putchar(const char *ch)
 	cursor.x++;
 	// X wrap
 	if (cursor.x >= W) {
-		if (cursor.autowrap) {
-			cursor.x = 0;
-			cursor.y++;
-			// Y wrap
-			if (cursor.y > H - 1) {
-				// Scroll up, so we have space for writing
-				screen_scroll_up(1);
-				cursor.y = H - 1;
-			}
-		} else {
-			cursor.x = W - 1;
-		}
+		cursor.hanging = true; // hanging - next typed char wraps around, but backspace and arrows still stay on the same line.
+		cursor.x = W - 1;
 	}
 
 done:
@@ -998,9 +1038,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		encode2B((u16) cursor.y, &w3);
 		encode2B((u16) cursor.x, &w4);
 		encode2B((u16) (
-			cursor.fg |
-			(cursor.bg<<4) |
-			(cursor.visible ? 1<<8 : 0))
+				cursor.fg |
+				(cursor.bg<<4) |
+				(cursor.visible ? 1<<8 : 0) |
+				(cursor.hanging ? 1<<9 : 0)
+			)
 			, &w5);
 
 		// H W X Y Attribs

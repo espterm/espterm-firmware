@@ -1562,7 +1562,8 @@ var Screen = (function () {
 		bg: 0,
 		attrs: 0,
 		suppress: false, // do not turn on in blink interval (for safe moving)
-		hidden: false    // do not show
+		hidden: false,    // do not show
+		hanging: false,   // xenl
 	};
 
 	var screen = [];
@@ -1595,6 +1596,7 @@ var Screen = (function () {
 
 	/** Update cell on display. inv = invert (for cursor) */
 	function _draw(cell, inv) {
+		if (!cell) return;
 		if (typeof inv == 'undefined') {
 			inv = cursor.a && cursor.x == cell.x && cursor.y == cell.y;
 		}
@@ -1696,7 +1698,8 @@ var Screen = (function () {
 		clearInterval(blinkIval);
 		blinkIval = setInterval(function () {
 			cursor.a = !cursor.a;
-			if (cursor.hidden) {
+			// TODO try to invent a new way to indicate "hanging" - this is copied from gtkterm
+			if (cursor.hidden || cursor.hanging) {
 				cursor.a = false;
 			}
 
@@ -1755,6 +1758,8 @@ var Screen = (function () {
 		cursor.fg = num & 0x0F;
 		cursor.bg = (num & 0xF0) >> 4;
 		cursor.hidden = !(num & 0x100);
+		cursor.hanging = !!(num & 0x200);
+		// console.log("Attributes word ",num.toString(16)+'h');
 
 		fg = cursor.fg;
 		bg = cursor.bg;
@@ -1803,6 +1808,11 @@ var Screen = (function () {
 		}
 
 		_drawAll();
+
+		if (!cursor.hidden || cursor.hanging) {
+			// hide cursor asap
+			_draw(_curCell(), false);
+		}
 	}
 
 	function _load_labels(str) {

@@ -284,7 +284,7 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 				int n = params[i];
 
 				if (n == 0) { // reset SGR
-					screen_reset_cursor(); // resets colors, inverse and bold.
+					screen_reset_sgr(); // resets colors, inverse and bold.
 				}
 				else if (n >= 30 && n <= 37) screen_set_fg((Color) (n - 30)); // ANSI normal fg
 				else if (n >= 40 && n <= 47) screen_set_bg((Color) (n - 40)); // ANSI normal bg

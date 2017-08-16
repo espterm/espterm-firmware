@@ -153,7 +153,7 @@ void screen_cursor_set_x(int x);
 /** Set cursor Y position */
 void screen_cursor_set_y(int y);
 /** Reset cursor attribs */
-void screen_reset_cursor(void);
+void screen_reset_sgr(void);
 /** Relative cursor move */
 void screen_cursor_move(int dy, int dx, bool scroll);
 /** Save the cursor pos */
