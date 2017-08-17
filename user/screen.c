@@ -3,8 +3,6 @@
 #include "screen.h"
 #include "persist.h"
 
-//region Data structures
-
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
 
@@ -35,54 +33,51 @@ typedef struct __attribute__((packed)){
 static Cell screen[MAX_SCREEN_SIZE];
 
 /**
- * Cursor position and attributes
+ * Screen state structure
  */
 static struct {
-	int x;    //!< X coordinate
-	int y;    //!< Y coordinate
-	bool hanging; //!< xenl state
-
-	bool autowrap;   //!< Wrapping when EOL
-	bool insert_mode; //!< Insert mode (move rest of the line to the right)
-
-	// TODO use those for input processing
-	bool kp_alternate;   //!< Application Mode - affects how user input of control keys is sent
-	bool curs_alternate; //!< Application mode for cursor keys
-
-	bool visible;    //!< Visible (not attribute, DEC special)
-	bool inverse;
-	u8 attrs;
+	bool numpad_alt_mode;   //!< Application Mode - affects how user input of control keys is sent
+	bool cursors_alt_mode; //!< Application mode for cursor keys
 
 	char charset0;
 	char charset1;
-	int charsetN;
+} scr;
 
-	Color fg;        //!< Foreground color for writing
-	Color bg;        //!< Background color for writing
-} cursor;
+typedef struct {
+	int x;        //!< X coordinate
+	int y;        //!< Y coordinate
+	bool hanging; //!< xenl state - cursor half-wrapped
+
+	// SGR
+	bool inverse; //!< not in attrs bc it's applied server-side (not sent to browser)
+	u8 attrs;
+	Color fg;     //!< Foreground color for writing
+	Color bg;     //!< Background color for writing
+
+	// Other attribs
+	int charsetN;
+	bool wraparound;   //!< Wrapping when EOL
+
+	// Not saved/restored
+	bool insert_mode;    //!< Insert mode (move rest of the line to the right)
+	bool visible; //!< Visible (not attribute, DEC special)
+} CursorTypeDef;
+
+/**
+ * Cursor position and attributes
+ */
+static CursorTypeDef cursor;
 
 /**
  * Saved cursor position, used with the SCP RCP commands
  */
-static struct {
-	int x;
-	int y;
-	bool hanging; //!< xenl state
+static CursorTypeDef cursor_sav;
 
-	// mark that attrs are saved
-	bool withAttrs;
-	u8 attrs;
-	bool inverse; // attribute that's not in the bitfield
-	Color fg;
-	Color bg;
-} cursor_sav;
-
-// XXX volatile is probably not needed
+/**
+ * This is used to prevent premature change notifications
+ * (from nested calls)
+ */
 static volatile int notifyLock = 0;
-
-//endregion
-
-//region Helpers
 
 #define NOTIFY_LOCK()   do { \
 							notifyLock++; \
@@ -93,7 +88,12 @@ static volatile int notifyLock = 0;
 							if (notifyLock == 0) screen_notifyChange(CHANGE_CONTENT); \
 						} while(0)
 
-#define clear_invalid_hanging() do { if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; } while(false)
+/** Clear the hanging attribute if the cursor is no longer >= W */
+#define clear_invalid_hanging() do { \
+									if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; \
+								} while(false)
+
+//region --- Settings ---
 
 /**
  * Restore hard defaults
@@ -133,6 +133,75 @@ void terminal_apply_settings_noclear(void)
 		screen_init();
 	}
 }
+//endregion
+
+//region --- Reset / Init ---
+
+/**
+ * Init the screen (entire mappable area - for consistency)
+ */
+void ICACHE_FLASH_ATTR
+screen_init(void)
+{
+	NOTIFY_LOCK();
+	screen_reset();
+	NOTIFY_DONE();
+}
+
+/**
+ * Reset the cursor position & colors
+ */
+static void ICACHE_FLASH_ATTR
+cursor_reset(void)
+{
+	cursor.x = 0;
+	cursor.y = 0;
+	cursor.hanging = false;
+	cursor.visible = true;
+	cursor.insert_mode = false;
+
+	cursor.charsetN = 0;
+	cursor.wraparound = true;
+
+	screen_reset_sgr();
+}
+
+/**
+ * Reset the cursor (\e[0m)
+ */
+void ICACHE_FLASH_ATTR
+screen_reset_sgr(void)
+{
+	cursor.fg = termconf_scratch.default_fg;
+	cursor.bg = termconf_scratch.default_bg;
+	cursor.attrs = 0;
+	cursor.inverse = false;
+}
+
+/**
+ * Reset the screen - called by ESC c
+ */
+void ICACHE_FLASH_ATTR
+screen_reset(void)
+{
+	NOTIFY_LOCK();
+
+	cursor_reset();
+
+	scr.numpad_alt_mode = false;
+	scr.cursors_alt_mode = false;
+
+	scr.charset0 = 'B';
+	scr.charset1 = '0';
+
+	// size is left unchanged
+	screen_clear(CLEAR_ALL);
+
+	NOTIFY_DONE();
+}
+//endregion
+
+//region --- Clearing & inserting ---
 
 /**
  * Clear range, inclusive
@@ -156,71 +225,6 @@ clear_range(unsigned int from, unsigned int to)
 	for (unsigned int i = from; i <= to; i++) {
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
-}
-
-/**
- * Reset the cursor position & colors
- */
-static void ICACHE_FLASH_ATTR
-cursor_reset(void)
-{
-	// TODO this should probably be public and invoked by "soft reset"
-
-	cursor.x = 0;
-	cursor.y = 0;
-	cursor.hanging = false;
-	cursor.fg = termconf_scratch.default_fg;
-	cursor.bg = termconf_scratch.default_bg;
-	cursor.visible = true;
-	cursor.autowrap = true;
-	cursor.attrs = false;
-	cursor.insert_mode = false;
-
-	cursor.kp_alternate = false;
-	cursor.curs_alternate = false;
-
-	cursor.charset0 = 'B';
-	cursor.charset1 = '0';
-	cursor.charsetN = 0;
-}
-
-//endregion
-
-//region Screen clearing
-
-/**
- * Init the screen (entire mappable area - for consistency)
- */
-void ICACHE_FLASH_ATTR
-screen_init(void)
-{
-	NOTIFY_LOCK();
-	screen_reset();
-	NOTIFY_DONE();
-}
-
-/**
- * Reset the screen (only the visible area)
- */
-void ICACHE_FLASH_ATTR
-screen_reset(void)
-{
-	NOTIFY_LOCK();
-	cursor_reset();
-	screen_clear(CLEAR_ALL);
-	NOTIFY_DONE();
-}
-
-/**
- * Reset the cursor
- */
-void ICACHE_FLASH_ATTR
-screen_reset_sgr(void)
-{
-	cursor.fg = termconf_scratch.default_fg;
-	cursor.bg = termconf_scratch.default_bg;
-	cursor.attrs = 0;
-	cursor.inverse = false;
 }
 
 /**
@@ -281,29 +285,6 @@ screen_clear_in_line(unsigned int count)
 		NOTIFY_DONE();
 	}
 }
-
-void ICACHE_FLASH_ATTR
-screen_fill_with_E(void)
-{
-	NOTIFY_LOCK();
-	Cell sample;
-	sample.c[0] = 'E';
-	sample.c[1] = 0;
-	sample.c[2] = 0;
-	sample.c[3] = 0;
-	sample.fg = termconf_scratch.default_fg;
-	sample.bg = termconf_scratch.default_bg;
-	sample.attrs = 0;
-
-	for (unsigned int i = 0; i <= W*H-1; i++) {
-		memcpy(&screen[i], &sample, sizeof(Cell));
-	}
-	NOTIFY_DONE();
-}
-
-//endregion
-
-//region Screen manipulation
 
 void screen_insert_lines(unsigned int lines)
 {
@@ -383,6 +364,28 @@ void screen_delete_characters(unsigned int count)
 	}
 	NOTIFY_DONE();
 }
+//endregion
+
+//region --- Entire screen manipulation ---
+
+void ICACHE_FLASH_ATTR
+screen_fill_with_E(void)
+{
+	NOTIFY_LOCK();
+	Cell sample;
+	sample.c[0] = 'E';
+	sample.c[1] = 0;
+	sample.c[2] = 0;
+	sample.c[3] = 0;
+	sample.fg = termconf_scratch.default_fg;
+	sample.bg = termconf_scratch.default_bg;
+	sample.attrs = 0;
+
+	for (unsigned int i = 0; i <= W*H-1; i++) {
+		memcpy(&screen[i], &sample, sizeof(Cell));
+	}
+	NOTIFY_DONE();
+}
 
 /**
  * Change the screen size
@@ -408,7 +411,7 @@ screen_resize(int rows, int cols)
 	W = cols;
 	H = rows;
 	screen_reset();
-done:
+	done:
 	NOTIFY_DONE();
 }
 
@@ -436,7 +439,7 @@ screen_scroll_up(unsigned int lines)
 
 	clear_range(y * W, W * H - 1);
 
-done:
+	done:
 	NOTIFY_DONE();
 }
 
@@ -463,13 +466,12 @@ screen_scroll_down(unsigned int lines)
 	}
 
 	clear_range(0, lines * W-1);
-done:
+	done:
 	NOTIFY_DONE();
 }
-
 //endregion
 
-//region Cursor manipulation
+//region --- Cursor manipulation ---
 
 /**
  * Set cursor position
@@ -563,21 +565,8 @@ screen_cursor_move(int dy, int dx, bool scroll)
 void ICACHE_FLASH_ATTR
 screen_cursor_save(bool withAttrs)
 {
-	cursor_sav.x = cursor.x;
-	cursor_sav.y = cursor.y;
-	cursor_sav.hanging = cursor.hanging;
-
-	cursor_sav.withAttrs = withAttrs;
-
-	if (withAttrs) {
-		cursor_sav.fg = cursor.fg;
-		cursor_sav.bg = cursor.bg;
-		cursor_sav.attrs = cursor.attrs;
-	} else {
-		cursor_sav.fg = termconf_scratch.default_fg;
-		cursor_sav.bg = termconf_scratch.default_bg;
-		cursor_sav.attrs = 0; // avoid leftovers if the wrong restore is used
-	}
+	// always save with attribs
+	memcpy(&cursor_sav, &cursor, sizeof(CursorTypeDef));
 }
 
 /**
@@ -587,27 +576,29 @@ void ICACHE_FLASH_ATTR
 screen_cursor_restore(bool withAttrs)
 {
 	NOTIFY_LOCK();
-	cursor.x = cursor_sav.x;
-	cursor.y = cursor_sav.y;
-	cursor.hanging = cursor_sav.hanging;
 
 	if (withAttrs) {
-		cursor.fg = cursor_sav.fg;
-		cursor.bg = cursor_sav.bg;
-		cursor.attrs = cursor_sav.attrs;
+		memcpy(&cursor_sav, &cursor, sizeof(CursorTypeDef));
+	} else {
+		cursor.x = cursor_sav.x;
+		cursor.y = cursor_sav.y;
+		cursor.hanging = cursor_sav.hanging;
 	}
 
 	NOTIFY_DONE();
 }
+//endregion
+
+//region --- Attribute setting ---
 
 /**
  * Enable cursor display
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_enable(bool enable)
+screen_cursor_visible(bool visible)
 {
 	NOTIFY_LOCK();
-	cursor.visible = enable;
+	cursor.visible = visible;
 	NOTIFY_DONE();
 }
 
@@ -617,14 +608,8 @@ screen_cursor_enable(bool enable)
 void ICACHE_FLASH_ATTR
 screen_wrap_enable(bool enable)
 {
-	NOTIFY_LOCK();
-	cursor.autowrap = enable;
-	NOTIFY_DONE();
+	cursor.wraparound = enable;
 }
-
-//endregion
-
-//region Colors
 
 /**
  * Set cursor foreground color
@@ -664,8 +649,6 @@ screen_inverse_enable(bool ena)
 	cursor.inverse = ena;
 }
 
-//endregion
-
 /**
  * Check if coords are in range
  *
@@ -689,8 +672,8 @@ screen_set_charset_n(int Gx)
 void ICACHE_FLASH_ATTR
 screen_set_charset(int Gx, char charset)
 {
-	if (Gx == 0) cursor.charset0 = charset;
-	if (Gx == 1) cursor.charset1 = charset;
+	if (Gx == 0) scr.charset0 = charset;
+	if (Gx == 1) scr.charset1 = charset;
 }
 
 void ICACHE_FLASH_ATTR
@@ -700,16 +683,19 @@ screen_set_insert_mode(bool insert)
 }
 
 void ICACHE_FLASH_ATTR
-screen_set_keypad_application_mode(bool app_mode)
+screen_set_numpad_alt_mode(bool alt_mode)
 {
-	cursor.kp_alternate = app_mode;
+	scr.numpad_alt_mode = alt_mode;
 }
 
 void ICACHE_FLASH_ATTR
-screen_set_cursor_application_mode(bool app_mode)
+screen_set_cursors_alt_mode(bool alt_mode)
 {
-	cursor.curs_alternate = app_mode;
+	scr.cursors_alt_mode = alt_mode;
 }
+//endregion
+
+//region --- Printing ---
 
 /**
  * Set a character in the cursor color, move to right with wrap.
@@ -768,7 +754,7 @@ screen_putchar(const char *ch)
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
 		// if autowrap = off, it overwrites the last char
-		if (cursor.autowrap) {
+		if (cursor.wraparound) {
 			cursor.x = 0;
 			cursor.y++;
 			// Y wrap
@@ -789,7 +775,7 @@ screen_putchar(const char *ch)
 
 	if (ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII
-		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? scr.charset0 : scr.charset1);
 	}
 	else {
 		// copy unicode char
@@ -812,7 +798,7 @@ screen_putchar(const char *ch)
 		cursor.x = W - 1;
 	}
 
-done:
+	done:
 	NOTIFY_DONE();
 }
 
@@ -821,32 +807,32 @@ done:
  * Based on rxvt-unicode screen.C table.
  */
 static const u16 vt100_to_unicode[62] =
-{
+	{
 // ?       ?       ?       ?       ?       ?       ?
 // A=UPARR B=DNARR C=RTARR D=LFARR E=FLBLK F=3/4BL G=SNOMN
-	0x2191, 0x2193, 0x2192, 0x2190, 0x2588, 0x259a, 0x2603,
+		0x2191, 0x2193, 0x2192, 0x2190, 0x2588, 0x259a, 0x2603,
 // H=      I=      J=      K=      L=      M=      N=
-	0,      0,      0,      0,      0,      0,      0,
+		0,      0,      0,      0,      0,      0,      0,
 // O=      P=      Q=      R=      S=      T=      U=
-	0,      0,      0,      0,      0,      0,      0,
+		0,      0,      0,      0,      0,      0,      0,
 // V=      W=      X=      Y=      Z=      [=      \=
-	0,      0,      0,      0,      0,      0,      0,
+		0,      0,      0,      0,      0,      0,      0,
 // ?       ?       v->0    v->1    v->2    v->3    v->4
 // ]=      ^=      _=SPC   `=DIAMN a=HSMED b=HT    c=FF
-	0,      0,      0x0020, 0x25c6, 0x2592, 0x2409, 0x240c,
+		0,      0,      0x0020, 0x25c6, 0x2592, 0x2409, 0x240c,
 // v->5    v->6    v->7    v->8    v->9    v->a    v->b
 // d=CR    e=LF    f=DEGRE g=PLSMN h=NL    i=VT    j=SL-BR
-	0x240d, 0x240a, 0x00b0, 0x00b1, 0x2424, 0x240b, 0x2518,
+		0x240d, 0x240a, 0x00b0, 0x00b1, 0x2424, 0x240b, 0x2518,
 // v->c    v->d    v->e    v->f    v->10   v->11   v->12
 // k=SL-TR l=SL-TL m=SL-BL n=SL-+  o=SL-T1 p=SL-T2 q=SL-HZ
-	0x2510, 0x250c, 0x2514, 0x253c, 0x23ba, 0x23bb, 0x2500,
+		0x2510, 0x250c, 0x2514, 0x253c, 0x23ba, 0x23bb, 0x2500,
 // v->13   v->14   v->15   v->16   v->17   v->18   v->19
 // r=SL-T4 s=SL-T5 t=SL-VR u=SL-VL v=SL-HU w=Sl-HD x=SL-VT
-	0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c, 0x2502,
+		0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c, 0x2502,
 // v->1a   v->1b   b->1c   v->1d   v->1e/a3 v->1f
 // y=LT-EQ z=GT-EQ {=PI    |=NOTEQ }=POUND ~=DOT
-	0x2264, 0x2265, 0x03c0, 0x2260, 0x20a4, 0x00b7
-};
+		0x2264, 0x2265, 0x03c0, 0x2260, 0x20a4, 0x00b7
+	};
 
 /**
  * UTF remap
@@ -899,45 +885,9 @@ utf8_remap(char *out, char g, char table)
 		out[1] = 0;
 	}
 }
+//endregion
 
-
-
-//region Serialization
-
-#if 0
-/**
- * Debug dump
- */
-void screen_dd(void)
-{
-	for (int y = 0; y < H; y++) {
-		for (int x = 0; x < W; x++) {
-			Cell *cell = &screen[y * W + x];
-
-			// FG
-			printf("\033[");
-			if (cell->fg > 7) {
-				printf("%d", 90 + cell->fg - 8);
-			} else {
-				printf("%d", 30 + cell->fg);
-			}
-			printf("m");
-
-			// BG
-			printf("\033[");
-			if (cell->bg > 7) {
-				printf("%d", 100 + cell->bg - 8);
-			} else {
-				printf("%d", 40 + cell->bg);
-			}
-			printf("m");
-
-			printf("%c", cell->c);
-		}
-		printf("\033[0m\n");
-	}
-}
-#endif
+//region --- Serialization ---
 
 struct ScreenSerializeState {
 	Color lastFg;
@@ -1020,7 +970,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	char *bb = buffer;
 
 	// Ideally we'd use snprintf here!
-	#define bufprint(fmt, ...) do { \
+#define bufprint(fmt, ...) do { \
 			used = sprintf(bb, fmt, ##__VA_ARGS__); \
 			if(used>0) { bb += used; remain -= used; } \
 		} while(0)
@@ -1038,11 +988,13 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		encode2B((u16) cursor.y, &w3);
 		encode2B((u16) cursor.x, &w4);
 		encode2B((u16) (
-				cursor.fg |
-				(cursor.bg<<4) |
-				(cursor.visible ? 1<<8 : 0) |
-				(cursor.hanging ? 1<<9 : 0)
-			)
+					 cursor.fg |
+					 (cursor.bg<<4) |
+					 (cursor.visible ? 1<<8 : 0) |
+					 (cursor.hanging ? 1<<9 : 0) |
+					 (scr.cursors_alt_mode ? 1<<10 : 0) |
+					 (scr.numpad_alt_mode ? 1<<11 : 0)
+				 )
 			, &w5);
 
 		// H W X Y Attribs
@@ -1056,10 +1008,10 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		// Count how many times same as previous
 		int repCnt = 0;
 		while (i < W*H
-		       && cell->fg == ss->lastFg
-		       && cell->bg == ss->lastBg
-		       && cell->attrs == ss->lastAttrs
-		       && strneq(cell->c, ss->lastChar, 4)) {
+			   && cell->fg == ss->lastFg
+			   && cell->bg == ss->lastBg
+			   && cell->attrs == ss->lastAttrs
+			   && strneq(cell->c, ss->lastChar, 4)) {
 			// Repeat
 			repCnt++;
 			cell = &screen[++i];
@@ -1116,5 +1068,4 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 	return HTTPD_CGI_DONE;
 }
-
 //endregion

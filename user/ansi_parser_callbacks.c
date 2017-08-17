@@ -251,13 +251,13 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 				int n = params[i];
 				if (leadchar == '?') {
 					if (n == 25) {
-						screen_cursor_enable(yn);
+						screen_cursor_visible(yn);
 					}
 					else if (n == 7) {
 						screen_wrap_enable(yn);
 					}
 					else if (n == 1) {
-						screen_set_cursor_application_mode(yn);
+						screen_set_cursors_alt_mode(yn);
 					}
 					else {
 						ansi_warn("NOIMPL DEC opt %d", n);
@@ -370,13 +370,6 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 			ansi_warn("NOIMPL cursor back tab");
 			break;
 
-		case 'p':
-			if (leadchar == '!') {
-				info("SOFT RESET!");
-				screen_reset(); // TODO do soft reset
-			}
-			break;
-
 		case 'c': // CSI-c
 			// report capabilities (pretend we're vt4xx)
 			UART_WriteString(UART0, "\033[?64;22;c", UART_TIMEOUT_US);
@@ -436,7 +429,7 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			break;
 
 		case '>':
-			screen_set_keypad_application_mode(false);
+			screen_set_numpad_alt_mode(false);
 			break;
 
 		case '<':
@@ -444,7 +437,7 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			break;
 
 		case '=':
-			screen_set_keypad_application_mode(true);
+			screen_set_numpad_alt_mode(true);
 			break;
 
 		default:

@@ -80,12 +80,7 @@ void terminal_restore_defaults(void);
 void terminal_apply_settings(void);
 void terminal_apply_settings_noclear(void); // the same, but with no screen reset / init
 
-/**
- * Maximum screen size (determines size of the static data array)
- *
- * TODO May need adjusting if there are size problems when flashing the ESP.
- * We could also try to pack the Cell struct to a single 32bit word.
- */
+/** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*30)
 
 typedef enum {
@@ -161,7 +156,7 @@ void screen_cursor_save(bool withAttrs);
 /** Restore the cursor pos */
 void screen_cursor_restore(bool withAttrs);
 /** Enable cursor display */
-void screen_cursor_enable(bool enable);
+void screen_cursor_visible(bool visible);
 /** Enable auto wrap */
 void screen_wrap_enable(bool enable);
 
@@ -181,9 +176,9 @@ void screen_inverse_enable(bool ena);
 /** Toggle INSERT / REPLACE */
 void screen_set_insert_mode(bool insert);
 /** Toggle application keypad mode */
-void screen_set_keypad_application_mode(bool app_mode);
+void screen_set_numpad_alt_mode(bool app_mode);
 /** Toggle application cursor mode */
-void screen_set_cursor_application_mode(bool app_mode);
+void screen_set_cursors_alt_mode(bool app_mode);
 
 void screen_set_charset_n(int Gx);
 void screen_set_charset(int Gx, char charset);
