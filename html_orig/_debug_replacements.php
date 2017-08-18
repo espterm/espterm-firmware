@@ -16,14 +16,10 @@ return [
 	'labels_seq' => 'TESPTerm local debug1235',
 
 	'screenData' => 'HELLOxNRE3',//'\u000b\u0001\u001b\u0001\u0001\u0001\u0001\u0001\f\u0005\u0001\u0010\u0003HELLOx\u0002\u000b\u0001\u0001N\u0001RE\u00023\u0001', //,
-	/*'{
-		 "w": 26, "h": 10,
-		 "x": 10, "y": 5,
-		 "cv": 1, "fg": 10, "bg": 2,
-		 "screen": ""
-	}',//"70 t259"*/
 
 	'parser_tout_ms' => 10,
+	'display_tout_ms' => 20,
+	'fn_alt_mode' => '1',
 
 	'opmode' => '2',
 	'sta_enable' => '0',

@@ -110,6 +110,18 @@
 		<span class="mq-no-phone">&nbsp;ms</span>
 	</div>
 
+	<div class="Row">
+		<label for="display_tout_ms"><?= tr('term.display_tout_ms') ?><span class="mq-phone">&nbsp;(ms)</span></label>
+		<input type="number" step=1 min=0 name="display_tout_ms" id="display_tout_ms" value="%display_tout_ms%" required>
+		<span class="mq-no-phone">&nbsp;ms</span>
+	</div>
+
+	<div class="Row checkbox" >
+		<label><?= tr('term.fn_alt_mode') ?></label><!--
+		--><span class="box" tabindex=0 role=checkbox></span>
+		<input type="hidden" id="fn_alt_mode" name="fn_alt_mode" value="%fn_alt_mode%">
+	</div>
+
 	<div class="Row buttons">
 		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
 	</div>
