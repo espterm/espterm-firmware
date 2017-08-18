@@ -74,18 +74,19 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 {
 	// this is not the most ideal/cleanest implementation
 	// PRs are welcome for a nicer update "queue" solution
+	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 
 	if (topic == CHANGE_LABELS) {
 		// separate timer from content change timer, to avoid losing that update
 		os_timer_disarm(&notifyTim2);
 		os_timer_setfn(&notifyTim2, notifyLabelsTimCb, NULL);
-		os_timer_arm(&notifyTim2, SCREEN_NOTIFY_DELAY_MS, 0);
+		os_timer_arm(&notifyTim2, termconf->display_tout_ms, 0);
 	}
 	else if (topic == CHANGE_CONTENT) {
 		// throttle delay
 		os_timer_disarm(&notifyTim);
 		os_timer_setfn(&notifyTim, notifyTimCb, NULL);
-		os_timer_arm(&notifyTim, SCREEN_NOTIFY_DELAY_MS, 0);
+		os_timer_arm(&notifyTim, termconf->display_tout_ms, 0);
 	}
 }
 

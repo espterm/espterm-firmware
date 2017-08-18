@@ -34,7 +34,7 @@
  *
  */
 
-// Size designed for the wifi config structure
+// Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define TERMCONF_SIZE 200
 
@@ -54,7 +54,16 @@ typedef enum {
 #define ATTR_FRAKTUR (1<<5)
 #define ATTR_STRIKE (1<<6)
 
-#define SCREEN_NOTIFY_DELAY_MS 20
+#define SCR_DEF_DISPLAY_TOUT_MS 20
+#define SCR_DEF_PARSER_TOUT_MS 10
+#define SCR_DEF_FN_ALT_MODE false
+#define SCR_DEF_WIDTH 26
+#define SCR_DEF_HEIGHT 10
+#define SCR_DEF_TITLE "ESPTerm"
+
+/** Maximum screen size (determines size of the static data array) */
+#define MAX_SCREEN_SIZE (80*30)
+
 
 typedef struct {
 	u32 width;
@@ -65,6 +74,8 @@ typedef struct {
 	char btn[5][TERM_BTN_LEN];
 	u8 theme;
 	u32 parser_tout_ms;
+	u32 display_tout_ms;
+	bool fn_alt_mode; // xterm compatibility mode (alternate codes for some FN keys)
 } TerminalConfigBundle;
 
 // Live config
@@ -80,8 +91,6 @@ void terminal_restore_defaults(void);
 void terminal_apply_settings(void);
 void terminal_apply_settings_noclear(void); // the same, but with no screen reset / init
 
-/** Maximum screen size (determines size of the static data array) */
-#define MAX_SCREEN_SIZE (80*30)
 
 typedef enum {
 	CLEAR_TO_CURSOR=0, CLEAR_FROM_CURSOR=1, CLEAR_ALL=2

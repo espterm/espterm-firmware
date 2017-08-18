@@ -23,11 +23,16 @@
       right: 39, down: 40,
       del: 46, 'delete': 46,
       home: 36, end: 35,
-      pageup: 33, pagedown: 34, insert: 45, // added insert
+      pageup: 33, pagedown: 34,
       ',': 188, '.': 190, '/': 191,
       '`': 192, '-': 189, '=': 187,
       ';': 186, '\'': 222,
-      '[': 219, ']': 221, '\\': 220
+      '[': 219, ']': 221, '\\': 220,
+      // added:
+      insert: 45,
+      np_0: 96, np_1: 97, np_2: 98, np_3: 99, np_4: 100, np_5: 101,
+	  np_6: 102, np_7: 103, np_8: 104, np_9: 105, np_mul: 106,
+	  np_add: 107, np_sub: 109, np_point: 110, np_div: 111, numlock: 144,
     },
     code = function(x){
       return _MAP[x] || x.toUpperCase().charCodeAt(0);

@@ -726,11 +726,16 @@
       right: 39, down: 40,
       del: 46, 'delete': 46,
       home: 36, end: 35,
-      pageup: 33, pagedown: 34, insert: 45, // added insert
+      pageup: 33, pagedown: 34,
       ',': 188, '.': 190, '/': 191,
       '`': 192, '-': 189, '=': 187,
       ';': 186, '\'': 222,
-      '[': 219, ']': 221, '\\': 220
+      '[': 219, ']': 221, '\\': 220,
+      // added:
+      insert: 45,
+      np_0: 96, np_1: 97, np_2: 98, np_3: 99, np_4: 100, np_5: 101,
+	  np_6: 102, np_7: 103, np_8: 104, np_9: 105, np_mul: 106,
+	  np_add: 107, np_sub: 109, np_point: 110, np_div: 111, numlock: 144,
     },
     code = function(x){
       return _MAP[x] || x.toUpperCase().charCodeAt(0);
@@ -1761,6 +1766,12 @@ var Screen = (function () {
 		cursor.hanging = !!(num & 0x200);
 		// console.log("Attributes word ",num.toString(16)+'h');
 
+		Input.setAlts(
+			!!(num & 0x400), // cu
+			!!(num & 0x800), // np
+			!!(num & 0x1000) // fn
+		);
+
 		fg = cursor.fg;
 		bg = cursor.bg;
 		attrs = 0;
@@ -1821,7 +1832,7 @@ var Screen = (function () {
 		qsa('#buttons button').forEach(function(x, i) {
 			var s = pieces[i+1].trim();
 			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
-			x.innerHTML = s.length >0 ? e(s) : "&nbsp;";
+			x.innerHTML = s.length > 0 ? e(s) : "&nbsp;";
 			x.style.opacity = s.length > 0 ? 1 : 0.2;
 		});
 	}
@@ -1875,6 +1886,7 @@ var Conn = (function() {
 
 	function doSend(message) {
 		console.log("TX: ", message);
+
 		if (!ws) return; // for dry testing
 		if (ws.readyState != 1) {
 			console.error("Socket not ready");
@@ -1913,6 +1925,12 @@ var Conn = (function() {
 
 /** User input */
 var Input = (function() {
+	var opts = {
+		np_alt: false,
+		cu_alt: false,
+		fn_alt: false,
+	};
+
 	function sendStrMsg(str) {
 		Conn.send("STR:"+str);
 	}
@@ -1923,6 +1941,99 @@ var Input = (function() {
 
 	function sendBtnMsg(n) {
 		Conn.send("BTN:"+n);
+	}
+
+	function fa(alt, normal) {
+		return opts.fn_alt ? alt : normal;
+	}
+
+	function ca(alt, normal) {
+		return opts.cu_alt ? alt : normal;
+	}
+
+	function na(alt, normal) {
+		return opts.np_alt ? alt : normal;
+	}
+
+	function _bindFnKeys() {
+		var keymap = {
+			'tab': '\x09',
+			'backspace': '\x08',
+			'enter': '\x0d',
+			'ctrl+enter': '\x0a',
+			'esc': '\x1b',
+			'up': ca('\x1bOA', '\x1b[A'),
+			'down': ca('\x1bOB', '\x1b[B'),
+			'right': ca('\x1bOC', '\x1b[C'),
+			'left': ca('\x1bOD', '\x1b[D'),
+			'home': fa('\x1bOH', '\x1b[1~'),
+			'insert': '\x1b[2~',
+			'delete': '\x1b[3~',
+			'end': fa('\x1bOF', '\x1b[4~'),
+			'pageup': '\x1b[5~',
+			'pagedown': '\x1b[6~',
+			'f1': fa('\x1bOP', '\x1b[11~'),
+			'f2': fa('\x1bOQ', '\x1b[12~'),
+			'f3': fa('\x1bOR', '\x1b[13~'),
+			'f4': fa('\x1bOS', '\x1b[14~'),
+			'f5': '\x1b[15~', // note the disconnect
+			'f6': '\x1b[17~',
+			'f7': '\x1b[18~',
+			'f8': '\x1b[19~',
+			'f9': '\x1b[20~',
+			'f10': '\x1b[21~', // note the disconnect
+			'f11': '\x1b[23~',
+			'f12': '\x1b[24~',
+			'shift+f1': fa('\x1bO1;2P', '\x1b[25~'),
+			'shift+f2': fa('\x1bO1;2Q', '\x1b[26~'), // note the disconnect
+			'shift+f3': fa('\x1bO1;2R', '\x1b[28~'),
+			'shift+f4': fa('\x1bO1;2S', '\x1b[29~'), // note the disconnect
+			'shift+f5': fa('\x1b[15;2~', '\x1b[31~'),
+			'shift+f6': fa('\x1b[17;2~', '\x1b[32~'),
+			'shift+f7': fa('\x1b[18;2~', '\x1b[33~'),
+			'shift+f8': fa('\x1b[19;2~', '\x1b[34~'),
+			'shift+f9': fa('\x1b[20;2~', '\x1b[35~'), // 35-38 are not standard - but what is?
+			'shift+f10': fa('\x1b[21;2~', '\x1b[36~'),
+			'shift+f11': fa('\x1b[22;2~', '\x1b[37~'),
+			'shift+f12': fa('\x1b[23;2~', '\x1b[38~'),
+			'np_0': na('\x1bOp', '0'),
+			'np_1': na('\x1bOq', '1'),
+			'np_2': na('\x1bOr', '2'),
+			'np_3': na('\x1bOs', '3'),
+			'np_4': na('\x1bOt', '4'),
+			'np_5': na('\x1bOu', '5'),
+			'np_6': na('\x1bOv', '6'),
+			'np_7': na('\x1bOw', '7'),
+			'np_8': na('\x1bOx', '8'),
+			'np_9': na('\x1bOy', '9'),
+			'np_mul': na('\x1bOR', '*'),
+			'np_add': na('\x1bOl', '+'),
+			'np_sub': na('\x1bOS', '-'),
+			'np_point': na('\x1bOn', '.'),
+			'np_div': na('\x1bOQ', '/'),
+			// we don't implement numlock key (should change in numpad_alt mode, but it's even more useless than the rest)
+		};
+
+		for (var k in keymap) {
+			if (keymap.hasOwnProperty(k)) {
+				bind(k, keymap[k]);
+			}
+		}
+	}
+
+	function bind(combo, str) {
+		// mac fix - allow also cmd
+		if (combo.indexOf('ctrl+') !== -1) {
+			combo += ',' + combo.replace('ctrl', 'command');
+		}
+
+		// unbind possible old binding
+		key.unbind(combo);
+
+		key(combo, function (e) {
+			e.preventDefault();
+			sendStrMsg(str)
+		});
 	}
 
 	function _initKeys() {
@@ -1937,62 +2048,6 @@ var Input = (function() {
 			}
 		});
 
-		var keymap = {
-			'tab': '\x09',
-			'backspace': '\x08',
-			'enter': '\x0d',
-			'ctrl+enter': '\x0a',
-			'esc': '\x1b',
-			'up': '\x1b[A',
-			'down': '\x1b[B',
-			'right': '\x1b[C',
-			'left': '\x1b[D',
-			'home': '\x1b[1~',
-			'insert': '\x1b[2~',
-			'delete': '\x1b[3~',
-			'end': '\x1b[4~',
-			'pageup': '\x1b[5~',
-			'pagedown': '\x1b[6~',
-			'f1': '\x1b[11~',
-			'f2': '\x1b[12~',
-			'f3': '\x1b[13~',
-			'f4': '\x1b[14~',
-			'f5': '\x1b[15~', // disconnect
-			'f6': '\x1b[17~',
-			'f7': '\x1b[18~',
-			'f8': '\x1b[19~',
-			'f9': '\x1b[20~',
-			'f10': '\x1b[21~', // disconnect
-			'f11': '\x1b[23~',
-			'f12': '\x1b[24~',
-			'shift+f1': '\x1b[25~',
-			'shift+f2': '\x1b[26~', // disconnect
-			'shift+f3': '\x1b[28~',
-			'shift+f4': '\x1b[29~', // disconnect
-			'shift+f5': '\x1b[31~',
-			'shift+f6': '\x1b[32~',
-			'shift+f7': '\x1b[33~',
-			'shift+f8': '\x1b[34~',
-		};
-
-		function bind(combo, str) {
-			// mac fix - allow also cmd
-			if (combo.indexOf('ctrl+') !== -1) {
-				combo += ',' + combo.replace('ctrl', 'command');
-			}
-			key(combo, function (e) {
-				e.preventDefault();
-//				console.log(combo);
-				sendStrMsg(str)
-			});
-		}
-
-		for (var k in keymap) {
-			if (keymap.hasOwnProperty(k)) {
-				bind(k, keymap[k]);
-			}
-		}
-
 		// ctrl-letter codes are sent as simple low ASCII codes
 		for (var i = 1; i<=26;i++) {
 			bind('ctrl+' + String.fromCharCode(96+i), String.fromCharCode(i));
@@ -2002,6 +2057,8 @@ var Input = (function() {
 		bind('ctrl+[', '\x1d');
 		bind('ctrl+^', '\x1e');
 		bind('ctrl+_', '\x1f');
+
+		_bindFnKeys();
 	}
 
 	function init() {
@@ -2019,6 +2076,17 @@ var Input = (function() {
 		init: init,
 		onTap: sendPosMsg,
 		sendString: sendStrMsg,
+		setAlts: function(cu, np, fn) {
+			console.log("Set alts ", cu, np, fn);
+			if (opts.cu_alt != cu || opts.np_alt != np || opts.fn_alt != fn) {
+				opts.cu_alt = cu;
+				opts.np_alt = np;
+				opts.fn_alt = fn;
+
+				// rebind keys - codes have changed
+				_bindFnKeys();
+			}
+		},
 	};
 })();
 

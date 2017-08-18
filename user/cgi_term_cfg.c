@@ -20,7 +20,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 {
 	char buff[50];
 	char redir_url_buf[100];
-	int n, w, h;
+	int32 n, w, h;
 
 	bool shall_clear_screen = false;
 
@@ -85,11 +85,28 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		dbg("Parser timeout: %s ms", buff);
 		n = atoi(buff);
 		if (n >= 0) {
-			termconf->parser_tout_ms = (u8) n;
+			termconf->parser_tout_ms = n;
 		} else {
 			warn("Bad timeout %s", buff);
 			redir_url += sprintf(redir_url, "parser_tout_ms,");
 		}
+	}
+
+	if (GET_ARG("display_tout_ms")) {
+		dbg("Display update idle timeout: %s ms", buff);
+		n = atoi(buff);
+		if (n >= 0) {
+			termconf->display_tout_ms = n;
+		} else {
+			warn("Bad timeout %s", buff);
+			redir_url += sprintf(redir_url, "display_tout_ms,");
+		}
+	}
+
+	if (GET_ARG("fn_alt_mode")) {
+		dbg("FN alt mode: %s", buff);
+		n = atoi(buff);
+		termconf->fn_alt_mode = (bool)n;
 	}
 
 	if (GET_ARG("default_fg")) {
@@ -174,6 +191,12 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "parser_tout_ms")) {
 		sprintf(buff, "%d", termconf->parser_tout_ms);
+	}
+	else if (streq(token, "display_tout_ms")) {
+		sprintf(buff, "%d", termconf->display_tout_ms);
+	}
+	else if (streq(token, "fn_alt_mode")) {
+		sprintf(buff, "%d", (int)termconf->fn_alt_mode);
 	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);

@@ -102,10 +102,12 @@ void terminal_restore_defaults(void)
 {
 	termconf->default_bg = 0;
 	termconf->default_fg = 7;
-	termconf->width = 26;
-	termconf->height = 10;
-	termconf->parser_tout_ms = 10;
-	sprintf(termconf->title, "ESPTerm");
+	termconf->width = SCR_DEF_WIDTH;
+	termconf->height = SCR_DEF_HEIGHT;
+	termconf->parser_tout_ms = SCR_DEF_PARSER_TOUT_MS;
+	termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
+	termconf->fn_alt_mode = SCR_DEF_FN_ALT_MODE;
+	sprintf(termconf->title, SCR_DEF_TITLE);
 	for(int i=1; i <= 5; i++) {
 		sprintf(termconf->btn[i-1], "%d", i);
 	}
@@ -123,6 +125,8 @@ void terminal_apply_settings(void)
 /** this is used when changing terminal settings that do not affect the screen size */
 void terminal_apply_settings_noclear(void)
 {
+	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
+
 	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
 	if (W*H >= MAX_SCREEN_SIZE) {
 		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
@@ -685,13 +689,17 @@ screen_set_insert_mode(bool insert)
 void ICACHE_FLASH_ATTR
 screen_set_numpad_alt_mode(bool alt_mode)
 {
+	NOTIFY_LOCK();
 	scr.numpad_alt_mode = alt_mode;
+	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_cursors_alt_mode(bool alt_mode)
 {
+	NOTIFY_LOCK();
 	scr.cursors_alt_mode = alt_mode;
+	NOTIFY_DONE();
 }
 //endregion
 
@@ -990,10 +998,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		encode2B((u16) (
 					 cursor.fg |
 					 (cursor.bg<<4) |
-					 (cursor.visible ? 1<<8 : 0) |
-					 (cursor.hanging ? 1<<9 : 0) |
-					 (scr.cursors_alt_mode ? 1<<10 : 0) |
-					 (scr.numpad_alt_mode ? 1<<11 : 0)
+					 (cursor.visible ? 0x100 : 0) |
+					 (cursor.hanging ? 0x200 : 0) |
+					 (scr.cursors_alt_mode ? 0x400 : 0) |
+					 (scr.numpad_alt_mode ? 0x800 : 0) |
+					 (termconf->fn_alt_mode ? 0x1000 : 0)
 				 )
 			, &w5);
 
