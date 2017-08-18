@@ -124,7 +124,7 @@ set(SOURCE_FILES
         user/persist.h
         include/helpers.h
         user/syscfg.c
-        user/syscfg.h)
+        user/syscfg.h user/ascii.h)
 
 include_directories(include)
 include_directories(user)

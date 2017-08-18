@@ -520,7 +520,6 @@ var Input = (function() {
 		onTap: sendPosMsg,
 		sendString: sendStrMsg,
 		setAlts: function(cu, np, fn) {
-			console.log("Set alts ", cu, np, fn);
 			if (opts.cu_alt != cu || opts.np_alt != np || opts.fn_alt != fn) {
 				opts.cu_alt = cu;
 				opts.np_alt = np;

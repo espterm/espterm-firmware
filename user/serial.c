@@ -42,5 +42,5 @@ void ICACHE_FLASH_ATTR serialInit(void)
  */
 void ICACHE_FLASH_ATTR UART_HandleRxByte(char c)
 {
-	ansi_parser(&c, 1);
+	ansi_parser(c);
 }

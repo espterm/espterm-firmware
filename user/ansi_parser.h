@@ -18,6 +18,7 @@ extern void apars_handle_hashCode(char c);
 extern void apars_handle_characterSet(char leadchar, char c);
 extern void apars_handle_setXCtrls(char c);
 extern void apars_reset_utf8buffer(void);
+extern void apars_handle_bel(void);
 
 void ansi_parser_reset(void);
 
@@ -43,10 +44,9 @@ extern volatile u32 ansi_parser_char_cnt;
  * \attention -> but always check the Ragel output for 'p--' 
  *            or 'p -=', that means trouble.
  * 
- * \param newdata - array of new chars to process
- * \param len - length of the newdata buffer
+ * \param newchar - received char
  */
-void ansi_parser(const char *newdata, size_t len);
+void ansi_parser(char newchar);
 
 /** This shows a short error message and prints the history (if any) */
 void apars_handle_badseq(void);

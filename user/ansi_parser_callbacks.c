@@ -22,8 +22,6 @@ static int utf_j = 0;
 void ICACHE_FLASH_ATTR
 apars_handle_plainchar(char c)
 {
-	if (c == 7) return; // BELL - beep (TODO play beep in browser)
-
 	// collecting unicode glyphs...
 	if (c & 0x80) {
 		if (utf_i == 0) {
@@ -64,17 +62,6 @@ apars_handle_plainchar(char c)
 		}
 	}
 	else {
-		if (c == 14) {
-			// ShiftIN
-			screen_set_charset_n(1);
-			return;
-		}
-		if (c == 15) {
-			// ShiftOUT
-			screen_set_charset_n(0);
-			return;
-		}
-
 		utf_collect[0] = c;
 		utf_collect[1] = 0; // just to make sure it's closed...
 		screen_putchar(utf_collect);
@@ -102,11 +89,18 @@ apars_handle_characterSet(char leadchar, char c)
 	// other alternatives * + . - / not implemented
 }
 
+/** ESC SP <c> */
 void ICACHE_FLASH_ATTR
 apars_handle_setXCtrls(char c)
 {
 	// this does not seem to do anything, sent by some unix programs
 //	ansi_warn("NOIMPL Select %cbit ctrls", c=='F'? '7':'8');
+}
+
+void ICACHE_FLASH_ATTR
+apars_handle_bel(void)
+{
+	// TODO pass to the browser somehow
 }
 
 /**
@@ -402,11 +396,11 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			screen_reset();
 			break;
 
-		case '7': // save cursor + attrs
+		case '7': // save cursor + attributes
 			screen_cursor_save(true);
 			break;
 
-		case '8': // restore cursor + attrs
+		case '8': // restore cursor + attributes
 			screen_cursor_restore(true);
 			break;
 

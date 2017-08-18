@@ -1,6 +1,8 @@
 #include <esp8266.h>
 #include "ansi_parser.h"
 #include "screen.h"
+#include "ascii.h"
+#include "uart_driver.h"
 
 /* Ragel constants block */
 %%{
@@ -9,6 +11,7 @@
 }%%
 
 static volatile int cs = -1;
+static volatile bool inside_osc = false;
 
 volatile u32 ansi_parser_char_cnt = 0;
 
@@ -16,6 +19,7 @@ void ICACHE_FLASH_ATTR
 ansi_parser_reset(void) {
 	if (cs != ansi_start) {
 		cs = ansi_start;
+		inside_osc = false;
 		apars_reset_utf8buffer();
 		ansi_warn("Parser timeout, state reset");
 	}
@@ -63,7 +67,7 @@ apars_handle_badseq(void)
  * \param len - length of the newdata buffer
  */
 void ICACHE_FLASH_ATTR
-ansi_parser(const char *newdata, size_t len)
+ansi_parser(char newchar)
 {
 	// The CSI code is built here
 	static char csi_leading;      //!< Leading char, 0 if none
@@ -72,32 +76,89 @@ ansi_parser(const char *newdata, size_t len)
 	static int  csi_n[CSI_N_MAX]; //!< Param digits
 	static char csi_char;         //!< CSI action char (end)
 	static char osc_buffer[OSC_CHAR_MAX];
-	static int  osc_bi;
+	static int  osc_bi; // buffer char index
 
+	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
-
-	if (len == 0) len = strlen(newdata);
-	
-	// Load new data to Ragel vars
-	const char *p = newdata;
-	const char *eof = NULL;
-	const char *pe = newdata + len;
 
 	// Init Ragel on the first run
 	if (cs == -1) {
 		%% write init;
 
-#if DEBUG_ANSI
-		memset(history, 0, sizeof(history));
-#endif
+		#if DEBUG_ANSI
+			memset(history, 0, sizeof(history));
+		#endif
 	}
 
-#if DEBUG_ANSI
-	for(int i=len; i<HISTORY_LEN; i++) {
-		history[i-len] = history[i];
+	#if DEBUG_ANSI
+		for(int i=1; i<HISTORY_LEN; i++) {
+			history[i-1] = history[i];
+		}
+		history[HISTORY_LEN-1] = newchar;
+	#endif
+
+	// Handle simple characters immediately (bypass parser)
+	if (newchar < ' ') {
+		switch (newchar) {
+			case ESC:
+				if (!inside_osc) {
+					// Reset state
+					cs = ansi_start;
+					// now the ESC will be processed by the parser
+				}
+				break; // proceed to parser
+
+				// Literally passed
+			case FF:
+			case VT:
+				newchar = LF; // translate to LF, like VT100 / xterm do
+			case CR:
+			case LF:
+			case TAB:
+			case BS:
+				apars_handle_plainchar(newchar);
+				return;
+
+				// Select G0 or G1
+			case SI:
+				screen_set_charset_n(1);
+				return;
+			case SO:
+				screen_set_charset_n(0);
+				return;
+
+			case BEL:
+				apars_handle_bel();
+				return;
+
+			case ENQ: // respond with space (like xterm)
+				UART_WriteChar(UART0, SP, UART_TIMEOUT_US);
+				return;
+
+				// Cancel the active sequence
+			case CAN:
+			case SUB:
+				cs = ansi_start;
+				return;
+
+			default:
+				// Discard all others
+				return;
+		}
+	} else {
+		// >= ' '
+
+		// bypass the parser for simple characters (speed-up)
+		if (cs == ansi_start) {
+			apars_handle_plainchar(newchar);
+			return;
+		}
 	}
-	strcpy(&history[HISTORY_LEN-len], newdata);
-#endif
+	
+	// Load new data to Ragel vars
+	const char *p = &newchar;
+	const char *eof = NULL;
+	const char *pe = &newchar + 1;
 
 	// The parser
 	%%{
@@ -185,6 +246,8 @@ ansi_parser(const char *newdata, size_t len)
 			osc_bi = 0;
 			osc_buffer[0] = '\0';
 
+			inside_osc = true;
+
 			fgoto OSC_body;
 		}
 
@@ -192,11 +255,13 @@ ansi_parser(const char *newdata, size_t len)
 		action SetTitle_start {
 			osc_bi = 0;
 			osc_buffer[0] = '\0';
+			inside_osc = true;
 			fgoto TITLE_body;
 		}
 
 		action OSC_resize {
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
+			inside_osc = false;
 			fgoto main;
 		}
 
@@ -207,12 +272,14 @@ ansi_parser(const char *newdata, size_t len)
 		action OSC_title {
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetTitle(osc_buffer);
+			inside_osc = false;
 			fgoto main;
 		}
 
 		action OSC_button {
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
+			inside_osc = false;
 			fgoto main;
 		}
 
@@ -253,7 +320,7 @@ ansi_parser(const char *newdata, size_t len)
 		}
 
 		action SetXCtrls {
-			apars_handle_setXCtrls(fc);
+			apars_handle_setXCtrls(fc); // weird control settings like 7 bit / 8 bit mode
 			fgoto main;
 		}
 
