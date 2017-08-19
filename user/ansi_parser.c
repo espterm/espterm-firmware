@@ -150,9 +150,12 @@ ansi_parser(char newchar)
 				newchar = LF; // translate to LF, like VT100 / xterm do
 			case CR:
 			case LF:
-			case TAB:
 			case BS:
 				apars_handle_plainchar(newchar);
+				return;
+
+			case TAB:
+				screen_tab_forward();
 				return;
 
 				// Select G0 or G1
@@ -202,7 +205,7 @@ ansi_parser(char newchar)
 
 	// The parser
 	
-/* #line 206 "user/ansi_parser.c" */
+/* #line 209 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -488,7 +491,7 @@ execFuncs:
 	while ( _nacts-- > 0 ) {
 		switch ( *_acts++ ) {
 	case 0:
-/* #line 177 "user/ansi_parser.rl" */
+/* #line 180 "user/ansi_parser.rl" */
 	{
 			if ((*p) != 0) {
 				apars_handle_plainchar((*p));
@@ -496,7 +499,7 @@ execFuncs:
 		}
 	break;
 	case 1:
-/* #line 186 "user/ansi_parser.rl" */
+/* #line 189 "user/ansi_parser.rl" */
 	{
 			// Reset the CSI builder
 			csi_leading = csi_char = 0;
@@ -512,13 +515,13 @@ execFuncs:
 		}
 	break;
 	case 2:
-/* #line 200 "user/ansi_parser.rl" */
+/* #line 203 "user/ansi_parser.rl" */
 	{
 			csi_leading = (*p);
 		}
 	break;
 	case 3:
-/* #line 204 "user/ansi_parser.rl" */
+/* #line 207 "user/ansi_parser.rl" */
 	{
 			if (csi_cnt == 0) csi_cnt = 1;
 			// x10 + digit
@@ -528,7 +531,7 @@ execFuncs:
 		}
 	break;
 	case 4:
-/* #line 212 "user/ansi_parser.rl" */
+/* #line 215 "user/ansi_parser.rl" */
 	{
 			if (csi_cnt == 0) csi_cnt = 1; // handle case when first arg is empty
 			csi_cnt++;
@@ -536,7 +539,7 @@ execFuncs:
 		}
 	break;
 	case 5:
-/* #line 218 "user/ansi_parser.rl" */
+/* #line 221 "user/ansi_parser.rl" */
 	{
 			csi_char = (*p);
 			apars_handle_CSI(csi_leading, csi_n, csi_cnt, csi_char);
@@ -544,7 +547,7 @@ execFuncs:
 		}
 	break;
 	case 6:
-/* #line 224 "user/ansi_parser.rl" */
+/* #line 227 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
 			apars_handle_badseq();
@@ -552,7 +555,7 @@ execFuncs:
 		}
 	break;
 	case 7:
-/* #line 242 "user/ansi_parser.rl" */
+/* #line 245 "user/ansi_parser.rl" */
 	{
 			csi_ni = 0;
 
@@ -570,7 +573,7 @@ execFuncs:
 		}
 	break;
 	case 8:
-/* #line 259 "user/ansi_parser.rl" */
+/* #line 262 "user/ansi_parser.rl" */
 	{
 			osc_bi = 0;
 			osc_buffer[0] = '\0';
@@ -579,7 +582,7 @@ execFuncs:
 		}
 	break;
 	case 9:
-/* #line 266 "user/ansi_parser.rl" */
+/* #line 269 "user/ansi_parser.rl" */
 	{
 			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
 			inside_osc = false;
@@ -587,13 +590,13 @@ execFuncs:
 		}
 	break;
 	case 10:
-/* #line 272 "user/ansi_parser.rl" */
+/* #line 275 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = (*p);
 		}
 	break;
 	case 11:
-/* #line 276 "user/ansi_parser.rl" */
+/* #line 279 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetTitle(osc_buffer);
@@ -602,7 +605,7 @@ execFuncs:
 		}
 	break;
 	case 12:
-/* #line 283 "user/ansi_parser.rl" */
+/* #line 286 "user/ansi_parser.rl" */
 	{
 			osc_buffer[osc_bi++] = '\0';
 			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
@@ -611,28 +614,28 @@ execFuncs:
 		}
 	break;
 	case 13:
-/* #line 316 "user/ansi_parser.rl" */
+/* #line 319 "user/ansi_parser.rl" */
 	{
 			apars_handle_hashCode((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 14:
-/* #line 321 "user/ansi_parser.rl" */
+/* #line 324 "user/ansi_parser.rl" */
 	{
 			apars_handle_shortCode((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 15:
-/* #line 326 "user/ansi_parser.rl" */
+/* #line 329 "user/ansi_parser.rl" */
 	{
 			apars_handle_setXCtrls((*p)); // weird control settings like 7 bit / 8 bit mode
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 16:
-/* #line 331 "user/ansi_parser.rl" */
+/* #line 334 "user/ansi_parser.rl" */
 	{
 			// abuse the buffer for storing the leading char
 			osc_buffer[0] = (*p);
@@ -640,13 +643,13 @@ execFuncs:
 		}
 	break;
 	case 17:
-/* #line 337 "user/ansi_parser.rl" */
+/* #line 340 "user/ansi_parser.rl" */
 	{
 			apars_handle_characterSet(osc_buffer[0], (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 650 "user/ansi_parser.c" */
+/* #line 653 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -664,7 +667,7 @@ _again:
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
 	case 6:
-/* #line 224 "user/ansi_parser.rl" */
+/* #line 227 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
 			apars_handle_badseq();
@@ -673,7 +676,7 @@ _again:
 goto _again;}
 		}
 	break;
-/* #line 677 "user/ansi_parser.c" */
+/* #line 680 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -681,7 +684,7 @@ goto _again;}
 	_out: {}
 	}
 
-/* #line 361 "user/ansi_parser.rl" */
+/* #line 364 "user/ansi_parser.rl" */
 
 }
 

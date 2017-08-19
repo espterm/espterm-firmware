@@ -136,6 +136,8 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 		case 'M':
 		case '@':
 		case 'P':
+		case 'I':
+		case 'Z':
 			if (n1 == 0) n1 = 1;
 			break;
 
@@ -257,14 +259,26 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 			for (int i = 0; i < count; i++) {
 				int n = params[i];
 				if (leadchar == '?') {
-					if (n == 25) {
-						screen_cursor_visible(yn);
+					if (n == 1) {
+						screen_set_cursors_alt_mode(yn);
+					}
+					else if (n == 6) {
+						// TODO origin mode (scrolling region)
 					}
 					else if (n == 7) {
 						screen_wrap_enable(yn);
 					}
-					else if (n == 1) {
-						screen_set_cursors_alt_mode(yn);
+					else if (n == 8) {
+						// TODO autorepeat mode
+					}
+					else if (n == 9) {
+						// TODO X10 mouse
+					}
+					else if (n == 1000) {
+						// TODo X11 mouse
+					}
+					else if (n == 25) {
+						screen_cursor_visible(yn);
 					}
 					else {
 //						ansi_warn("NOIMPL DEC opt %d", n);
@@ -371,13 +385,23 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 			break;
 
 		case 'g':
-			// TODO clear tab
-//			ansi_warn("NOIMPL clear tab");
+			if (n1 == 3) {
+				screen_clear_all_tabs();
+			} else {
+				screen_clear_tab();
+			}
 			break;
 
 		case 'Z':
-			// TODO back tab
-//			ansi_warn("NOIMPL cursor back tab");
+			for(; n1 > 0; n1--) {
+				screen_tab_reverse();
+			}
+			break;
+
+		case 'I':
+			for(; n1 > 0; n1--) {
+				screen_tab_forward();
+			}
 			break;
 
 		case 'c': // CSI-c
@@ -438,8 +462,7 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			break;
 
 		case 'H':
-			// TODO set tab
-//			ansi_warn("NOIMPL set tab");
+			screen_set_tab();
 			break;
 
 		case '>':

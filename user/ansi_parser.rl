@@ -114,9 +114,12 @@ ansi_parser(char newchar)
 				newchar = LF; // translate to LF, like VT100 / xterm do
 			case CR:
 			case LF:
-			case TAB:
 			case BS:
 				apars_handle_plainchar(newchar);
+				return;
+
+			case TAB:
+				screen_tab_forward();
 				return;
 
 				// Select G0 or G1

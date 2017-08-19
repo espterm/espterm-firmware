@@ -32,6 +32,13 @@ typedef struct __attribute__((packed)){
  */
 static Cell screen[MAX_SCREEN_SIZE];
 
+
+#define TABSTOP_WORDS 5
+/**
+ * Tab stops bitmap
+ */
+static u32 tab_stops[TABSTOP_WORDS];
+
 /**
  * Screen state structure
  */
@@ -204,8 +211,124 @@ screen_reset(void)
 	// size is left unchanged
 	screen_clear(CLEAR_ALL);
 
+	screen_clear_all_tabs();
+
 	NOTIFY_DONE();
 }
+//endregion
+
+//region --- Tab stops ---
+
+void ICACHE_FLASH_ATTR
+screen_clear_all_tabs(void)
+{
+	memset(tab_stops, 0, sizeof(tab_stops));
+}
+
+void ICACHE_FLASH_ATTR
+screen_set_tab(void)
+{
+	tab_stops[cursor.x/32] |= (1<<(cursor.x%32));
+}
+
+void ICACHE_FLASH_ATTR
+screen_clear_tab(void)
+{
+	tab_stops[cursor.x/32] &= ~(1<<(cursor.x%32));
+}
+
+/**
+ * Find tab stop closest to cursor to the right
+ * @return X pos or -1
+ */
+static int ICACHE_FLASH_ATTR
+next_tab_stop(void)
+{
+	// cursor must never go past EOL
+	if (cursor.x >= W-1) return -1;
+
+	// find first word to inspect
+	int idx = (cursor.x+1)/32;
+	int offs = (cursor.x+1)%32;
+	int cp = cursor.x;
+	while (idx < TABSTOP_WORDS) {
+		u32 w = tab_stops[idx];
+		w >>= offs;
+		for(;offs<32;offs++) {
+			cp++;
+			if (cp >= W) return -1;
+			if (w & 1) return cp;
+			w >>= 1;
+		}
+		offs = 0;
+		idx++;
+	}
+
+	return -1;
+}
+
+/**
+ * Find tab stop closest to cursor to the left
+ * @return X pos or -1
+ */
+static int ICACHE_FLASH_ATTR
+prev_tab_stop(void)
+{
+	// nowhere to go
+	if (cursor.x == 0) return -1;
+
+	// find first word to inspect
+	int idx = (cursor.x-1)/32;
+	int offs = (cursor.x-1)%32;
+	int cp = cursor.x;
+	while (idx >= 0) {
+		u32 w = tab_stops[idx];
+		w <<= 31-offs;
+		if (w == 0) {
+			cp -= cp%32;
+			if (cp < 0) return -1;
+			goto next;
+		}
+		for(;offs>=0;offs--) {
+			cp--;
+			if (cp < 0) return -1;
+			if (w & (1<<31)) return cp;
+			w <<= 1;
+		}
+		next:
+		offs = 31;
+		idx--;
+	}
+
+	return -1;
+}
+
+void ICACHE_FLASH_ATTR
+screen_tab_forward(void)
+{
+	NOTIFY_LOCK();
+	int tab = next_tab_stop();
+	if (tab != -1) {
+		cursor.x = tab;
+	} else {
+		cursor.x = W-1;
+	}
+	NOTIFY_DONE();
+}
+
+void ICACHE_FLASH_ATTR
+screen_tab_reverse(void)
+{
+	NOTIFY_LOCK();
+	int tab = prev_tab_stop();
+	if (tab != -1) {
+		cursor.x = tab;
+	} else {
+		cursor.x = 0;
+	}
+	NOTIFY_DONE();
+}
+
 //endregion
 
 //region --- Clearing & inserting ---
@@ -742,27 +865,14 @@ screen_putchar(const char *ch)
 
 		case 8: // BS
 			if (cursor.x > 0) {
+				// according to vttest, backspace should go to col 79 if "hanging" after 80
 				if (cursor.hanging) {
 					cursor.hanging = false;
-				} else {
-					cursor.x--;
 				}
+				cursor.x--;
 			}
 			// we should not wrap around
 			// and apparently backspace should not even clear the cell
-			goto done;
-
-		case 9: // TAB
-//			// TODO change to "go to next tab stop"
-//			if (cursor.x<((W-1)-(W-1)%4)) {
-//				c->c[0] = ' ';
-//				c->c[1] = 0;
-//				c->c[2] = 0;
-//				c->c[3] = 0;
-//				do {
-//					screen_putchar(" ");
-//				} while(cursor.x%4!=0);
-//			}
 			goto done;
 
 		default:

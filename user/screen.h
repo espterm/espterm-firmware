@@ -193,6 +193,14 @@ void screen_set_cursors_alt_mode(bool app_mode);
 void screen_set_charset_n(int Gx);
 void screen_set_charset(int Gx, char charset);
 
+// tabs
+
+void screen_clear_all_tabs(void);
+void screen_set_tab(void);
+void screen_clear_tab(void);
+void screen_tab_forward(void);
+void screen_tab_reverse(void);
+
 /**
  * Set a character in the cursor color, move to right with wrap.
  * The character may be ASCII (then only one char is used), or
