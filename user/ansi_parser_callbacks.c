@@ -153,10 +153,23 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 
 	switch (keychar) {
 		// CUU CUD CUF CUB
-		case 'A': screen_cursor_move(-n1, 0, false); break;
-		case 'B': screen_cursor_move(n1, 0, false);  break;
-		case 'C': screen_cursor_move(0, n1, false);  break;
-		case 'D': screen_cursor_move(0, -n1, false); break;
+		case 'a':
+		case 'A':
+			screen_cursor_move(-n1, 0, false);
+			break;
+
+		case 'e':
+		case 'B':
+			screen_cursor_move(n1, 0, false);
+			break;
+
+		case 'C':
+			screen_cursor_move(0, n1, false);
+			break;
+
+		case 'D':
+			screen_cursor_move(0, -n1, false);
+			break;
 
 		case 'E': // CNL - Cursor Next Line
 			screen_cursor_move(n1, 0, false);
@@ -410,6 +423,10 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 		case 'E': // same as CR LF
 			screen_cursor_move(1, 0, false);
 			screen_cursor_set_x(0);
+			break;
+
+		case 'F': // bottom left
+			screen_cursor_set(termconf_scratch.height-1, 0);
 			break;
 
 		case 'D': // move cursor down, scroll screen up if needed
