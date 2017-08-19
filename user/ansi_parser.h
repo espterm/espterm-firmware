@@ -4,19 +4,13 @@
 #include <stdlib.h>
 #include <screen.h>
 
-// Max nr of CSI parameters
-#define CSI_N_MAX 10
-#define OSC_CHAR_MAX TERM_TITLE_LEN
-
 extern void apars_handle_plainchar(char c);
-extern void apars_handle_CSI(char leadchar, int *params, int count, char keychar);
-extern void apars_handle_OSC_SetScreenSize(int rows, int cols);
-extern void apars_handle_OSC_SetButton(int num, const char *buffer);
-extern void apars_handle_OSC_SetTitle(const char *buffer);
+extern void apars_handle_CSI(char leadchar, const int *params, int count, char keychar);
+extern void apars_handle_StrCmd(char leadchar, const char *buffer);
 extern void apars_handle_shortCode(char c);
 extern void apars_handle_hashCode(char c);
 extern void apars_handle_characterSet(char leadchar, char c);
-extern void apars_handle_setXCtrls(char c);
+extern void apars_handle_spaceCmd(char c);
 extern void apars_reset_utf8buffer(void);
 extern void apars_handle_bel(void);
 

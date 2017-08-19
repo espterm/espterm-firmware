@@ -90,6 +90,7 @@ void terminal_restore_defaults(void);
 void terminal_apply_settings(void);
 void terminal_apply_settings_noclear(void); // the same, but with no screen reset / init
 
+void screen_report_sgr(char *buffer);
 
 typedef enum {
 	CLEAR_TO_CURSOR=0, CLEAR_FROM_CURSOR=1, CLEAR_ALL=2

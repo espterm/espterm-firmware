@@ -13,43 +13,43 @@ static const char _ansi_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 8, 1, 9, 1, 10, 1, 
-	11, 1, 12, 1, 13, 1, 14, 1, 
-	15, 1, 16, 1, 17, 2, 2, 5, 
-	2, 10, 11, 2, 10, 12
+	11, 1, 12, 1, 13, 1, 14, 2, 
+	3, 6, 2, 8, 9
 };
 
 static const char _ansi_eof_actions[] = {
-	0, 13, 13, 13, 13, 13, 13, 13, 
-	13, 13, 13, 13, 13, 13, 13, 13, 
-	13, 13, 13, 13, 13, 13, 13, 13, 
-	13, 13, 13, 13, 0, 0, 0, 0, 
-	0, 0, 0, 0
+	0, 1, 1, 1, 1, 1, 1, 1, 
+	1, 1, 0, 0, 0, 0, 0, 0
 };
 
 static const int ansi_start = 1;
-static const int ansi_first_final = 28;
+static const int ansi_first_final = 10;
 static const int ansi_error = 0;
 
 static const int ansi_en_CSI_body = 5;
-static const int ansi_en_OSC_body = 7;
-static const int ansi_en_TITLE_body = 25;
-static const int ansi_en_charsetcmd_body = 27;
+static const int ansi_en_StrCmd_body = 7;
+static const int ansi_en_charsetcmd_body = 9;
 static const int ansi_en_main = 1;
 
 
 /* #line 11 "user/ansi_parser.rl" */
 
 
-static volatile int cs = -1;
-static volatile bool inside_osc = false;
+// Max nr of CSI parameters
+#define CSI_N_MAX 10
+#define STR_CHAR_MAX 64
 
+static volatile int cs = -1;
+static volatile bool inside_string = false;
+
+// public
 volatile u32 ansi_parser_char_cnt = 0;
 
 void ICACHE_FLASH_ATTR
 ansi_parser_reset(void) {
 	if (cs != ansi_start) {
 		cs = ansi_start;
-		inside_osc = false;
+		inside_string = false;
 		apars_reset_utf8buffer();
 		ansi_warn("Parser timeout, state reset");
 	}
@@ -100,13 +100,13 @@ void ICACHE_FLASH_ATTR
 ansi_parser(char newchar)
 {
 	// The CSI code is built here
-	static char csi_leading;      //!< Leading char, 0 if none
-	static int  csi_ni;           //!< Number of the active digit
-	static int  csi_cnt;          //!< Digit count
-	static int  csi_n[CSI_N_MAX]; //!< Param digits
-	static char csi_char;         //!< CSI action char (end)
-	static char osc_buffer[OSC_CHAR_MAX];
-	static int  osc_bi; // buffer char index
+	static char leadchar;
+	static int  arg_ni;
+	static int  arg_cnt;
+	static int  arg[CSI_N_MAX];
+	static char csi_char;
+	static char string_buffer[STR_CHAR_MAX];
+	static int  str_ni;
 
 	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
@@ -119,7 +119,7 @@ ansi_parser(char newchar)
 	cs = ansi_start;
 	}
 
-/* #line 87 "user/ansi_parser.rl" */
+/* #line 92 "user/ansi_parser.rl" */
 
 		#if DEBUG_ANSI
 			memset(history, 0, sizeof(history));
@@ -137,7 +137,7 @@ ansi_parser(char newchar)
 	if (newchar < ' ') {
 		switch (newchar) {
 			case ESC:
-				if (!inside_osc) {
+				if (!inside_string) {
 					// Reset state
 					cs = ansi_start;
 					// now the ESC will be processed by the parser
@@ -168,7 +168,7 @@ ansi_parser(char newchar)
 
 			case BEL:
 				// bel is also used to terminate OSC
-				if (!inside_osc) {
+				if (!inside_string) {
 					apars_handle_bel();
 					return;
 				}
@@ -224,21 +224,29 @@ case 2:
 	switch( (*p) ) {
 		case 32: goto tr3;
 		case 35: goto tr4;
-		case 91: goto tr7;
-		case 93: goto tr8;
-		case 107: goto tr9;
+		case 37: goto tr5;
+		case 80: goto tr7;
+		case 88: goto tr7;
+		case 91: goto tr8;
+		case 107: goto tr7;
 	}
-	if ( (*p) < 60 ) {
-		if ( (*p) > 47 ) {
-			if ( 48 <= (*p) && (*p) <= 57 )
+	if ( (*p) < 64 ) {
+		if ( (*p) < 48 ) {
+			if ( 40 <= (*p) && (*p) <= 47 )
+				goto tr5;
+		} else if ( (*p) > 57 ) {
+			if ( 60 <= (*p) && (*p) <= 62 )
 				goto tr6;
-		} else if ( (*p) >= 40 )
-			goto tr5;
-	} else if ( (*p) > 62 ) {
-		if ( (*p) > 90 ) {
-			if ( 97 <= (*p) && (*p) <= 122 )
+		} else
+			goto tr6;
+	} else if ( (*p) > 92 ) {
+		if ( (*p) < 97 ) {
+			if ( 93 <= (*p) && (*p) <= 95 )
+				goto tr7;
+		} else if ( (*p) > 122 ) {
+			if ( 124 <= (*p) && (*p) <= 126 )
 				goto tr6;
-		} else if ( (*p) >= 65 )
+		} else
 			goto tr6;
 	} else
 		goto tr6;
@@ -246,176 +254,89 @@ case 2:
 case 0:
 	goto _out;
 case 3:
-	if ( 70 <= (*p) && (*p) <= 71 )
-		goto tr10;
+	if ( (*p) > 71 ) {
+		if ( 76 <= (*p) && (*p) <= 78 )
+			goto tr9;
+	} else if ( (*p) >= 70 )
+		goto tr9;
 	goto tr2;
-case 28:
+case 10:
 	if ( (*p) == 27 )
 		goto tr1;
 	goto tr0;
 case 4:
 	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr11;
+		goto tr10;
 	goto tr2;
 case 5:
 	switch( (*p) ) {
-		case 59: goto tr14;
-		case 64: goto tr15;
+		case 59: goto tr13;
+		case 64: goto tr14;
 	}
 	if ( (*p) < 60 ) {
 		if ( (*p) > 47 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr13;
+				goto tr12;
 		} else if ( (*p) >= 32 )
-			goto tr12;
+			goto tr11;
 	} else if ( (*p) > 63 ) {
 		if ( (*p) > 90 ) {
 			if ( 96 <= (*p) && (*p) <= 122 )
-				goto tr16;
+				goto tr15;
 		} else if ( (*p) >= 65 )
-			goto tr16;
+			goto tr15;
 	} else
-		goto tr12;
+		goto tr11;
 	goto tr2;
 case 6:
 	if ( (*p) == 59 )
-		goto tr14;
+		goto tr13;
 	if ( (*p) < 64 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
-			goto tr13;
+			goto tr12;
 	} else if ( (*p) > 90 ) {
 		if ( 96 <= (*p) && (*p) <= 122 )
-			goto tr16;
+			goto tr15;
 	} else
-		goto tr16;
+		goto tr15;
 	goto tr2;
-case 29:
+case 11:
 	goto tr2;
-case 30:
+case 12:
 	if ( (*p) == 59 )
-		goto tr14;
+		goto tr13;
 	if ( (*p) < 64 ) {
 		if ( 48 <= (*p) && (*p) <= 57 )
-			goto tr13;
+			goto tr12;
 	} else if ( (*p) > 90 ) {
 		if ( 96 <= (*p) && (*p) <= 122 )
-			goto tr16;
+			goto tr15;
 	} else
-		goto tr16;
+		goto tr15;
 	goto tr2;
 case 7:
 	switch( (*p) ) {
-		case 48: goto tr17;
-		case 66: goto tr18;
-		case 84: goto tr19;
-		case 87: goto tr20;
+		case 7: goto tr17;
+		case 27: goto tr18;
 	}
-	goto tr2;
-case 8:
-	if ( (*p) == 59 )
-		goto tr21;
-	goto tr2;
-case 31:
-	goto tr2;
-case 9:
-	if ( (*p) == 84 )
-		goto tr22;
-	goto tr2;
-case 10:
-	if ( (*p) == 78 )
-		goto tr23;
-	goto tr2;
-case 11:
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr24;
-	goto tr2;
-case 12:
-	if ( (*p) == 61 )
-		goto tr25;
-	goto tr2;
+	goto tr16;
 case 13:
 	switch( (*p) ) {
-		case 7: goto tr27;
-		case 27: goto tr28;
+		case 7: goto tr17;
+		case 27: goto tr18;
 	}
-	goto tr26;
-case 32:
-	switch( (*p) ) {
-		case 7: goto tr27;
-		case 27: goto tr28;
-	}
-	goto tr26;
+	goto tr16;
+case 8:
+	if ( (*p) == 92 )
+		goto tr19;
+	goto tr2;
 case 14:
-	if ( (*p) == 92 )
-		goto tr29;
 	goto tr2;
+case 9:
+	if ( (*p) == 27 )
+		goto tr2;
+	goto tr20;
 case 15:
-	if ( (*p) == 73 )
-		goto tr30;
-	goto tr2;
-case 16:
-	if ( (*p) == 84 )
-		goto tr31;
-	goto tr2;
-case 17:
-	if ( (*p) == 76 )
-		goto tr32;
-	goto tr2;
-case 18:
-	if ( (*p) == 69 )
-		goto tr33;
-	goto tr2;
-case 19:
-	if ( (*p) == 61 )
-		goto tr21;
-	goto tr2;
-case 20:
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr34;
-	goto tr2;
-case 21:
-	if ( (*p) == 59 )
-		goto tr35;
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr34;
-	goto tr2;
-case 22:
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr36;
-	goto tr2;
-case 23:
-	switch( (*p) ) {
-		case 7: goto tr37;
-		case 27: goto tr38;
-	}
-	if ( 48 <= (*p) && (*p) <= 57 )
-		goto tr36;
-	goto tr2;
-case 24:
-	if ( (*p) == 92 )
-		goto tr37;
-	goto tr2;
-case 25:
-	switch( (*p) ) {
-		case 7: goto tr40;
-		case 27: goto tr41;
-	}
-	goto tr39;
-case 33:
-	switch( (*p) ) {
-		case 7: goto tr40;
-		case 27: goto tr41;
-	}
-	goto tr39;
-case 26:
-	if ( (*p) == 92 )
-		goto tr42;
-	goto tr2;
-case 34:
-	goto tr2;
-case 27:
-	goto tr43;
-case 35:
 	goto tr2;
 	}
 
@@ -424,232 +345,170 @@ case 35:
 	tr1: cs = 2; goto _again;
 	tr3: cs = 3; goto _again;
 	tr4: cs = 4; goto _again;
+	tr11: cs = 6; goto f8;
 	tr12: cs = 6; goto f9;
 	tr13: cs = 6; goto f10;
-	tr14: cs = 6; goto f11;
-	tr17: cs = 8; goto _again;
-	tr18: cs = 9; goto _again;
-	tr22: cs = 10; goto _again;
-	tr23: cs = 11; goto _again;
-	tr24: cs = 12; goto f10;
-	tr25: cs = 13; goto _again;
-	tr26: cs = 13; goto f14;
-	tr28: cs = 14; goto _again;
-	tr19: cs = 15; goto _again;
-	tr30: cs = 16; goto _again;
-	tr31: cs = 17; goto _again;
-	tr32: cs = 18; goto _again;
-	tr33: cs = 19; goto _again;
-	tr20: cs = 20; goto _again;
-	tr34: cs = 21; goto f10;
-	tr35: cs = 22; goto f11;
-	tr36: cs = 23; goto f10;
-	tr38: cs = 24; goto _again;
-	tr39: cs = 25; goto f14;
-	tr41: cs = 26; goto _again;
-	tr5: cs = 28; goto f2;
-	tr6: cs = 28; goto f3;
-	tr7: cs = 28; goto f4;
-	tr8: cs = 28; goto f5;
-	tr9: cs = 28; goto f6;
-	tr10: cs = 28; goto f7;
-	tr11: cs = 28; goto f8;
-	tr16: cs = 29; goto f13;
-	tr15: cs = 30; goto f12;
-	tr21: cs = 31; goto f6;
-	tr29: cs = 31; goto f16;
-	tr37: cs = 31; goto f17;
-	tr27: cs = 32; goto f15;
-	tr40: cs = 33; goto f18;
-	tr42: cs = 34; goto f19;
-	tr43: cs = 35; goto f20;
+	tr16: cs = 7; goto f13;
+	tr18: cs = 8; goto _again;
+	tr5: cs = 10; goto f2;
+	tr6: cs = 10; goto f3;
+	tr7: cs = 10; goto f4;
+	tr8: cs = 10; goto f5;
+	tr9: cs = 10; goto f6;
+	tr10: cs = 10; goto f7;
+	tr15: cs = 11; goto f12;
+	tr14: cs = 12; goto f11;
+	tr17: cs = 13; goto f14;
+	tr19: cs = 14; goto f15;
+	tr20: cs = 15; goto f16;
 
-	f1: _acts = _ansi_actions + 1; goto execFuncs;
-	f4: _acts = _ansi_actions + 3; goto execFuncs;
-	f9: _acts = _ansi_actions + 5; goto execFuncs;
-	f10: _acts = _ansi_actions + 7; goto execFuncs;
-	f11: _acts = _ansi_actions + 9; goto execFuncs;
-	f13: _acts = _ansi_actions + 11; goto execFuncs;
-	f0: _acts = _ansi_actions + 13; goto execFuncs;
-	f5: _acts = _ansi_actions + 15; goto execFuncs;
-	f6: _acts = _ansi_actions + 17; goto execFuncs;
-	f17: _acts = _ansi_actions + 19; goto execFuncs;
-	f14: _acts = _ansi_actions + 21; goto execFuncs;
-	f19: _acts = _ansi_actions + 23; goto execFuncs;
-	f16: _acts = _ansi_actions + 25; goto execFuncs;
-	f8: _acts = _ansi_actions + 27; goto execFuncs;
-	f3: _acts = _ansi_actions + 29; goto execFuncs;
-	f7: _acts = _ansi_actions + 31; goto execFuncs;
-	f2: _acts = _ansi_actions + 33; goto execFuncs;
-	f20: _acts = _ansi_actions + 35; goto execFuncs;
-	f12: _acts = _ansi_actions + 37; goto execFuncs;
-	f18: _acts = _ansi_actions + 40; goto execFuncs;
-	f15: _acts = _ansi_actions + 43; goto execFuncs;
+	f0: _acts = _ansi_actions + 1; goto execFuncs;
+	f1: _acts = _ansi_actions + 3; goto execFuncs;
+	f5: _acts = _ansi_actions + 5; goto execFuncs;
+	f8: _acts = _ansi_actions + 7; goto execFuncs;
+	f9: _acts = _ansi_actions + 9; goto execFuncs;
+	f10: _acts = _ansi_actions + 11; goto execFuncs;
+	f12: _acts = _ansi_actions + 13; goto execFuncs;
+	f4: _acts = _ansi_actions + 15; goto execFuncs;
+	f13: _acts = _ansi_actions + 17; goto execFuncs;
+	f15: _acts = _ansi_actions + 19; goto execFuncs;
+	f7: _acts = _ansi_actions + 21; goto execFuncs;
+	f3: _acts = _ansi_actions + 23; goto execFuncs;
+	f6: _acts = _ansi_actions + 25; goto execFuncs;
+	f2: _acts = _ansi_actions + 27; goto execFuncs;
+	f16: _acts = _ansi_actions + 29; goto execFuncs;
+	f11: _acts = _ansi_actions + 31; goto execFuncs;
+	f14: _acts = _ansi_actions + 34; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
 	while ( _nacts-- > 0 ) {
 		switch ( *_acts++ ) {
 	case 0:
-/* #line 180 "user/ansi_parser.rl" */
+/* #line 185 "user/ansi_parser.rl" */
+	{
+			ansi_warn("Parser error.");
+			apars_handle_badseq();
+			inside_string = false; // no longer in string, for sure
+			{cs = 1;goto _again;}
+		}
+	break;
+	case 1:
+/* #line 194 "user/ansi_parser.rl" */
 	{
 			if ((*p) != 0) {
 				apars_handle_plainchar((*p));
 			}
 		}
 	break;
-	case 1:
-/* #line 189 "user/ansi_parser.rl" */
+	case 2:
+/* #line 202 "user/ansi_parser.rl" */
 	{
 			// Reset the CSI builder
-			csi_leading = csi_char = 0;
-			csi_ni = 0;
-			csi_cnt = 0;
+			leadchar = 0;
+			arg_ni = 0;
+			arg_cnt = 0;
 
 			// Zero out digits
 			for(int i = 0; i < CSI_N_MAX; i++) {
-				csi_n[i] = 0;
+				arg[i] = 0;
 			}
 
 			{cs = 5;goto _again;}
 		}
 	break;
-	case 2:
-/* #line 203 "user/ansi_parser.rl" */
-	{
-			csi_leading = (*p);
-		}
-	break;
 	case 3:
-/* #line 207 "user/ansi_parser.rl" */
+/* #line 216 "user/ansi_parser.rl" */
 	{
-			if (csi_cnt == 0) csi_cnt = 1;
-			// x10 + digit
-			if (csi_ni < CSI_N_MAX) {
-				csi_n[csi_ni] = csi_n[csi_ni]*10 + ((*p) - '0');
-			}
+			leadchar = (*p);
 		}
 	break;
 	case 4:
-/* #line 215 "user/ansi_parser.rl" */
+/* #line 220 "user/ansi_parser.rl" */
 	{
-			if (csi_cnt == 0) csi_cnt = 1; // handle case when first arg is empty
-			csi_cnt++;
-			csi_ni++;
+			if (arg_cnt == 0) arg_cnt = 1;
+			// x10 + digit
+			if (arg_ni < CSI_N_MAX) {
+				arg[arg_ni] = arg[arg_ni]*10 + ((*p) - '0');
+			}
 		}
 	break;
 	case 5:
-/* #line 221 "user/ansi_parser.rl" */
+/* #line 228 "user/ansi_parser.rl" */
 	{
-			csi_char = (*p);
-			apars_handle_CSI(csi_leading, csi_n, csi_cnt, csi_char);
-			{cs = 1;goto _again;}
+			if (arg_cnt == 0) arg_cnt = 1; // handle case when first arg is empty
+			arg_cnt++;
+			arg_ni++;
 		}
 	break;
 	case 6:
-/* #line 227 "user/ansi_parser.rl" */
+/* #line 234 "user/ansi_parser.rl" */
 	{
-			ansi_warn("Parser error.");
-			apars_handle_badseq();
+			apars_handle_CSI(leadchar, arg, arg_cnt, (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 7:
 /* #line 245 "user/ansi_parser.rl" */
 	{
-			csi_ni = 0;
-
-			// we reuse the CSI numeric buffer
-			for(int i = 0; i < CSI_N_MAX; i++) {
-				csi_n[i] = 0;
-			}
-
-			osc_bi = 0;
-			osc_buffer[0] = '\0';
-
-			inside_osc = true;
-
+			leadchar = (*p);
+			str_ni = 0;
+			string_buffer[0] = '\0';
+			inside_string = true;
 			{cs = 7;goto _again;}
 		}
 	break;
 	case 8:
-/* #line 262 "user/ansi_parser.rl" */
+/* #line 253 "user/ansi_parser.rl" */
 	{
-			osc_bi = 0;
-			osc_buffer[0] = '\0';
-			inside_osc = true;
-			{cs = 25;goto _again;}
+			string_buffer[str_ni++] = (*p);
 		}
 	break;
 	case 9:
-/* #line 269 "user/ansi_parser.rl" */
+/* #line 257 "user/ansi_parser.rl" */
 	{
-			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
-			inside_osc = false;
+			inside_string = false;
+			string_buffer[str_ni++] = '\0';
+			apars_handle_StrCmd(leadchar, string_buffer);
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 10:
-/* #line 275 "user/ansi_parser.rl" */
-	{
-			osc_buffer[osc_bi++] = (*p);
-		}
-	break;
-	case 11:
-/* #line 279 "user/ansi_parser.rl" */
-	{
-			osc_buffer[osc_bi++] = '\0';
-			apars_handle_OSC_SetTitle(osc_buffer);
-			inside_osc = false;
-			{cs = 1;goto _again;}
-		}
-	break;
-	case 12:
-/* #line 286 "user/ansi_parser.rl" */
-	{
-			osc_buffer[osc_bi++] = '\0';
-			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
-			inside_osc = false;
-			{cs = 1;goto _again;}
-		}
-	break;
-	case 13:
-/* #line 319 "user/ansi_parser.rl" */
+/* #line 270 "user/ansi_parser.rl" */
 	{
 			apars_handle_hashCode((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 14:
-/* #line 324 "user/ansi_parser.rl" */
+	case 11:
+/* #line 275 "user/ansi_parser.rl" */
 	{
 			apars_handle_shortCode((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 15:
-/* #line 329 "user/ansi_parser.rl" */
+	case 12:
+/* #line 280 "user/ansi_parser.rl" */
 	{
-			apars_handle_setXCtrls((*p)); // weird control settings like 7 bit / 8 bit mode
+			apars_handle_spaceCmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-	case 16:
-/* #line 334 "user/ansi_parser.rl" */
+	case 13:
+/* #line 287 "user/ansi_parser.rl" */
 	{
-			// abuse the buffer for storing the leading char
-			osc_buffer[0] = (*p);
-			{cs = 27;goto _again;}
+			leadchar = (*p);
+			{cs = 9;goto _again;}
 		}
 	break;
-	case 17:
-/* #line 340 "user/ansi_parser.rl" */
+	case 14:
+/* #line 292 "user/ansi_parser.rl" */
 	{
-			apars_handle_characterSet(osc_buffer[0], (*p));
+			apars_handle_characterSet(leadchar, (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 653 "user/ansi_parser.c" */
+/* #line 512 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -666,17 +525,18 @@ _again:
 	unsigned int __nacts = (unsigned int) *__acts++;
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
-	case 6:
-/* #line 227 "user/ansi_parser.rl" */
+	case 0:
+/* #line 185 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
 			apars_handle_badseq();
+			inside_string = false; // no longer in string, for sure
 			{cs = 1;	if ( p == pe )
 		goto _test_eof;
 goto _again;}
 		}
 	break;
-/* #line 680 "user/ansi_parser.c" */
+/* #line 540 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -684,8 +544,6 @@ goto _again;}
 	_out: {}
 	}
 
-/* #line 364 "user/ansi_parser.rl" */
+/* #line 315 "user/ansi_parser.rl" */
 
 }
-
-// 'ESC k blah OSC_end' is a shortcut for setting title (k is defined in GNU screen as Title Definition String)

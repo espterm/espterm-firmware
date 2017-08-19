@@ -10,16 +10,21 @@
 	write data;
 }%%
 
-static volatile int cs = -1;
-static volatile bool inside_osc = false;
+// Max nr of CSI parameters
+#define CSI_N_MAX 10
+#define STR_CHAR_MAX 64
 
+static volatile int cs = -1;
+static volatile bool inside_string = false;
+
+// public
 volatile u32 ansi_parser_char_cnt = 0;
 
 void ICACHE_FLASH_ATTR
 ansi_parser_reset(void) {
 	if (cs != ansi_start) {
 		cs = ansi_start;
-		inside_osc = false;
+		inside_string = false;
 		apars_reset_utf8buffer();
 		ansi_warn("Parser timeout, state reset");
 	}
@@ -70,13 +75,13 @@ void ICACHE_FLASH_ATTR
 ansi_parser(char newchar)
 {
 	// The CSI code is built here
-	static char csi_leading;      //!< Leading char, 0 if none
-	static int  csi_ni;           //!< Number of the active digit
-	static int  csi_cnt;          //!< Digit count
-	static int  csi_n[CSI_N_MAX]; //!< Param digits
-	static char csi_char;         //!< CSI action char (end)
-	static char osc_buffer[OSC_CHAR_MAX];
-	static int  osc_bi; // buffer char index
+	static char leadchar;
+	static int  arg_ni;
+	static int  arg_cnt;
+	static int  arg[CSI_N_MAX];
+	static char csi_char;
+	static char string_buffer[STR_CHAR_MAX];
+	static int  str_ni;
 
 	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
@@ -101,7 +106,7 @@ ansi_parser(char newchar)
 	if (newchar < ' ') {
 		switch (newchar) {
 			case ESC:
-				if (!inside_osc) {
+				if (!inside_string) {
 					// Reset state
 					cs = ansi_start;
 					// now the ESC will be processed by the parser
@@ -132,7 +137,7 @@ ansi_parser(char newchar)
 
 			case BEL:
 				// bel is also used to terminate OSC
-				if (!inside_osc) {
+				if (!inside_string) {
 					apars_handle_bel();
 					return;
 				}
@@ -173,7 +178,16 @@ ansi_parser(char newchar)
 		ESC = 27;
 		NOESC = (any - ESC);
 		TOK_ST = ESC '\\'; # String terminator - used for OSC commands
-		OSC_END = ('\a' | TOK_ST);
+		STR_END = ('\a' | TOK_ST);
+
+		# --- Error handler ---
+
+		action errBadSeq {
+			ansi_warn("Parser error.");
+			apars_handle_badseq();
+			inside_string = false; // no longer in string, for sure
+			fgoto main;
+		}
 
 		# --- Regular characters to be printed ---
 
@@ -183,54 +197,42 @@ ansi_parser(char newchar)
 			}
 		}
 
-		# --- CSI CSI commands (Select Graphic Rendition) ---
-		# Text color & style
+		# --- CSI commands ---
 
 		action CSI_start {
 			// Reset the CSI builder
-			csi_leading = csi_char = 0;
-			csi_ni = 0;
-			csi_cnt = 0;
+			leadchar = 0;
+			arg_ni = 0;
+			arg_cnt = 0;
 
 			// Zero out digits
 			for(int i = 0; i < CSI_N_MAX; i++) {
-				csi_n[i] = 0;
+				arg[i] = 0;
 			}
 
 			fgoto CSI_body;
 		}
 
 		action CSI_leading {
-			csi_leading = fc;
+			leadchar = fc;
 		}
 
 		action CSI_digit {
-			if (csi_cnt == 0) csi_cnt = 1;
+			if (arg_cnt == 0) arg_cnt = 1;
 			// x10 + digit
-			if (csi_ni < CSI_N_MAX) {
-				csi_n[csi_ni] = csi_n[csi_ni]*10 + (fc - '0');
+			if (arg_ni < CSI_N_MAX) {
+				arg[arg_ni] = arg[arg_ni]*10 + (fc - '0');
 			}
 		}
 
 		action CSI_semi {
-			if (csi_cnt == 0) csi_cnt = 1; // handle case when first arg is empty
-			csi_cnt++;
-			csi_ni++;
+			if (arg_cnt == 0) arg_cnt = 1; // handle case when first arg is empty
+			arg_cnt++;
+			arg_ni++;
 		}
 
 		action CSI_end {
-			csi_char = fc;
-			apars_handle_CSI(csi_leading, csi_n, csi_cnt, csi_char);
-			fgoto main;
-		}
-
-		action errBadSeq {
-			ansi_warn("Parser error.");
-			apars_handle_badseq();
-			fgoto main;
-		}
-
-		action back2main {
+			apars_handle_CSI(leadchar, arg, arg_cnt, fc);
 			fgoto main;
 		}
 
@@ -238,83 +240,32 @@ ansi_parser(char newchar)
 			((digit @CSI_digit)* ';' @CSI_semi)*
 			(digit @CSI_digit)* (alpha|'`'|'@') @CSI_end $!errBadSeq;
 
+		# --- String commands ---
 
-		# --- OSC commands (Operating System Commands) ---
-		# Module parametrisation
-
-		action OSC_start {
-			csi_ni = 0;
-
-			// we reuse the CSI numeric buffer
-			for(int i = 0; i < CSI_N_MAX; i++) {
-				csi_n[i] = 0;
-			}
-
-			osc_bi = 0;
-			osc_buffer[0] = '\0';
-
-			inside_osc = true;
-
-			fgoto OSC_body;
+		action StrCmd_start {
+			leadchar = fc;
+			str_ni = 0;
+			string_buffer[0] = '\0';
+			inside_string = true;
+			fgoto StrCmd_body;
 		}
 
-		# collecting title string; this can also be entered by ESC k
-		action SetTitle_start {
-			osc_bi = 0;
-			osc_buffer[0] = '\0';
-			inside_osc = true;
-			fgoto TITLE_body;
+		action StrCmd_char {
+			string_buffer[str_ni++] = fc;
 		}
 
-		action OSC_resize {
-			apars_handle_OSC_SetScreenSize(csi_n[0], csi_n[1]);
-			inside_osc = false;
+		action StrCmd_end {
+			inside_string = false;
+			string_buffer[str_ni++] = '\0';
+			apars_handle_StrCmd(leadchar, string_buffer);
 			fgoto main;
 		}
 
-		action OSC_text_char {
-			osc_buffer[osc_bi++] = fc;
-		}
+		# According to the spec, ESC should be allowed inside the string sequence.
+		# We disallow ESC for simplicity, as it's hardly ever used.
+		StrCmd_body := ((NOESC @StrCmd_char)* STR_END @StrCmd_end) $!errBadSeq;
 
-		action OSC_title {
-			osc_buffer[osc_bi++] = '\0';
-			apars_handle_OSC_SetTitle(osc_buffer);
-			inside_osc = false;
-			fgoto main;
-		}
-
-		action OSC_button {
-			osc_buffer[osc_bi++] = '\0';
-			apars_handle_OSC_SetButton(csi_n[0], osc_buffer);
-			inside_osc = false;
-			fgoto main;
-		}
-
-		# 0; is xterm title hack
-		OSC_body := (
-			("BTN" digit @CSI_digit '=' (NOESC @OSC_text_char)* OSC_END @OSC_button) |
-			("TITLE=" @SetTitle_start) |
-			("0;" @SetTitle_start) |
-			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ OSC_END @OSC_resize)
-		) $!errBadSeq;
-
-		TITLE_body := (NOESC @OSC_text_char)* OSC_END @OSC_title $!errBadSeq;
-
-		action RESET_cmd {
-			// Reset screen
-			apars_handle_RESET_cmd();
-			fgoto main;
-		}
-
-		action CSI_SaveCursorAttrs {
-			apars_handle_saveCursorAttrs();
-			fgoto main;
-		}
-
-		action CSI_RestoreCursorAttrs {
-			apars_handle_restoreCursorAttrs();
-			fgoto main;
-		}
+		# --- Single character ESC ---
 
 		action HASH_code {
 			apars_handle_hashCode(fc);
@@ -326,23 +277,24 @@ ansi_parser(char newchar)
 			fgoto main;
 		}
 
-		action SetXCtrls {
-			apars_handle_setXCtrls(fc); // weird control settings like 7 bit / 8 bit mode
+		action SPACE_cmd {
+			apars_handle_spaceCmd(fc);
 			fgoto main;
 		}
 
+		# --- Charset selection ---
+
 		action CharsetCmd_start {
-			// abuse the buffer for storing the leading char
-			osc_buffer[0] = fc;
+			leadchar = fc;
 			fgoto charsetcmd_body;
 		}
 
 		action CharsetCmd_end {
-			apars_handle_characterSet(osc_buffer[0], fc);
+			apars_handle_characterSet(leadchar, fc);
 			fgoto main;
 		}
 
-		charsetcmd_body := (any @CharsetCmd_end) $!errBadSeq;
+		charsetcmd_body := (NOESC @CharsetCmd_end) $!errBadSeq;
 
 		# --- Main parser loop ---
 
@@ -350,12 +302,11 @@ ansi_parser(char newchar)
 			(
 				(NOESC @plain_char)* ESC (
 					('[' @CSI_start) |
-					(']' @OSC_start) |
+					([_\]Pk\^X] @StrCmd_start) |
 					('#' digit @HASH_code) |
-					('k' @SetTitle_start) |
-					([a-jl-zA-Z0-9=<>] @SHORT_code) |
-					([()*+-./] @CharsetCmd_start) |
-					(' ' [FG] @SetXCtrls)
+					(([a-zA-Z0-9=<>~}|@\\] - [PXk]) @SHORT_code) |
+					([()*+-./%] @CharsetCmd_start) |
+					(' ' [FGLMN] @SPACE_cmd)
 				)
 			)+ $!errBadSeq;
 
@@ -363,5 +314,3 @@ ansi_parser(char newchar)
 #*/
 	}%%
 }
-
-// 'ESC k blah OSC_end' is a shortcut for setting title (k is defined in GNU screen as Title Definition String)
