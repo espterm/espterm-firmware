@@ -4,6 +4,42 @@
 #include "ansi_parser.h"
 #include "syscfg.h"
 
+#define LOGBUF_SIZE 1500
+static char logbuf[LOGBUF_SIZE];
+static u32 lb_nw = 1;
+static u32 lb_ls = 0;
+static ETSTimer flushLogTimer;
+
+static void buf_putc(char c)
+{
+	if (lb_ls != lb_nw) {
+		logbuf[lb_nw++] = c;
+		if (lb_nw >= LOGBUF_SIZE) lb_nw = 0;
+	}
+}
+
+static void buf_pop(void *unused)
+{
+	u32 quantity = 32;
+	u32 old_ls;
+	while (quantity > 0) {
+		// stop when done
+		if ((lb_ls == lb_nw-1) || (lb_ls == LOGBUF_SIZE-1 && lb_nw == 0)) break;
+
+		old_ls = lb_ls;
+		lb_ls++;
+		if (lb_ls >= LOGBUF_SIZE) lb_ls = 0;
+
+		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 2000)) {
+			quantity--;
+		} else {
+			// try another time
+			lb_ls = old_ls;
+			break;
+		}
+	}
+}
+
 /**
  * Init the serial ports
  */
@@ -14,8 +50,15 @@ void ICACHE_FLASH_ATTR serialInitBase(void)
 	UART_SetParity(UART1, PARITY_NONE);
 	UART_SetStopBits(UART1, ONE_STOP_BIT);
 	UART_SetBaudrate(UART1, BIT_RATE_115200);
-	UART_SetPrintPort(UART1);
+	//UART_SetPrintPort(UART1);
+	os_install_putc1(buf_putc);
 	UART_SetupAsyncReceiver();
+
+	// 1 ms timer
+	os_timer_disarm(&flushLogTimer);
+	os_timer_setfn(&flushLogTimer, buf_pop, NULL);
+	//os_timer_arm(&flushLogTimer, 1, 1);
+	ets_timer_arm_new(&flushLogTimer, 1, 500, 0); // us timer
 }
 
 /**

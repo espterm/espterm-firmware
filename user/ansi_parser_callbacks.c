@@ -69,7 +69,7 @@ apars_handle_plainchar(char c)
 
 	return;
 fail:
-	ansi_warn("Bad UTF-8");
+	ansi_warn("Bad UTF-8: %0Xh", c);
 	apars_reset_utf8buffer();
 }
 
@@ -254,7 +254,7 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 						screen_set_cursors_alt_mode(yn);
 					}
 					else {
-						ansi_warn("NOIMPL DEC opt %d", n);
+//						ansi_warn("NOIMPL DEC opt %d", n);
 					}
 				}
 				else {
@@ -262,7 +262,7 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 						screen_set_insert_mode(yn);
 					}
 					else {
-						ansi_warn("NOIMPL flag %d", n);
+//						ansi_warn("NOIMPL flag %d", n);
 					}
 				}
 			}
@@ -356,12 +356,12 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 
 		case 'g':
 			// TODO clear tab
-			ansi_warn("NOIMPL clear tab");
+//			ansi_warn("NOIMPL clear tab");
 			break;
 
 		case 'Z':
 			// TODO back tab
-			ansi_warn("NOIMPL cursor back tab");
+//			ansi_warn("NOIMPL cursor back tab");
 			break;
 
 		case 'c': // CSI-c
@@ -384,7 +384,7 @@ void ICACHE_FLASH_ATTR apars_handle_hashCode(char c)
 			break;
 
 		default:
-			ansi_warn("Unknown # sequence: %c", c);
+			ansi_warn("Bad seq: ESC # %c", c);
 	}
 }
 
@@ -435,7 +435,7 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 			break;
 
 		default:
-			ansi_warn("Unknown 1-char seq %c", c);
+			ansi_warn("Bad seq: ESC %c", c);
 	}
 }
 
@@ -445,7 +445,7 @@ void ICACHE_FLASH_ATTR apars_handle_shortCode(char c)
 void ICACHE_FLASH_ATTR
 apars_handle_OSC_SetScreenSize(int rows, int cols)
 {
-	info("OSC: Set screen size to %d x %d", rows, cols);
+//	info("OSC: Set screen size to %d x %d", rows, cols);
 
 	screen_resize(rows, cols);
 }
@@ -455,7 +455,7 @@ void ICACHE_FLASH_ATTR
 apars_handle_OSC_SetButton(int num, const char *buffer)
 {
 	strncpy(termconf_scratch.btn[num-1], buffer, TERM_BTN_LEN);
-	info("OSC: Set BTN%d = %s", num, buffer);
+//	info("OSC: Set BTN%d = %s", num, buffer);
 	screen_notifyChange(CHANGE_LABELS);
 }
 
@@ -463,6 +463,6 @@ void ICACHE_FLASH_ATTR
 apars_handle_OSC_SetTitle(const char *buffer)
 {
 	strncpy(termconf_scratch.title, buffer, TERM_TITLE_LEN);
-	info("OSC: Set TITLE = %s", buffer);
+//	info("OSC: Set TITLE = %s", buffer);
 	screen_notifyChange(CHANGE_LABELS);
 }

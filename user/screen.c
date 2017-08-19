@@ -128,7 +128,7 @@ void terminal_apply_settings_noclear(void)
 	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 
 	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
-	if (W*H >= MAX_SCREEN_SIZE) {
+	if (W*H > MAX_SCREEN_SIZE) {
 		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
 		error("reverting terminal settings to default");
 		terminal_restore_defaults();

@@ -25,7 +25,7 @@ ansi_parser_reset(void) {
 	}
 }
 
-#define HISTORY_LEN 16
+#define HISTORY_LEN 10
 
 #if DEBUG_ANSI
 static char history[HISTORY_LEN + 1];
@@ -128,8 +128,12 @@ ansi_parser(char newchar)
 				return;
 
 			case BEL:
-				apars_handle_bel();
-				return;
+				// bel is also used to terminate OSC
+				if (!inside_osc) {
+					apars_handle_bel();
+					return;
+				}
+				break;
 
 			case ENQ: // respond with space (like xterm)
 				UART_WriteChar(UART0, SP, UART_TIMEOUT_US);
@@ -166,7 +170,7 @@ ansi_parser(char newchar)
 		ESC = 27;
 		NOESC = (any - ESC);
 		TOK_ST = ESC '\\'; # String terminator - used for OSC commands
-		OSC_END = ('\a' | ESC '\\');
+		OSC_END = ('\a' | TOK_ST);
 
 		# --- Regular characters to be printed ---
 
@@ -218,7 +222,7 @@ ansi_parser(char newchar)
 		}
 
 		action errBadSeq {
-			ansi_warn("Invalid escape sequence discarded.");
+			ansi_warn("Parser error.");
 			apars_handle_badseq();
 			fgoto main;
 		}
@@ -287,7 +291,7 @@ ansi_parser(char newchar)
 		OSC_body := (
 			("BTN" digit @CSI_digit '=' (NOESC @OSC_text_char)* OSC_END @OSC_button) |
 			("TITLE=" @SetTitle_start) |
-			("0;" (NOESC @OSC_text_char)* OSC_END @OSC_title) |
+			("0;" @SetTitle_start) |
 			('W' (digit @CSI_digit)+ ';' @CSI_semi (digit @CSI_digit)+ OSC_END @OSC_resize)
 		) $!errBadSeq;
 

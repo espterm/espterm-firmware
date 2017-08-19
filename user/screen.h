@@ -62,8 +62,7 @@ typedef enum {
 #define SCR_DEF_TITLE "ESPTerm"
 
 /** Maximum screen size (determines size of the static data array) */
-#define MAX_SCREEN_SIZE (80*30)
-
+#define MAX_SCREEN_SIZE (80*25)
 
 typedef struct {
 	u32 width;
