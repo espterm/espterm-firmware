@@ -64,6 +64,14 @@ notifyLabelsTimCb(void *arg)
 	notify_available = true;
 }
 
+/** Beep */
+void ICACHE_FLASH_ATTR
+send_beep(void)
+{
+	// here's some potential for a race error with the other broadcast functions :C
+	cgiWebsockBroadcast(URL_WS_UPDATE, "B", 1, 0);
+}
+
 
 /**
  * Broadcast screen state to sockets.

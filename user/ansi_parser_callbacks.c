@@ -10,6 +10,7 @@
 #include "ansi_parser.h"
 #include "uart_driver.h"
 #include "sgr.h"
+#include "cgi_sockets.h"
 
 static char utf_collect[4];
 static int utf_i = 0;
@@ -127,8 +128,7 @@ apars_handle_spaceCmd(char c)
 void ICACHE_FLASH_ATTR
 apars_handle_bel(void)
 {
-	ansi_warn("NOIMPL: BEEP");
-	// TODO pass to the browser somehow
+	send_beep();
 }
 
 /**

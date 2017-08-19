@@ -1582,6 +1582,14 @@ var Screen = (function () {
 		'Z': '\u2128',
 	};
 
+	// for BEL
+	var audioCtx = null;
+	try {
+		audioCtx = new (window.AudioContext || window.audioContext || window.webkitAudioContext)();
+	} catch (er) {
+		console.error("Browser does not support AudioContext, can't beep.", er);
+	}
+
 	/** Get cell under cursor */
 	function _curCell() {
 		return screen[cursor.y*W + cursor.x];
@@ -1837,6 +1845,34 @@ var Screen = (function () {
 		});
 	}
 
+	function _beep()
+	{
+		var osc, gain;
+		if (!audioCtx) return;
+
+		// Main beep
+		osc = audioCtx.createOscillator();
+		gain = audioCtx.createGain();
+		osc.connect(gain);
+		gain.connect(audioCtx.destination);
+		gain.gain.value = 0.5;
+		osc.frequency.value = 750;
+		osc.type = 'sine';
+		osc.start();
+		osc.stop(audioCtx.currentTime+0.05);
+
+		// Surrogate beep (making it sound like 'oops')
+		osc = audioCtx.createOscillator();
+		gain = audioCtx.createGain();
+		osc.connect(gain);
+		gain.connect(audioCtx.destination);
+		gain.gain.value = 0.2;
+		osc.frequency.value = 400;
+		osc.type = 'sine';
+		osc.start(audioCtx.currentTime+0.05);
+		osc.stop(audioCtx.currentTime+0.08);
+	}
+
 	/** Load screen content from a binary sequence (new) */
 	function load(str) {
 		var content = str.substr(1);
@@ -1846,6 +1882,9 @@ var Screen = (function () {
 				break;
 			case 'T':
 				_load_labels(content);
+				break;
+			case 'B':
+				_beep();
 				break;
 			default:
 				console.warn("Bad data message type, ignoring.");
