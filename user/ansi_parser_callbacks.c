@@ -261,6 +261,9 @@ apars_handle_CSI(char leadchar, int *params, int count, char keychar)
 					if (n == 4) {
 						screen_set_insert_mode(yn);
 					}
+					else if (n == 20) {
+						screen_set_newline_mode(yn);
+					}
 					else {
 //						ansi_warn("NOIMPL flag %d", n);
 					}

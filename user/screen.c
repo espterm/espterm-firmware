@@ -39,6 +39,8 @@ static struct {
 	bool numpad_alt_mode;   //!< Application Mode - affects how user input of control keys is sent
 	bool cursors_alt_mode; //!< Application mode for cursor keys
 
+	bool newline_mode;
+
 	char charset0;
 	char charset1;
 } scr;
@@ -194,6 +196,7 @@ screen_reset(void)
 
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
+	scr.newline_mode = false;
 
 	scr.charset0 = 'B';
 	scr.charset1 = '0';
@@ -701,6 +704,13 @@ screen_set_cursors_alt_mode(bool alt_mode)
 	scr.cursors_alt_mode = alt_mode;
 	NOTIFY_DONE();
 }
+
+void ICACHE_FLASH_ATTR
+screen_set_newline_mode(bool nlm)
+{
+	scr.newline_mode = nlm;
+}
+
 //endregion
 
 //region --- Printing ---
@@ -720,6 +730,10 @@ screen_putchar(const char *ch)
 	switch (ch[0]) {
 		case '\r':
 			screen_cursor_set_x(0);
+			if (scr.newline_mode) {
+				// like LF
+				screen_cursor_move(1, 0, true);
+			}
 			goto done;
 
 		case '\n':

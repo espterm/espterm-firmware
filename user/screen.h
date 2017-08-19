@@ -167,6 +167,8 @@ void screen_cursor_restore(bool withAttrs);
 void screen_cursor_visible(bool visible);
 /** Enable auto wrap */
 void screen_wrap_enable(bool enable);
+/** Enable CR auto */
+void screen_set_newline_mode(bool nlm);
 
 // --- Colors ---
 
