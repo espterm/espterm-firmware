@@ -21,7 +21,7 @@ static void uart0_rx_intr_handler(void *para);
 static void uart_recvTask(os_event_t *events);
 
 #define uart_recvTaskPrio        1
-#define uart_recvTaskQueueLen    10
+#define uart_recvTaskQueueLen    15
 static os_event_t uart_recvTaskQueue[uart_recvTaskQueueLen];
 
 /** Clear the fifos */
@@ -50,6 +50,8 @@ void ICACHE_FLASH_ATTR UART_Init(void)
 	UART_ResetFifo(UART0);
 	UART_SetWordLength(UART1, EIGHT_BITS); // debug (output only)
 	UART_ResetFifo(UART1);
+
+	// remainder is configured based on user settings in serial.c
 }
 
 /** Configure Rx on UART0 */
@@ -60,8 +62,8 @@ void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
 	// set handler
 	ETS_UART_INTR_ATTACH((void *)uart0_rx_intr_handler, &(UartDev.rcv_buff)); // the buf will be used as an arg
 
-	// fifo threshold config
-	uint32_t conf = ((100 & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
+	// fifo threshold config (max: UART_RXFIFO_FULL_THRHD = 127)
+	uint32_t conf = ((60) << UART_RXFIFO_FULL_THRHD_S);
 	conf |= ((0x10 & UART_TXFIFO_EMPTY_THRHD) << UART_TXFIFO_EMPTY_THRHD_S);
 	// timeout config
 	conf |= ((0x02 & UART_RX_TOUT_THRHD) << UART_RX_TOUT_THRHD_S); // timeout threshold
@@ -104,10 +106,10 @@ void uart_rx_intr_enable(uint8 uart_no)
 
 void ICACHE_FLASH_ATTR UART_PollRx(void)
 {
-	uint8 fifo_len = UART_GetRxFifoCount(UART0);
+	uint8 fifo_len = (uint8) UART_GetRxFifoCount(UART0);
 
 	for (uint8 idx = 0; idx < fifo_len; idx++) {
-		uint8 d_tmp = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
+		uint8 d_tmp = (uint8) (READ_PERI_REG(UART_FIFO(UART0)) & 0xFF);
 		UART_HandleRxByte(d_tmp);
 	}
 }
