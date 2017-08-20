@@ -645,7 +645,7 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			}
 			break;
 
-		case 'x': // DECREPTPARM
+		case 'x': // DECREQTPARM -> DECREPTPARM
 			if (n1 <= 1) {
 				respond("\033[3;"); // this is a response on request (2 would be gratuitous)
 
@@ -672,6 +672,16 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 
 				// multiplier 1, flags 0
 				respond(";1;0x"); // ROM cartridge number ??
+			}
+			break;
+
+		case 'p':
+			if (leadchar == '!') { // RIS
+				/* On real VT there are differences between soft and hard reset, we treat both equally */
+				screen_reset();
+			} else {
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
 			}
 			break;
 
