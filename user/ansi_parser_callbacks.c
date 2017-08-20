@@ -647,7 +647,7 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 
 		case 'x': // DECREPTPARM
 			if (n1 <= 1) {
-				respond("\033[2;"); // this is a response
+				respond("\033[3;"); // this is a response on request (2 would be gratuitous)
 
 				// Parity
 				for(const struct DECREPTPARM_parity *p = DECREPTPARM_parity_arr; p->parity != -1; p++) {
