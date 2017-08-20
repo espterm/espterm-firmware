@@ -117,14 +117,13 @@ set(SOURCE_FILES
         user/cgi_sockets.h
         user/ansi_parser_callbacks.c
         user/ansi_parser_callbacks.h
-        user/user_main.h
         user/wifimgr.c
         user/wifimgr.h
         user/persist.c
         user/persist.h
         include/helpers.h
         user/syscfg.c
-        user/syscfg.h user/ascii.h user/sgr.h)
+        user/syscfg.h user/ascii.h user/sgr.h user/apars_utf8.c user/apars_utf8.h user/apars_logging.h user/version.h user/apars_csi.c user/apars_csi.h user/apars_short.c user/apars_short.h user/apars_string.c user/apars_string.h user/apars_osc.c user/apars_osc.h user/apars_dcs.c user/apars_dcs.h)
 
 include_directories(include)
 include_directories(user)
@@ -146,6 +145,7 @@ add_definitions(
         -DADMIN_PASSWORD="asdf"
         -DGIT_HASH="blabla"
         -DDEBUG_ANSI=1
+        -DDEBUG_ANSI_NOIMPL=1
         -DESPFS_HEATSHRINK)
 
 add_executable(esp_vt100_firmware ${SOURCE_FILES})

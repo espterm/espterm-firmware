@@ -85,6 +85,10 @@ void terminal_apply_settings_noclear(void);
 void screen_init(void);
 /** Change the screen size */
 void screen_resize(int rows, int cols);
+/** Set screen title */
+void screen_set_title(const char *title);
+/** Set a button text */
+void screen_set_button_text(int num, const char *text);
 
 // --- Encoding ---
 

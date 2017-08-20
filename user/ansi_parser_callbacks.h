@@ -1,16 +1,19 @@
 #ifndef ANSI_PARSER_CALLBACKS_H
 #define ANSI_PARSER_CALLBACKS_H
 
-#include "screen.h"
+#include "apars_csi.h"
+#include "apars_dcs.h"
+#include "apars_osc.h"
+#include "apars_string.h"
+#include "apars_short.h"
+#include "apars_utf8.h"
 
-void apars_handle_plainchar(char c);
-void apars_handle_CSI(char leadchar, const int *params, int count, char keychar);
-void apars_handle_StrCmd(char leadchar, const char *buffer);
-void apars_handle_shortCode(char c);
-void apars_handle_hashCode(char c);
-void apars_handle_characterSet(char leadchar, char c);
-void apars_handle_spaceCmd(char c);
-void apars_reset_utf8buffer(void);
+void apars_respond(const char *str);
+
 void apars_handle_bel(void);
+void apars_handle_enq(void);
+void apars_handle_tab(void);
+
+extern void apars_show_context(void);
 
 #endif //ESP_VT100_FIRMWARE_ANSI_PARSER_CALLBACKS_H

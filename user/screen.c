@@ -566,6 +566,13 @@ screen_resize(int rows, int cols)
 	NOTIFY_DONE();
 }
 
+void ICACHE_FLASH_ATTR
+screen_set_title(const char *title)
+{
+	strncpy(termconf_scratch.title, title, TERM_TITLE_LEN);
+	screen_notifyChange(CHANGE_LABELS);
+}
+
 /**
  * Shift screen upwards
  */
@@ -626,6 +633,13 @@ void ICACHE_FLASH_ATTR
 screen_set_scrolling_region(int from, int to)
 {
 	// TODO implement (also add to scr)
+	if (from == 0 && to == 0) {
+		// whole screen
+	} else if (from > 1 && from < H-1 && to > from) {
+		// set range
+	} else {
+		// Bad range, do nothing
+	}
 }
 
 //endregion

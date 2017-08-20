@@ -2,9 +2,9 @@
 /* #line 1 "user/ansi_parser.rl" */
 #include <esp8266.h>
 #include "ansi_parser.h"
-#include "screen.h"
+#include "ansi_parser_callbacks.h"
 #include "ascii.h"
-#include "uart_driver.h"
+#include "apars_logging.h"
 
 /* Ragel constants block */
 
@@ -14,12 +14,12 @@ static const char _ansi_actions[] = {
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 8, 1, 9, 1, 10, 1, 
 	11, 1, 12, 1, 13, 1, 14, 2, 
-	3, 6, 2, 8, 9
+	3, 6
 };
 
 static const char _ansi_eof_actions[] = {
 	0, 1, 1, 1, 1, 1, 1, 1, 
-	1, 1, 0, 0, 0, 0, 0, 0
+	1, 1, 0, 0, 0, 0, 0
 };
 
 static const int ansi_start = 1;
@@ -27,7 +27,7 @@ static const int ansi_first_final = 10;
 static const int ansi_error = 0;
 
 static const int ansi_en_CSI_body = 5;
-static const int ansi_en_StrCmd_body = 7;
+static const int ansi_en_STRCMD_body = 7;
 static const int ansi_en_charsetcmd_body = 9;
 static const int ansi_en_main = 1;
 
@@ -62,7 +62,7 @@ static char history[HISTORY_LEN + 1];
 #endif
 
 void ICACHE_FLASH_ATTR
-apars_handle_badseq(void)
+apars_show_context(void)
 {
 #if DEBUG_ANSI
 	char buf1[HISTORY_LEN*3+2];
@@ -104,7 +104,6 @@ ansi_parser(char newchar)
 	static int  arg_ni;
 	static int  arg_cnt;
 	static int  arg[CSI_N_MAX];
-	static char csi_char;
 	static char string_buffer[STR_CHAR_MAX];
 	static int  str_ni;
 
@@ -114,12 +113,12 @@ ansi_parser(char newchar)
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 118 "user/ansi_parser.c" */
+/* #line 117 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
 
-/* #line 92 "user/ansi_parser.rl" */
+/* #line 91 "user/ansi_parser.rl" */
 
 		#if DEBUG_ANSI
 			memset(history, 0, sizeof(history));
@@ -155,15 +154,16 @@ ansi_parser(char newchar)
 				return;
 
 			case TAB:
-				screen_tab_forward(1);
+				apars_handle_tab();
 				return;
 
 				// Select G0 or G1
 			case SI:
-				screen_set_charset_n(1);
+				apars_handle_chs_switch(1);
 				return;
+
 			case SO:
-				screen_set_charset_n(0);
+				apars_handle_chs_switch(0);
 				return;
 
 			case BEL:
@@ -174,8 +174,8 @@ ansi_parser(char newchar)
 				}
 				break;
 
-			case ENQ: // respond with space (like xterm)
-				UART_WriteChar(UART0, SP, UART_TIMEOUT_US);
+			case ENQ:
+				apars_handle_enq();
 				return;
 
 				// Cancel the active sequence
@@ -217,9 +217,13 @@ ansi_parser(char newchar)
 _resume:
 	switch ( cs ) {
 case 1:
-	if ( (*p) == 27 )
-		goto tr1;
+	switch( (*p) ) {
+		case 7: goto tr1;
+		case 27: goto tr2;
+	}
 	goto tr0;
+case 0:
+	goto _out;
 case 2:
 	switch( (*p) ) {
 		case 32: goto tr3;
@@ -250,24 +254,24 @@ case 2:
 			goto tr6;
 	} else
 		goto tr6;
-	goto tr2;
-case 0:
-	goto _out;
+	goto tr1;
 case 3:
 	if ( (*p) > 71 ) {
 		if ( 76 <= (*p) && (*p) <= 78 )
 			goto tr9;
 	} else if ( (*p) >= 70 )
 		goto tr9;
-	goto tr2;
+	goto tr1;
 case 10:
-	if ( (*p) == 27 )
-		goto tr1;
+	switch( (*p) ) {
+		case 7: goto tr1;
+		case 27: goto tr2;
+	}
 	goto tr0;
 case 4:
 	if ( 48 <= (*p) && (*p) <= 57 )
 		goto tr10;
-	goto tr2;
+	goto tr1;
 case 5:
 	switch( (*p) ) {
 		case 59: goto tr13;
@@ -287,7 +291,7 @@ case 5:
 			goto tr15;
 	} else
 		goto tr11;
-	goto tr2;
+	goto tr1;
 case 6:
 	if ( (*p) == 59 )
 		goto tr13;
@@ -299,9 +303,9 @@ case 6:
 			goto tr15;
 	} else
 		goto tr15;
-	goto tr2;
+	goto tr1;
 case 11:
-	goto tr2;
+	goto tr1;
 case 12:
 	if ( (*p) == 59 )
 		goto tr13;
@@ -313,7 +317,7 @@ case 12:
 			goto tr15;
 	} else
 		goto tr15;
-	goto tr2;
+	goto tr1;
 case 7:
 	switch( (*p) ) {
 		case 7: goto tr17;
@@ -321,28 +325,24 @@ case 7:
 	}
 	goto tr16;
 case 13:
-	switch( (*p) ) {
-		case 7: goto tr17;
-		case 27: goto tr18;
-	}
-	goto tr16;
+	goto tr1;
 case 8:
 	if ( (*p) == 92 )
-		goto tr19;
-	goto tr2;
-case 14:
-	goto tr2;
+		goto tr17;
+	goto tr1;
 case 9:
-	if ( (*p) == 27 )
-		goto tr2;
-	goto tr20;
-case 15:
-	goto tr2;
+	switch( (*p) ) {
+		case 7: goto tr1;
+		case 27: goto tr1;
+	}
+	goto tr19;
+case 14:
+	goto tr1;
 	}
 
-	tr2: cs = 0; goto f0;
+	tr1: cs = 0; goto f0;
 	tr0: cs = 1; goto f1;
-	tr1: cs = 2; goto _again;
+	tr2: cs = 2; goto _again;
 	tr3: cs = 3; goto _again;
 	tr4: cs = 4; goto _again;
 	tr11: cs = 6; goto f8;
@@ -360,7 +360,6 @@ case 15:
 	tr14: cs = 12; goto f11;
 	tr17: cs = 13; goto f14;
 	tr19: cs = 14; goto f15;
-	tr20: cs = 15; goto f16;
 
 	f0: _acts = _ansi_actions + 1; goto execFuncs;
 	f1: _acts = _ansi_actions + 3; goto execFuncs;
@@ -371,14 +370,13 @@ case 15:
 	f12: _acts = _ansi_actions + 13; goto execFuncs;
 	f4: _acts = _ansi_actions + 15; goto execFuncs;
 	f13: _acts = _ansi_actions + 17; goto execFuncs;
-	f15: _acts = _ansi_actions + 19; goto execFuncs;
+	f14: _acts = _ansi_actions + 19; goto execFuncs;
 	f7: _acts = _ansi_actions + 21; goto execFuncs;
 	f3: _acts = _ansi_actions + 23; goto execFuncs;
 	f6: _acts = _ansi_actions + 25; goto execFuncs;
 	f2: _acts = _ansi_actions + 27; goto execFuncs;
-	f16: _acts = _ansi_actions + 29; goto execFuncs;
+	f15: _acts = _ansi_actions + 29; goto execFuncs;
 	f11: _acts = _ansi_actions + 31; goto execFuncs;
-	f14: _acts = _ansi_actions + 34; goto execFuncs;
 
 execFuncs:
 	_nacts = *_acts++;
@@ -388,7 +386,7 @@ execFuncs:
 /* #line 185 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
-			apars_handle_badseq();
+			apars_show_context();
 			inside_string = false; // no longer in string, for sure
 			{cs = 1;goto _again;}
 		}
@@ -444,7 +442,7 @@ execFuncs:
 	case 6:
 /* #line 234 "user/ansi_parser.rl" */
 	{
-			apars_handle_CSI(leadchar, arg, arg_cnt, (*p));
+			apars_handle_csi(leadchar, arg, arg_cnt, (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
@@ -469,28 +467,28 @@ execFuncs:
 	{
 			inside_string = false;
 			string_buffer[str_ni++] = '\0';
-			apars_handle_StrCmd(leadchar, string_buffer);
+			apars_handle_string_cmd(leadchar, string_buffer);
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 10:
 /* #line 270 "user/ansi_parser.rl" */
 	{
-			apars_handle_hashCode((*p));
+			apars_handle_hash_cmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 11:
 /* #line 275 "user/ansi_parser.rl" */
 	{
-			apars_handle_shortCode((*p));
+			apars_handle_short_cmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 12:
 /* #line 280 "user/ansi_parser.rl" */
 	{
-			apars_handle_spaceCmd((*p));
+			apars_handle_space_cmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
@@ -504,11 +502,11 @@ execFuncs:
 	case 14:
 /* #line 292 "user/ansi_parser.rl" */
 	{
-			apars_handle_characterSet(leadchar, (*p));
+			apars_handle_chs_designate(leadchar, (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 512 "user/ansi_parser.c" */
+/* #line 510 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -529,14 +527,14 @@ _again:
 /* #line 185 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
-			apars_handle_badseq();
+			apars_show_context();
 			inside_string = false; // no longer in string, for sure
 			{cs = 1;	if ( p == pe )
 		goto _test_eof;
 goto _again;}
 		}
 	break;
-/* #line 540 "user/ansi_parser.c" */
+/* #line 538 "user/ansi_parser.c" */
 		}
 	}
 	}

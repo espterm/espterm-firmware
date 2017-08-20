@@ -5,7 +5,7 @@
 
 #include "cgi_main.h"
 #include "screen.h"
-#include "user_main.h"
+#include "version.h"
 #include "helpers.h"
 
 /**

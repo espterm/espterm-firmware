@@ -23,7 +23,7 @@
 #include "io.h"
 #include "screen.h"
 #include "routes.h"
-#include "user_main.h"
+#include "version.h"
 #include "uart_driver.h"
 #include "ansi_parser_callbacks.h"
 #include "wifimgr.h"

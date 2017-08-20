@@ -1,5 +1,9 @@
-#ifndef USER_MAIN_H_H
-#define USER_MAIN_H_H
+//
+// Created by MightyPork on 2017/08/20.
+//
+
+#ifndef ESP_VT100_FIRMWARE_VERSION_H
+#define ESP_VT100_FIRMWARE_VERSION_H
 
 #define FW_V_MAJOR 0
 #define FW_V_MINOR 6
@@ -9,4 +13,4 @@
 #define FIRMWARE_VERSION_NUM (FW_V_MAJOR*10000 + FW_V_MINOR*100 + FW_V_PATCH) // this is used in ID queries
 #define TERMINAL_GITHUB_REPO "https://github.com/MightyPork/esp-vt100-firmware"
 
-#endif //USER_MAIN_H_H
+#endif //ESP_VT100_FIRMWARE_VERSION_H

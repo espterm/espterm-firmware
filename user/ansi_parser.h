@@ -2,31 +2,10 @@
 #define ANSI_PARSER_H
 
 #include <stdlib.h>
-#include <screen.h>
-
-extern void apars_handle_plainchar(char c);
-extern void apars_handle_CSI(char leadchar, const int *params, int count, char keychar);
-extern void apars_handle_StrCmd(char leadchar, const char *buffer);
-extern void apars_handle_shortCode(char c);
-extern void apars_handle_hashCode(char c);
-extern void apars_handle_characterSet(char leadchar, char c);
-extern void apars_handle_spaceCmd(char c);
-extern void apars_reset_utf8buffer(void);
-extern void apars_handle_bel(void);
 
 void ansi_parser_reset(void);
 
 extern volatile u32 ansi_parser_char_cnt;
-
-// defined in the makefile
-#if DEBUG_ANSI
-#define ansi_warn warn
-#define ansi_dbg dbg
-#else
-#define ansi_warn(...)
-#define ansi_dbg(...)
-#endif
-
 
 /**
  * \brief Linear ANSI chars stream parser
@@ -43,6 +22,6 @@ extern volatile u32 ansi_parser_char_cnt;
 void ansi_parser(char newchar);
 
 /** This shows a short error message and prints the history (if any) */
-void apars_handle_badseq(void);
+void apars_show_context(void);
 
 #endif // ANSI_PARSER_H

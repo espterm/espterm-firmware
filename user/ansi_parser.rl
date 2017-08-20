@@ -1,8 +1,8 @@
 #include <esp8266.h>
 #include "ansi_parser.h"
-#include "screen.h"
+#include "ansi_parser_callbacks.h"
 #include "ascii.h"
-#include "uart_driver.h"
+#include "apars_logging.h"
 
 /* Ragel constants block */
 %%{
@@ -37,7 +37,7 @@ static char history[HISTORY_LEN + 1];
 #endif
 
 void ICACHE_FLASH_ATTR
-apars_handle_badseq(void)
+apars_show_context(void)
 {
 #if DEBUG_ANSI
 	char buf1[HISTORY_LEN*3+2];
@@ -79,7 +79,6 @@ ansi_parser(char newchar)
 	static int  arg_ni;
 	static int  arg_cnt;
 	static int  arg[CSI_N_MAX];
-	static char csi_char;
 	static char string_buffer[STR_CHAR_MAX];
 	static int  str_ni;
 
@@ -124,15 +123,16 @@ ansi_parser(char newchar)
 				return;
 
 			case TAB:
-				screen_tab_forward(1);
+				apars_handle_tab();
 				return;
 
 				// Select G0 or G1
 			case SI:
-				screen_set_charset_n(1);
+				apars_handle_chs_switch(1);
 				return;
+
 			case SO:
-				screen_set_charset_n(0);
+				apars_handle_chs_switch(0);
 				return;
 
 			case BEL:
@@ -143,8 +143,8 @@ ansi_parser(char newchar)
 				}
 				break;
 
-			case ENQ: // respond with space (like xterm)
-				UART_WriteChar(UART0, SP, UART_TIMEOUT_US);
+			case ENQ:
+				apars_handle_enq();
 				return;
 
 				// Cancel the active sequence
@@ -176,15 +176,15 @@ ansi_parser(char newchar)
 	%%{
 #/*
 		ESC = 27;
-		NOESC = (any - ESC);
+		NOESC = (any - ESC - 7);
 		TOK_ST = ESC '\\'; # String terminator - used for OSC commands
-		STR_END = ('\a' | TOK_ST);
+		STR_END = (7 | TOK_ST);
 
 		# --- Error handler ---
 
 		action errBadSeq {
 			ansi_warn("Parser error.");
-			apars_handle_badseq();
+			apars_show_context();
 			inside_string = false; // no longer in string, for sure
 			fgoto main;
 		}
@@ -232,7 +232,7 @@ ansi_parser(char newchar)
 		}
 
 		action CSI_end {
-			apars_handle_CSI(leadchar, arg, arg_cnt, fc);
+			apars_handle_csi(leadchar, arg, arg_cnt, fc);
 			fgoto main;
 		}
 
@@ -247,7 +247,7 @@ ansi_parser(char newchar)
 			str_ni = 0;
 			string_buffer[0] = '\0';
 			inside_string = true;
-			fgoto StrCmd_body;
+			fgoto STRCMD_body;
 		}
 
 		action StrCmd_char {
@@ -257,28 +257,28 @@ ansi_parser(char newchar)
 		action StrCmd_end {
 			inside_string = false;
 			string_buffer[str_ni++] = '\0';
-			apars_handle_StrCmd(leadchar, string_buffer);
+			apars_handle_string_cmd(leadchar, string_buffer);
 			fgoto main;
 		}
 
 		# According to the spec, ESC should be allowed inside the string sequence.
 		# We disallow ESC for simplicity, as it's hardly ever used.
-		StrCmd_body := ((NOESC @StrCmd_char)* STR_END @StrCmd_end) $!errBadSeq;
+		STRCMD_body := ((NOESC @StrCmd_char)* STR_END @StrCmd_end) $!errBadSeq;
 
 		# --- Single character ESC ---
 
 		action HASH_code {
-			apars_handle_hashCode(fc);
+			apars_handle_hash_cmd(fc);
 			fgoto main;
 		}
 
 		action SHORT_code {
-			apars_handle_shortCode(fc);
+			apars_handle_short_cmd(fc);
 			fgoto main;
 		}
 
 		action SPACE_cmd {
-			apars_handle_spaceCmd(fc);
+			apars_handle_space_cmd(fc);
 			fgoto main;
 		}
 
@@ -290,7 +290,7 @@ ansi_parser(char newchar)
 		}
 
 		action CharsetCmd_end {
-			apars_handle_characterSet(leadchar, fc);
+			apars_handle_chs_designate(leadchar, fc);
 			fgoto main;
 		}
 

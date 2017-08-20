@@ -73,6 +73,7 @@ CFLAGS += -DADMIN_PASSWORD=$(ADMIN_PASSWORD)
 
 # Debug logging
 CFLAGS += -DDEBUG_ANSI=1
+CFLAGS += -DDEBUG_ANSI_NOIMPL=1
 CFLAGS += -DDEBUG_INPUT=1
 
 # linker flags used to generate the main object file
