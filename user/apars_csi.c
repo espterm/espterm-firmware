@@ -331,7 +331,8 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 		case 'g': // Clear tabs
 			if (n1 == 3) {
 				screen_clear_all_tabs();
-			} else {
+			}
+			else if (n1 == 0) {
 				screen_clear_tab();
 			}
 			break;
