@@ -845,7 +845,7 @@ void ICACHE_FLASH_ATTR
 screen_set_charset(int Gx, char charset)
 {
 	if (Gx == 0) scr.charset0 = charset;
-	if (Gx == 1) scr.charset1 = charset;
+	else if (Gx == 1) scr.charset1 = charset;
 }
 
 void ICACHE_FLASH_ATTR
@@ -1009,32 +1009,137 @@ screen_putchar(const char *ch)
  * translates VT100 ACS escape codes to Unicode values.
  * Based on rxvt-unicode screen.C table.
  */
-static const u16 vt100_to_unicode[62] =
-	{
-// ?       ?       ?       ?       ?       ?       ?
-// A=UPARR B=DNARR C=RTARR D=LFARR E=FLBLK F=3/4BL G=SNOMN
-		0x2191, 0x2193, 0x2192, 0x2190, 0x2588, 0x259a, 0x2603,
-// H=      I=      J=      K=      L=      M=      N=
-		0,      0,      0,      0,      0,      0,      0,
-// O=      P=      Q=      R=      S=      T=      U=
-		0,      0,      0,      0,      0,      0,      0,
-// V=      W=      X=      Y=      Z=      [=      \=
-		0,      0,      0,      0,      0,      0,      0,
-// ?       ?       v->0    v->1    v->2    v->3    v->4
-// ]=      ^=      _=SPC   `=DIAMN a=HSMED b=HT    c=FF
-		0,      0,      0x0020, 0x25c6, 0x2592, 0x2409, 0x240c,
-// v->5    v->6    v->7    v->8    v->9    v->a    v->b
-// d=CR    e=LF    f=DEGRE g=PLSMN h=NL    i=VT    j=SL-BR
-		0x240d, 0x240a, 0x00b0, 0x00b1, 0x2424, 0x240b, 0x2518,
-// v->c    v->d    v->e    v->f    v->10   v->11   v->12
-// k=SL-TR l=SL-TL m=SL-BL n=SL-+  o=SL-T1 p=SL-T2 q=SL-HZ
-		0x2510, 0x250c, 0x2514, 0x253c, 0x23ba, 0x23bb, 0x2500,
-// v->13   v->14   v->15   v->16   v->17   v->18   v->19
-// r=SL-T4 s=SL-T5 t=SL-VR u=SL-VL v=SL-HU w=Sl-HD x=SL-VT
-		0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c, 0x2502,
-// v->1a   v->1b   b->1c   v->1d   v->1e/a3 v->1f
-// y=LT-EQ z=GT-EQ {=PI    |=NOTEQ }=POUND ~=DOT
-		0x2264, 0x2265, 0x03c0, 0x2260, 0x20a4, 0x00b7
+static const u16 codepage_0[] =
+	{//	Unicode    ASCII   SYM
+		0x25c6, // 96	`	◆
+		0x2592, // 97	a	▒
+		0x2409, // 98	b	HT
+		0x240c, // 99	c	FF
+		0x240d, // 100	d	CR
+		0x240a, // 101	e	LF
+		0x00b0, // 102	f	°
+		0x00b1, // 103	g	±
+		0x2424, // 104	h	NL
+		0x240b, // 105	i	VT
+		0x2518, // 106	j	┘
+		0x2510, // 107	k	┐
+		0x250c, // 108	l	┌
+		0x2514, // 109	m	└
+		0x253c, // 110	n	┼
+		0x23ba, // 111	o	⎺
+		0x23bb, // 112	p	⎻
+		0x2500, // 113	q	─
+		0x23bc, // 114	r	⎼
+		0x23bd, // 115	s	⎽
+		0x251c, // 116	t	├
+		0x2524, // 117	u	┤
+		0x2534, // 118	v	┴
+		0x252c, // 119	w	┬
+		0x2502, // 120	x	│
+		0x2264, // 121	y	≤
+		0x2265, // 122	z	≥
+		0x03c0, // 123	{	π
+		0x2260, // 124	|	≠
+		0x20a4, // 125	}	£
+		0x00b7, // 126	~	·
+	};
+
+static const u16 codepage_1[] =
+	{//	Unicode    ASCII   SYM  DOS
+		0x263A,	// 33	!	☺	(1)  - low ASCII symbols from DOS, moved to +32
+		0x263B,	// 34	"	☻	(2)
+		0x2665,	// 35	#	♥	(3)
+		0x2666,	// 36	$	♦	(4)
+		0x2663,	// 37	%	♣	(5)
+		0x2660,	// 38	&	♠	(6)
+		0x2022,	// 39	'	•	(7)  - inverse dot and circle left out, can be done with SGR
+		0x231B,	// 40	(	⌛        - hourglass (timer icon)
+		0x25CB,	// 41	)	○	(9)
+		0x21AF,	// 42	*	↯        - electricity (lightning monitor...)
+		0x266A,	// 43	+	♪	(13)
+		0x266B,	// 44	,	♫	(14)
+		0x263C,	// 45	-	☼	(15)
+		0x2302,	// 46	.	⌂	(127)
+		0x2622,	// 47	/	☢         - radioactivity (geiger counter...)
+		0x2591,	// 48	0	░	(176) - this block is kept aligned and ordered from DOS, moved -128
+		0x2592,	// 49	1	▒	(177)
+		0x2593,	// 50	2	▓	(178)
+		0x2502,	// 51	3	│	(179)
+		0x2524,	// 52	4	┤	(180)
+		0x2561,	// 53	5	╡	(181)
+		0x2562,	// 54	6	╢	(182)
+		0x2556,	// 55	7	╖	(183)
+		0x2555,	// 56	8	╕	(184)
+		0x2563,	// 57	9	╣	(185)
+		0x2551,	// 58	:	║	(186)
+		0x2557,	// 59	;	╗	(187)
+		0x255D,	// 60	<	╝	(188)
+		0x255C,	// 61	=	╜	(189)
+		0x255B,	// 62	>	╛	(190)
+		0x2510,	// 63	?	┐	(191)
+		0x2514,	// 64	@	└	(192)
+		0x2534,	// 65	A	┴	(193)
+		0x252C,	// 66	B	┬	(194)
+		0x251C,	// 67	C	├	(195)
+		0x2500,	// 68	D	─	(196)
+		0x253C,	// 69	E	┼	(197)
+		0x255E,	// 70	F	╞	(198)
+		0x255F,	// 71	G	╟	(199)
+		0x255A,	// 72	H	╚	(200)
+		0x2554,	// 73	I	╔	(201)
+		0x2569,	// 74	J	╩	(202)
+		0x2566,	// 75	K	╦	(203)
+		0x2560,	// 76	L	╠	(204)
+		0x2550,	// 77	M	═	(205)
+		0x256C,	// 78	N	╬	(206)
+		0x2567,	// 79	O	╧	(207)
+		0x2568,	// 80	P	╨	(208)
+		0x2564,	// 81	Q	╤	(209)
+		0x2565,	// 82	R	╥	(210)
+		0x2559,	// 83	S	╙	(211)
+		0x2558,	// 84	T	╘	(212)
+		0x2552,	// 85	U	╒	(213)
+		0x2553,	// 86	V	╓	(214)
+		0x256B,	// 87	W	╫	(215)
+		0x256A,	// 88	X	╪	(216)
+		0x2518,	// 89	Y	┘	(217)
+		0x250C,	// 90	Z	┌	(218)
+		0x2588,	// 91	[	█	(219)
+		0x2584,	// 92	\	▄	(220)
+		0x258C,	// 93	]	▌	(221)
+		0x2590,	// 94	^	▐	(222)
+		0x2580,	// 95	_	▀	(223)
+		0x2195,	// 96	`	↕	(18)  - moved from low DOS ASCII
+		0x2191,	// 97	a	↑	(24)
+		0x2193,	// 98	b	↓	(25)
+		0x2192,	// 99	c	→	(26)
+		0x2190,	// 100	d	←	(27)
+		0x2194,	// 101	e	↔	(29)
+		0x25B2,	// 102	f	▲	(30)
+		0x25BC,	// 103	g	▼	(31)
+		0x25BA,	// 104	h	►	(16)
+		0x25C4,	// 105	i	◄	(17)
+		0x25E2,	// 106	j	◢         - added for slanted corners
+		0x25E3,	// 107	k	◣
+		0x25E4,	// 108	l	◤
+		0x25E5,	// 109	m	◥
+		0x256D,	// 110	n	╭         - rounded corners
+		0x256E,	// 111	o	╮
+		0x256F,	// 112	p	╯
+		0x2570,	// 113	q	╰
+		0x0,	// 114	r             - free positions for future expansion
+		0x0,	// 115	s
+		0x0,	// 116	t
+		0x0,	// 117	u
+		0x0,	// 118	v
+		0x0,	// 119	w
+		0x0,	// 120	x
+		0x0,	// 121	y
+		0x0,	// 122	z
+		0x0,	// 123	{
+		0x0,	// 124	|
+		0x2714,	// 125	}	✔         - checkboxes or checklist items
+		0x2718,	// 126	~	✘
 	};
 
 /**
@@ -1046,23 +1151,26 @@ static const u16 vt100_to_unicode[62] =
 static void ICACHE_FLASH_ATTR
 utf8_remap(char *out, char g, char table)
 {
-	u16 utf = 0;
+	u16 n;
+	u16 utf = (unsigned char)g;
 
-	switch (table)
-	{
+	switch (table) {
 		case '0': /* DEC Special Character & Line Drawing Set */
-			if ((g >= 0x41) && (g <= 0x7e) && (vt100_to_unicode[g - 0x41])) {
-				utf = vt100_to_unicode[g - 0x41];
+			if ((g >= 96) && (g < 0x7F)) {
+				n = codepage_0[g - 96];
+				if (n) utf = n;
+			}
+			break;
+
+		case '1': /* ESPTerm Character Rom 1 */
+			if ((g >= 33) && (g < 0x7F)) {
+				n = codepage_1[g - 33];
+				if (n) utf = n;
 			}
 			break;
 
 		case 'A': /* UK, replaces # with GBP */
 			if (g == '#') utf = 0x20a4;
-			break;
-
-		default:
-			// no remap
-			utf = (unsigned char)g;
 			break;
 	}
 
@@ -1082,6 +1190,7 @@ utf8_remap(char *out, char g, char table)
 			out[2] = (char) (((utf ^ 0xFFFC0) | 0x80) & ~0x40);
 			out[3]=0;
 		}
+		// Missing 4-byte formulas :(
 	} else {
 		// low ASCII
 		out[0] = (char) utf;

@@ -159,11 +159,11 @@ ansi_parser(char newchar)
 
 				// Select G0 or G1
 			case SI:
-				apars_handle_chs_switch(1);
+				apars_handle_chs_switch(0);
 				return;
 
 			case SO:
-				apars_handle_chs_switch(0);
+				apars_handle_chs_switch(1);
 				return;
 
 			case BEL:
