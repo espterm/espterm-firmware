@@ -41,19 +41,6 @@
 #define TERM_BTN_LEN 10
 #define TERM_TITLE_LEN 64
 
-typedef enum {
-	CHANGE_CONTENT,
-	CHANGE_LABELS,
-} ScreenNotifyChangeTopic;
-
-#define ATTR_BOLD (1<<0)
-#define ATTR_FAINT (1<<1)
-#define ATTR_ITALIC (1<<2)
-#define ATTR_UNDERLINE (1<<3)
-#define ATTR_BLINK (1<<4)
-#define ATTR_FRAKTUR (1<<5)
-#define ATTR_STRIKE (1<<6)
-
 #define SCR_DEF_DISPLAY_TOUT_MS 20
 #define SCR_DEF_PARSER_TOUT_MS 10
 #define SCR_DEF_FN_ALT_MODE false
@@ -64,10 +51,12 @@ typedef enum {
 /** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*25)
 
+// --- Persistent Settings ---
+
 typedef struct {
 	u32 width;
 	u32 height;
-	u8 default_bg;
+	u8 default_bg; // should be the Color typedef, but this way the size is more explicit
 	u8 default_fg;
 	char title[TERM_TITLE_LEN];
 	char btn[5][TERM_BTN_LEN];
@@ -86,21 +75,18 @@ extern TerminalConfigBundle * const termconf;
  */
 extern TerminalConfigBundle termconf_scratch;
 
+/** Restore default settings to termconf. Does not apply or copy to scratch. */
 void terminal_restore_defaults(void);
+/** Apply settings, redraw (clears the screen) */
 void terminal_apply_settings(void);
-void terminal_apply_settings_noclear(void); // the same, but with no screen reset / init
+/** Apply settings, redraw (no clear - not resized) */
+void terminal_apply_settings_noclear(void);
+/** Init the screen */
+void screen_init(void);
+/** Change the screen size */
+void screen_resize(int rows, int cols);
 
-void screen_report_sgr(char *buffer);
-
-typedef enum {
-	CLEAR_TO_CURSOR=0, CLEAR_FROM_CURSOR=1, CLEAR_ALL=2
-} ClearMode;
-
-typedef uint8_t Color;
-
-httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
-
-void screenSerializeLabelsToBuffer(char *buffer, size_t buf_len);
+// --- Encoding ---
 
 typedef struct {
 	u8 lsb;
@@ -116,14 +102,17 @@ typedef struct {
 /** Encode number to two nice ASCII bytes */
 void encode2B(u16 number, WordB2 *stru);
 
-/** Init the screen */
-void screen_init(void);
-/** Change the screen size */
-void screen_resize(int rows, int cols);
-/** Check if coord is valid */
-bool screen_isCoordValid(int y, int x);
+httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
+
+void screenSerializeLabelsToBuffer(char *buffer, size_t buf_len);
 
 // --- Clearing ---
+
+typedef enum {
+	CLEAR_TO_CURSOR = 0,
+	CLEAR_FROM_CURSOR = 1,
+	CLEAR_ALL = 2
+} ClearMode;
 
 /** Screen reset to default state */
 void screen_reset(void);
@@ -133,18 +122,23 @@ void screen_clear(ClearMode mode);
 void screen_clear_line(ClearMode mode);
 /** Clear part of line */
 void screen_clear_in_line(unsigned int count);
+/** Swap to alternate buffer (really what this does is backup terminal title, size and other global attributes) */
+void screen_swap_state(bool alternate);
+
+// --- insert / delete ---
+
+/** Insert lines at cursor, shove down */
+void screen_insert_lines(unsigned int lines);
+/** Delete lines at cursor, pull up */
+void screen_delete_lines(unsigned int lines);
+/** Insert characters at cursor, shove right */
+void screen_insert_characters(unsigned int count);
+/** Delete characters at cursor, pull left */
+void screen_delete_characters(unsigned int count);
 /** Shift screen upwards */
 void screen_scroll_up(unsigned int lines);
 /** Shift screen downwards */
 void screen_scroll_down(unsigned int lines);
-/** esc # 8 - fill entire screen with E of default colors (DEC alignment display) */
-void screen_fill_with_E(void);
-
-// --- insert / delete ---
-void screen_insert_lines(unsigned int lines);
-void screen_delete_lines(unsigned int lines);
-void screen_insert_characters(unsigned int count);
-void screen_delete_characters(unsigned int count);
 
 // --- Cursor control ---
 
@@ -156,51 +150,81 @@ void screen_cursor_get(int *y, int *x);
 void screen_cursor_set_x(int x);
 /** Set cursor Y position */
 void screen_cursor_set_y(int y);
-/** Reset cursor attribs */
-void screen_reset_sgr(void);
 /** Relative cursor move */
 void screen_cursor_move(int dy, int dx, bool scroll);
 /** Save the cursor pos */
 void screen_cursor_save(bool withAttrs);
 /** Restore the cursor pos */
 void screen_cursor_restore(bool withAttrs);
-/** Enable cursor display */
-void screen_cursor_visible(bool visible);
-/** Enable auto wrap */
-void screen_wrap_enable(bool enable);
+
+// --- Cursor behavior setting ---
+
+/** Toggle INSERT / REPLACE */
+void screen_set_insert_mode(bool insert);
 /** Enable CR auto */
 void screen_set_newline_mode(bool nlm);
+/** Enable auto wrap */
+void screen_wrap_enable(bool enable);
+/** Set scrolling region */
+void screen_set_scrolling_region(int from, int to);
+/** Enable or disable origin remap to top left of scrolling region */
+void screen_set_origin_mode(bool region_origin);
 
-// --- Colors ---
+// --- Graphic rendition setting ---
+
+typedef uint8_t Color; // 0-16
+
+#define ATTR_BOLD (1<<0)
+#define ATTR_FAINT (1<<1)
+#define ATTR_ITALIC (1<<2)
+#define ATTR_UNDERLINE (1<<3)
+#define ATTR_BLINK (1<<4)
+#define ATTR_FRAKTUR (1<<5)
+#define ATTR_STRIKE (1<<6)
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);
 /** Set cursor background coloor */
 void screen_set_bg(Color color);
+/** Enable/disable attrs by bitmask */
+void screen_set_sgr(u8 attrs, bool ena);
+/** Set the inverse attribute */
+void screen_set_sgr_inverse(bool ena);
+/** Reset cursor attribs */
+void screen_reset_sgr(void);
 
-/** enable attrs by bitmask */
-void screen_attr_enable(u8 attrs);
-/** disable attrs by bitmask */
-void screen_attr_disable(u8 attrs);
-/** Set the inverse cursor attribute */
-void screen_inverse_enable(bool ena);
-/** Toggle INSERT / REPLACE */
-void screen_set_insert_mode(bool insert);
+// --- Global modes and attributes ---
+
+/** Enable cursor display */
+void screen_set_cursor_visible(bool visible);
 /** Toggle application keypad mode */
 void screen_set_numpad_alt_mode(bool app_mode);
 /** Toggle application cursor mode */
 void screen_set_cursors_alt_mode(bool app_mode);
+/** Set reverse video mode */
+void screen_set_reverse_video(bool reverse);
 
+// --- Charset ---
+
+/** Switch G0 <-> G1 */
 void screen_set_charset_n(int Gx);
+/** Assign G0 or G1 */
 void screen_set_charset(int Gx, char charset);
 
-// tabs
+// --- Tab stops ---
 
+/** Remove all tabs on the screen */
 void screen_clear_all_tabs(void);
+/** Set tab at the current column */
 void screen_set_tab(void);
+/** Remove tab at the current column (if any) */
 void screen_clear_tab(void);
-void screen_tab_forward(void);
-void screen_tab_reverse(void);
+/** Move forward one tab */
+void screen_tab_forward(int count);
+/** Move backward one tab */
+void screen_tab_reverse(int count);
+
+// --- Printing characters ---
 
 /**
  * Set a character in the cursor color, move to right with wrap.
@@ -208,12 +232,31 @@ void screen_tab_reverse(void);
  * unicode (then it can be 4 chars, or terminated by a zero)
  */
 void screen_putchar(const char *ch);
+/**
+ * esc # 8 - fill entire screen with E of default colors
+ * (DEC alignment test mode)
+ */
+void screen_fill_with_E(void);
 
-#if 0
-/** Debug dump */
-void screen_dd(void);
-#endif
+// --- Queries ---
 
+/** Check if coord is valid */
+bool screen_isCoordValid(int y, int x);
+/** Report current SGR as num;num;... for DAC query */
+void screen_report_sgr(char *buffer);
+
+// --- Notify ---
+
+typedef enum {
+	CHANGE_CONTENT = 0,
+	CHANGE_LABELS = 1,
+} ScreenNotifyChangeTopic;
+
+/**
+ * Called when the screen content or settings change
+ * and the front-end should redraw / update.
+ * @param topic - what kind of change this is (chooses what message to send)
+ */
 extern void screen_notifyChange(ScreenNotifyChangeTopic topic);
 
 #endif // SCREEN_H

@@ -5,12 +5,16 @@
  */
 
 #include <esp8266.h>
+#include <helpers.h>
 #include "ansi_parser_callbacks.h"
 #include "screen.h"
 #include "ansi_parser.h"
 #include "uart_driver.h"
 #include "sgr.h"
 #include "cgi_sockets.h"
+#include "ascii.h"
+#include "user_main.h"
+#include "syscfg.h"
 
 static char utf_collect[4];
 static int utf_i = 0;
@@ -131,6 +135,37 @@ apars_handle_bel(void)
 	send_beep();
 }
 
+// data tables for the DECREPTPARM command response
+
+struct DECREPTPARM_parity {int parity; const char * msg;};
+static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] = {
+	{PARITY_NONE, "1"},
+	{PARITY_ODD, "4"},
+	{PARITY_EVEN, "5"},
+	{-1, 0}
+};
+
+struct DECREPTPARM_baud {int baud; const char * msg;};
+static const struct DECREPTPARM_baud DECREPTPARM_baud_arr[] = {
+	{BIT_RATE_300, "48"},
+	{BIT_RATE_600, "56"},
+	{BIT_RATE_1200, "64"},
+	{BIT_RATE_2400, "88"},
+	{BIT_RATE_4800, "96"},
+	{BIT_RATE_9600  , "104"},
+	{BIT_RATE_19200 , "112"},
+	{BIT_RATE_38400 , "120"},
+	{BIT_RATE_57600 , "128"}, // this is the last in the spec, follow +8
+	{BIT_RATE_74880 , "136"},
+	{BIT_RATE_115200, "144"},
+	{BIT_RATE_230400, "152"},
+	{BIT_RATE_460800, "160"},
+	{BIT_RATE_921600, "168"},
+	{BIT_RATE_1843200, "176"},
+	{BIT_RATE_3686400, "184"},
+	{-1, 0}
+};
+
 /**
  * Handle fully received CSI ANSI sequence
  * @param leadchar - private range leading character, 0 if none
@@ -143,10 +178,10 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 	int n1 = params[0];
 	int n2 = params[1];
 	int n3 = params[2];
-	static char buf[20];
-	bool yn = 0; // for ? l h
+	char buf[32];
+	bool yn = false; // for ? l h
 
-	// defaults
+	// defaults - FIXME this may inadvertently affect some variants that should be left unchanged
 	switch (keychar) {
 		case 'A': // move
 		case 'B':
@@ -166,6 +201,7 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 		case 'P':
 		case 'I':
 		case 'Z':
+		case 'b':
 			if (n1 == 0) n1 = 1;
 			break;
 
@@ -215,6 +251,11 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			screen_cursor_set_x(0);
 			break;
 
+		case 'b':
+			// TODO repeat preceding graphic character n1 times
+			ansi_warn("NOIMPL: Repeat char");
+			return;
+
 			// Set X
 		case 'G':
 		case '`': // alternate code
@@ -232,8 +273,66 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			break; // 1-based
 
 			// SU, SD - scroll up/down
-		case 'S': screen_scroll_up(n1);	  break;
-		case 'T': screen_scroll_down(n1); break;
+		case 'S':
+			if (leadchar == NUL && count <= 1) {
+				screen_scroll_up(n1);
+			}
+			else {
+				// other:
+				// CSI ? Pi; Pa; Pv S (sixel)
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
+			break;
+		case 'T':
+			if (leadchar == NUL && count <= 1) {
+				// CSI Ps T
+				screen_scroll_down(n1);
+			}
+			else {
+				// other:
+				// CSI Ps ; Ps ; Ps ; Ps ; Ps T
+				// CSI > Ps; Ps T
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
+			break;
+
+		case 't': // xterm window commands
+			if (leadchar == NUL && count <= 2) {
+				// CSI Ps ; Ps ; Ps t
+				switch (n1) {
+					case 8: // set size
+						screen_resize(n2, n3);
+						break;
+					case 18: // report size
+						printf(buf, "\033[8;%d;%dt", termconf_scratch.height, termconf_scratch.width);
+						respond(buf);
+						break;
+					case 11: // Report iconified -> is not iconified
+						respond("\033[1t");
+						break;
+					case 21: // Report title
+						respond("\033]L");
+						respond(termconf_scratch.title);
+						respond("\033\\");
+						break;
+					case 24: // Set Height only
+						screen_resize(n2, termconf_scratch.width);
+						break;
+					default:
+						ansi_warn("NOIMPL CSI %d t", n1);
+						break;
+				}
+			}
+			else {
+				// other:
+				// CSI > Ps; Ps t
+				// CSI Ps SP t,
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
+			break;
 
 			// CUP,HVP - set position
 		case 'H':
@@ -242,6 +341,11 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			break; // 1-based
 
 		case 'J': // Erase screen
+			if (leadchar == '?') {
+				// TODO selective erase
+				ansi_warn("NOIMPL: Selective erase");
+			}
+
 			if (n1 == 0) {
 				screen_clear(CLEAR_FROM_CURSOR);
 			} else if (n1 == 1) {
@@ -253,6 +357,11 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			break;
 
 		case 'K': // Erase lines
+			if (leadchar == '?') {
+				// TODO selective erase
+				ansi_warn("NOIMPL: Selective erase");
+			}
+
 			if (n1 == 0) {
 				screen_clear_line(CLEAR_FROM_CURSOR);
 			} else if (n1 == 1) {
@@ -263,10 +372,37 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			break;
 
 			// SCP, RCP - save/restore position
-		case 's': screen_cursor_save(0); break;
-		case 'u': screen_cursor_restore(0); break;
+		case 's':
+			if (leadchar == NUL && count == 0) {
+				screen_cursor_save(0);
+			}
+			else {
+				// other:
+				// CSI ? Pm s
+				// CSI Pl; Pr s
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
+			break;
+
+		case 'u':
+			if (leadchar == NUL && count == 0) {
+				screen_cursor_restore(0);
+			}
+			else {
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
+			break;
 
 		case 'n': // Queries
+			if (leadchar == '>') {
+				// some xterm garbage - discard
+				// CSI > Ps n
+				ansi_warn("NOIMPL: CSI > %d n", n1);
+				break;
+			}
+
 			if (n1 == 6) {
 				// Query cursor position
 				int x, y;
@@ -279,29 +415,47 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 				respond("\033[0n");
 			}
 			else {
-				ansi_warn("NOIMPL: CSI %d n", n1);
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
 			}
 			break;
 
 		case 'h': // DEC feature enable
 			yn = 1;
 		case 'l': // DEC feature disable
+			// yn is 0 by default
 			for (int i = 0; i < count; i++) {
 				int n = params[i];
 				if (leadchar == '?') {
 					if (n == 1) {
 						screen_set_cursors_alt_mode(yn);
 					}
+					else if (n == 2) {
+						// should reset all Gx to USASCII and reset to VT100 (which we use always)
+						screen_set_charset(0, 'B');
+						screen_set_charset(1, 'B');
+					}
+					else if (n == 3) {
+						// TODO 132 column mode - not implemented due to RAM demands
+						ansi_warn("NOIMPL: 80->132");
+					}
+					else if (n == 4) {
+						// Smooth scroll - not implemented
+					}
+					else if (n == 5) {
+						screen_set_reverse_video(yn);
+					}
 					else if (n == 6) {
-						// TODO origin mode (scrolling region)
+						screen_set_origin_mode(yn);
 					}
 					else if (n == 7) {
 						screen_wrap_enable(yn);
 					}
 					else if (n == 8) {
-						// Key auto-repeat
+						// TODO Key auto-repeat
 						// We don't implement this currently, but it could be added
 						// - discard repeated keypress events between keydown and keyup.
+						ansi_warn("NOIMPL: Auto-repeat toggle");
 					}
 					else if (n == 9 || (n >= 1000 && n <= 1006)) {
 						// TODO mouse
@@ -312,20 +466,60 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 						// 1004 - Send FocusIn/FocusOut events
 						// 1005 - Enable UTF-8 Mouse Mode
 						// 1006 - SGR mouse mode
+						ansi_warn("NOIMPL: Mouse tracking");
 					}
 					else if (n == 12) {
 						// TODO Cursor blink on/off
+						ansi_warn("NOIMPL: Cursor blink toggle");
+					}
+					else if (n == 40) {
+						// TODO allow/disallow 80->132 mode
+						// not implemented because of RAM demands
+						ansi_warn("NOIMPL: 80->132 enable");
+					}
+					else if (n == 47 || n == 1047) {
+						// Switch to/from alternate screen
+						//  - not implemented fully due to RAM demands
+						screen_swap_state(yn);
+					}
+					else if (n == 1048) {
+						// same as DECSC - save/restore cursor with attributes
+						if (yn) {
+							screen_cursor_save(true);
+						}
+						else {
+							screen_cursor_restore(true);
+						}
 					}
 					else if (n == 1049) {
-						// XTERM: optionally switch to/from alternate screen
-						// We can't implement this because of limited RAM size
+						// save/restore cursor and screen and clear it
+						if (yn) {
+							screen_cursor_save(true);
+							screen_swap_state(true); // this should save the screen - can't because of RAM size
+							screen_clear(CLEAR_ALL);
+						}
+						else {
+							screen_clear(CLEAR_ALL);
+							screen_swap_state(false); // this should restore the screen - can't because of RAM size
+							screen_cursor_restore(true);
+						}
+					}
+					else if (n >= 1050 && n <= 1053) {
+						// TODO Different kinds of function key emulation ?
+						// (In practice this seems hardly ever used)
+
+						// Ps = 1 0 5 0  -> Set terminfo/termcap function-key mode.
+						// Ps = 1 0 5 1  -> Set Sun function-key mode.
+						// Ps = 1 0 5 2  -> Set HP function-key mode.
+						// Ps = 1 0 5 3  -> Set SCO function-key mode.
+						ansi_warn("NOIMPL: FN key emul type");
 					}
 					else if (n == 2004) {
 						// Bracketed paste mode
 						// Discard, we don't implement this
 					}
 					else if (n == 25) {
-						screen_cursor_visible(yn);
+						screen_set_cursor_visible(yn);
 					}
 					else {
 						ansi_warn("NOIMPL: CSI ? %d %c", n, keychar);
@@ -350,6 +544,12 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 				count = 1; // this makes it work as 0 (reset)
 			}
 
+			if (leadchar == '>') {
+				// some xterm garbage - discard
+				// CSI > Ps; Ps m
+				break;
+			}
+
 			// iterate arguments
 			for (int i = 0; i < count; i++) {
 				int n = params[i];
@@ -361,54 +561,28 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 				else if (n == SGR_FG_DEFAULT) screen_set_fg(termconf_scratch.default_fg); // default fg
 				else if (n == SGR_BG_DEFAULT) screen_set_bg(termconf_scratch.default_bg); // default bg
 				// -- set attr --
-				else if (n == SGR_BOLD) screen_attr_enable(ATTR_BOLD);
-				else if (n == SGR_FAINT) screen_attr_enable(ATTR_FAINT);
-				else if (n == SGR_ITALIC) screen_attr_enable(ATTR_ITALIC);
-				else if (n == SGR_UNDERLINE) screen_attr_enable(ATTR_UNDERLINE);
-				else if (n == SGR_BLINK || n == SGR_BLINK_FAST) screen_attr_enable(ATTR_BLINK); // 6 - rapid blink, not supported
-				else if (n == SGR_INVERSE) screen_inverse_enable(true);
-				else if (n == SGR_STRIKE) screen_attr_enable(ATTR_STRIKE);
-				else if (n == SGR_FRAKTUR) screen_attr_enable(ATTR_FRAKTUR);
+				else if (n == SGR_BOLD) screen_set_sgr(ATTR_BOLD, 1);
+				else if (n == SGR_FAINT) screen_set_sgr(ATTR_FAINT, 1);
+				else if (n == SGR_ITALIC) screen_set_sgr(ATTR_ITALIC, 1);
+				else if (n == SGR_UNDERLINE) screen_set_sgr(ATTR_UNDERLINE, 1);
+				else if (n == SGR_BLINK || n == SGR_BLINK_FAST) screen_set_sgr(ATTR_BLINK, 1); // 6 - rapid blink, not supported
+				else if (n == SGR_STRIKE) screen_set_sgr(ATTR_STRIKE, 1);
+				else if (n == SGR_FRAKTUR) screen_set_sgr(ATTR_FRAKTUR, 1);
+				else if (n == SGR_INVERSE) screen_set_sgr_inverse(1);
 				// -- clear attr --
-				else if (n == SGR_OFF(SGR_BOLD)) screen_attr_disable(ATTR_BOLD);
-				else if (n == SGR_OFF(SGR_FAINT)) screen_attr_disable(ATTR_FAINT);
-				else if (n == SGR_OFF(SGR_ITALIC)) screen_attr_disable(ATTR_ITALIC|ATTR_FRAKTUR);
-				else if (n == SGR_OFF(SGR_UNDERLINE)) screen_attr_disable(ATTR_UNDERLINE);
-				else if (n == SGR_OFF(SGR_BLINK)) screen_attr_disable(ATTR_BLINK);
-				else if (n == SGR_OFF(SGR_INVERSE)) screen_inverse_enable(false);
-				else if (n == SGR_OFF(SGR_STRIKE)) screen_attr_disable(ATTR_STRIKE);
+				else if (n == SGR_OFF(SGR_BOLD)) screen_set_sgr(ATTR_BOLD, 0);
+				else if (n == SGR_OFF(SGR_FAINT)) screen_set_sgr(ATTR_FAINT, 0);
+				else if (n == SGR_OFF(SGR_ITALIC)) screen_set_sgr(ATTR_ITALIC | ATTR_FRAKTUR, 0); // there is no dedicated OFF code for Fraktur
+				else if (n == SGR_OFF(SGR_UNDERLINE)) screen_set_sgr(ATTR_UNDERLINE, 0);
+				else if (n == SGR_OFF(SGR_BLINK)) screen_set_sgr(ATTR_BLINK, 0);
+				else if (n == SGR_OFF(SGR_STRIKE)) screen_set_sgr(ATTR_STRIKE, 0);
+				else if (n == SGR_OFF(SGR_INVERSE)) screen_set_sgr_inverse(0);
 				// -- AIX bright colors --
 				else if (n >= SGR_FG_BRT_START && n <= SGR_FG_BRT_END) screen_set_fg((Color) ((n - SGR_FG_BRT_START) + 8)); // AIX bright fg
 				else if (n >= SGR_BG_BRT_START && n <= SGR_BG_BRT_END) screen_set_bg((Color) ((n - SGR_BG_BRT_START) + 8)); // AIX bright bg
 				else {
 					ansi_warn("NOIMPL: SGR %d", n);
 				}
-			}
-			break;
-
-		case 't': // xterm window hacks
-			switch(n1) {
-				case 8: // set size
-					screen_resize(n2, n3);
-					break;
-				case 18: // report size
-					printf(buf, "\033[8;%d;%dt", termconf_scratch.height, termconf_scratch.width);
-					respond(buf);
-					break;
-				case 11: // Report iconified -> is not iconified
-					respond("\033[1t");
-					break;
-				case 21: // Report title
-					respond("\033]L");
-					respond(termconf_scratch.title);
-					respond("\033\\");
-					break;
-				case 24: // Set Height only
-					screen_resize(n2, termconf_scratch.width);
-					break;
-				default:
-					ansi_warn("NOIMPL CSI %d t", n1);
-					break;
 			}
 			break;
 
@@ -429,7 +603,16 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			break;
 
 		case 'r':
-			// TODO scrolling region
+			if (leadchar == NUL && count == 2) {
+				screen_set_scrolling_region(n1, n2);
+			}
+			else {
+				// other:
+				// CSI ? Pm r
+				// CSI Pt; Pl; Pb; Pr; Ps$ r
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
 			break;
 
 		case 'g': // Clear tabs
@@ -441,19 +624,55 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 			break;
 
 		case 'Z': // Tab backward
-			for(; n1 > 0; n1--) {
-				screen_tab_reverse();
-			}
+			screen_tab_reverse(n1);
 			break;
 
 		case 'I': // Tab forward
-			for(; n1 > 0; n1--) {
-				screen_tab_forward();
-			}
+			screen_tab_forward(n1);
 			break;
 
 		case 'c': // CSI-c - report capabilities
-			respond("\033[?64;22;c"); // pretend we're vt400
+			if (leadchar == NUL) {
+				respond("\033[?64;9c"); // pretend we're vt400 with national character sets
+			}
+			else if (leadchar == '>') {
+				 // 41 - we're "VT400", 0 - ROM cartridge number
+				sprintf(buf, "\033[>41;%d;0c", FIRMWARE_VERSION_NUM);
+				respond(buf);
+			} else {
+				ansi_warn("NOIMPL: CSI");
+				apars_handle_badseq();
+			}
+			break;
+
+		case 'x': // DECREPTPARM
+			if (n1 <= 1) {
+				respond("\033[2;"); // this is a response
+
+				// Parity
+				for(const struct DECREPTPARM_parity *p = DECREPTPARM_parity_arr; p->parity != -1; p++) {
+					if (p->parity == sysconf->uart_parity) {
+						respond(p->msg);
+						break;
+					}
+				}
+
+				// bits per character (uart byte)
+				respond(";8;");
+
+				// Baud rate
+				for(const struct DECREPTPARM_baud *p = DECREPTPARM_baud_arr; p->baud != -1; p++) {
+					if (p->baud == sysconf->uart_baudrate) {
+						respond(p->msg);
+						respond(";");
+						respond(p->msg);
+						break;
+					}
+				}
+
+				// multiplier 1, flags 0
+				respond(";1;0x"); // ROM cartridge number ??
+			}
 			break;
 
 		default:
@@ -469,6 +688,13 @@ apars_handle_CSI(char leadchar, const int *params, int count, char keychar)
 void ICACHE_FLASH_ATTR apars_handle_hashCode(char c)
 {
 	switch(c) {
+		case '3': // Double size, top half
+		case '4': // Single size, bottom half
+		case '5': // Single width, single height
+		case '6': // Double width
+			ansi_warn("NOIMPL: Double Size Line");
+			break;
+
 		case '8':
 			screen_fill_with_E();
 			break;

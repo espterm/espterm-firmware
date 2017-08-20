@@ -136,8 +136,8 @@ var Screen = (function () {
 
 			cell = {
 				t: ' ',
-				fg: cursor.fg,
-				bg: cursor.bg,
+				fg: 7,
+				bg: 0, // the colors will be replaced immediately as we receive data (user won't see this)
 				attrs: 0,
 				e: e,
 				x: i % W,
@@ -211,20 +211,18 @@ var Screen = (function () {
 
 		// Attributes
 		num = parse2B(str, i); i += 2; // fg bg bold hidden
-		cursor.fg = num & 0x0F;
-		cursor.bg = (num & 0xF0) >> 4;
-		cursor.hidden = !(num & 0x100);
-		cursor.hanging = !!(num & 0x200);
+		cursor.hidden = !(num & 0x0001);
+		cursor.hanging = !!(num & 0x0002);
 		// console.log("Attributes word ",num.toString(16)+'h');
 
 		Input.setAlts(
-			!!(num & 0x400), // cu
-			!!(num & 0x800), // np
-			!!(num & 0x1000) // fn
+			!!(num & 0x0004), // cu
+			!!(num & 0x0008), // np
+			!!(num & 0x0010) // fn
 		);
 
-		fg = cursor.fg;
-		bg = cursor.bg;
+		fg = 7;
+		bg = 0;
 		attrs = 0;
 
 		// Here come the content

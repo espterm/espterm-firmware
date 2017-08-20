@@ -124,7 +124,7 @@ ansi_parser(char newchar)
 				return;
 
 			case TAB:
-				screen_tab_forward();
+				screen_tab_forward(1);
 				return;
 
 				// Select G0 or G1
@@ -201,7 +201,7 @@ ansi_parser(char newchar)
 
 		action CSI_start {
 			// Reset the CSI builder
-			leadchar = 0;
+			leadchar = NUL;
 			arg_ni = 0;
 			arg_cnt = 0;
 

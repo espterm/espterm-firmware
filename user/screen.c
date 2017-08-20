@@ -3,6 +3,7 @@
 #include "screen.h"
 #include "persist.h"
 #include "sgr.h"
+#include "ascii.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
@@ -48,6 +49,7 @@ static struct {
 	bool cursors_alt_mode; //!< Application mode for cursor keys
 
 	bool newline_mode;
+	bool reverse;
 
 	char charset0;
 	char charset1;
@@ -205,6 +207,7 @@ screen_reset(void)
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
 	scr.newline_mode = false;
+	scr.reverse = false;
 
 	scr.charset0 = 'B';
 	scr.charset1 = '0';
@@ -216,6 +219,18 @@ screen_reset(void)
 
 	NOTIFY_DONE();
 }
+
+/**
+ * Swap screen buffer / state
+ * this is CSI ? 47/1047/1049 h/l
+ * @param alternate - true if we're swapping, false if unswapping
+ */
+void ICACHE_FLASH_ATTR
+screen_swap_state(bool alternate)
+{
+	// TODO impl - backup/restore title, size, global attributes (not SGR)
+}
+
 //endregion
 
 //region --- Tab stops ---
@@ -305,27 +320,32 @@ prev_tab_stop(void)
 }
 
 void ICACHE_FLASH_ATTR
-screen_tab_forward(void)
+screen_tab_forward(int count)
 {
 	NOTIFY_LOCK();
-	int tab = next_tab_stop();
-	if (tab != -1) {
-		cursor.x = tab;
-	} else {
-		cursor.x = W-1;
+	for (; count > 0; count--) {
+		int tab = next_tab_stop();
+		if (tab != -1) {
+			cursor.x = tab;
+		}
+		else {
+			cursor.x = W - 1;
+		}
 	}
 	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
-screen_tab_reverse(void)
+screen_tab_reverse(int count)
 {
 	NOTIFY_LOCK();
-	int tab = prev_tab_stop();
-	if (tab != -1) {
-		cursor.x = tab;
-	} else {
-		cursor.x = 0;
+	for (; count > 0; count--) {
+		int tab = prev_tab_stop();
+		if (tab != -1) {
+			cursor.x = tab;
+		} else {
+			cursor.x = 0;
+		}
 	}
 	NOTIFY_DONE();
 }
@@ -600,6 +620,14 @@ screen_scroll_down(unsigned int lines)
 	done:
 	NOTIFY_DONE();
 }
+
+/** Set scrolling region */
+void ICACHE_FLASH_ATTR
+screen_set_scrolling_region(int from, int to)
+{
+	// TODO implement (also add to scr)
+}
+
 //endregion
 
 //region --- Cursor manipulation ---
@@ -726,7 +754,7 @@ screen_cursor_restore(bool withAttrs)
  * Enable cursor display
  */
 void ICACHE_FLASH_ATTR
-screen_cursor_visible(bool visible)
+screen_set_cursor_visible(bool visible)
 {
 	NOTIFY_LOCK();
 	cursor.visible = visible;
@@ -763,19 +791,18 @@ screen_set_bg(Color color)
 }
 
 void ICACHE_FLASH_ATTR
-screen_attr_enable(u8 attrs)
+screen_set_sgr(u8 attrs, bool ena)
 {
-	cursor.attrs |= attrs;
+	if (ena) {
+		cursor.attrs |= attrs;
+	}
+	else {
+		cursor.attrs &= ~attrs;
+	}
 }
 
 void ICACHE_FLASH_ATTR
-screen_attr_disable(u8 attrs)
-{
-	cursor.attrs &= ~attrs;
-}
-
-void ICACHE_FLASH_ATTR
-screen_inverse_enable(bool ena)
+screen_set_sgr_inverse(bool ena)
 {
 	cursor.inverse = ena;
 }
@@ -830,9 +857,23 @@ screen_set_cursors_alt_mode(bool alt_mode)
 }
 
 void ICACHE_FLASH_ATTR
+screen_set_reverse_video(bool reverse)
+{
+	NOTIFY_LOCK();
+	scr.reverse = reverse;
+	NOTIFY_DONE();
+}
+
+void ICACHE_FLASH_ATTR
 screen_set_newline_mode(bool nlm)
 {
 	scr.newline_mode = nlm;
+}
+
+void ICACHE_FLASH_ATTR
+screen_set_origin_mode(bool region_origin)
+{
+	// TODO implement (also add to scr)
 }
 
 void ICACHE_FLASH_ATTR
@@ -868,32 +909,31 @@ screen_putchar(const char *ch)
 
 	// Special treatment for CRLF
 	switch (ch[0]) {
-		case '\r':
+		case CR:
 			screen_cursor_set_x(0);
+			goto done;
+
+		case LF:
+			screen_cursor_move(1, 0, true); // can scroll
 			if (scr.newline_mode) {
-				// like LF
-				screen_cursor_move(1, 0, true);
+				// like CR
+				screen_cursor_set_x(0);
 			}
 			goto done;
 
-		case '\n':
-			screen_cursor_move(1, 0, true); // can scroll
-			goto done;
-
-		case 8: // BS
+		case BS:
 			if (cursor.x > 0) {
-				// according to vttest, backspace should go to col 79 if "hanging" after 80
+				// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
 				if (cursor.hanging) {
 					cursor.hanging = false;
 				}
 				cursor.x--;
 			}
-			// we should not wrap around
-			// and apparently backspace should not even clear the cell
+			// we should not wrap around, and backspace should not even clear the cell (verified in xterm)
 			goto done;
 
 		default:
-			if (ch[0] < ' ') {
+			if (ch[0] < SP) {
 				// Discard
 				warn("Ignoring control char %d", (int)ch[0]);
 				goto done;
@@ -902,7 +942,7 @@ screen_putchar(const char *ch)
 
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
-		// if autowrap = off, it overwrites the last char
+		// if auto-wrap = off, it overwrites the last char
 		if (cursor.wraparound) {
 			cursor.x = 0;
 			cursor.y++;
@@ -1137,13 +1177,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		encode2B((u16) cursor.y, &w3);
 		encode2B((u16) cursor.x, &w4);
 		encode2B((u16) (
-					 cursor.fg |
-					 (cursor.bg<<4) |
-					 (cursor.visible ? 0x100 : 0) |
-					 (cursor.hanging ? 0x200 : 0) |
-					 (scr.cursors_alt_mode ? 0x400 : 0) |
-					 (scr.numpad_alt_mode ? 0x800 : 0) |
-					 (termconf->fn_alt_mode ? 0x1000 : 0)
+					 (cursor.visible ? 0x01 : 0) |
+					 (cursor.hanging ? 0x02 : 0) |
+					 (scr.cursors_alt_mode ? 0x04 : 0) |
+					 (scr.numpad_alt_mode ? 0x08 : 0) |
+					 (termconf->fn_alt_mode ? 0x10 : 0)
 				 )
 			, &w5);
 
@@ -1171,8 +1209,20 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			// No repeat
 			bool changeAttrs = cell0->attrs != ss->lastAttrs;
 			bool changeColors = (cell0->fg != ss->lastFg || cell0->bg != ss->lastBg);
+			Color fg, bg;
+
+			// Reverse fg and bg if we're in global reverse mode
+			if (! scr.reverse) {
+				fg = cell0->fg;
+				bg = cell0->bg;
+			}
+			else {
+				fg = cell0->bg;
+				bg = cell0->fg;
+			}
+
 			if (!changeAttrs && changeColors) {
-				encode2B(cell0->fg | (cell0->bg<<4), &w1);
+				encode2B(fg | (bg<<4), &w1);
 				bufprint("\x03%c%c", w1.lsb, w1.msb);
 			}
 			else if (changeAttrs && !changeColors) {
@@ -1182,11 +1232,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			}
 			else if (changeAttrs && changeColors) {
 				// colors and attrs
-				encode3B((u32) (
-							 cell0->fg |
-							 (cell0->bg<<4) |
-							 (cell0->attrs<<8))
-					, &lw1);
+				encode3B((u32) (fg | (bg<<4) | (cell0->attrs<<8)), &lw1);
 				bufprint("\x01%c%c%c", lw1.lsb, lw1.msb, lw1.xsb);
 			}
 
