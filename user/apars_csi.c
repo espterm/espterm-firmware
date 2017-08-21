@@ -197,10 +197,6 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 						apars_respond(buf);
 						break;
 
-					case 11: // Report iconified -> is not iconified
-						apars_respond("\033[1t");
-						break;
-
 					case 21: // Report title
 						apars_respond("\033]L");
 						apars_respond(termconf_scratch.title);
@@ -363,16 +359,21 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 				break;
 			}
 
-			if (n1 == 6) {
-				// Query cursor position
-				int x, y;
-				screen_cursor_get(&y, &x);
-				sprintf(buf, "\033[%d;%dR", y+1, x+1);
-				apars_respond(buf);
-			}
-			else if (n1 == 5) {
-				// Query device status - reply "Device is OK"
-				apars_respond("\033[0n");
+			if (leadchar == NUL) {
+				if (n1 == 6) {
+					// Query cursor position
+					int x, y;
+					screen_cursor_get(&y, &x);
+					sprintf(buf, "\033[%d;%dR", y + 1, x + 1);
+					apars_respond(buf);
+				}
+				else if (n1 == 5) {
+					// Query device status - reply "Device is OK"
+					apars_respond("\033[0n");
+				}
+				else {
+					warn_bad_csi();
+				}
 			}
 			else {
 				warn_bad_csi();
@@ -577,8 +578,8 @@ static void ICACHE_FLASH_ATTR do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_FRAKTUR) screen_set_sgr(ATTR_FRAKTUR, 1);
 		else if (n == SGR_INVERSE) screen_set_sgr_inverse(1);
 			// -- clear attr --
-		else if (n == SGR_OFF(SGR_BOLD)) screen_set_sgr(ATTR_BOLD, 0);
-		else if (n == SGR_OFF(SGR_FAINT)) screen_set_sgr(ATTR_FAINT, 0);
+		else if (n == SGR_OFF(SGR_BOLD)) screen_set_sgr(ATTR_BOLD, 0); // can also mean "Double Underline"
+		else if (n == SGR_OFF(SGR_FAINT)) screen_set_sgr(ATTR_FAINT | ATTR_BOLD, 0); // "normal"
 		else if (n == SGR_OFF(SGR_ITALIC)) screen_set_sgr(ATTR_ITALIC | ATTR_FRAKTUR, 0); // there is no dedicated OFF code for Fraktur
 		else if (n == SGR_OFF(SGR_UNDERLINE)) screen_set_sgr(ATTR_UNDERLINE, 0);
 		else if (n == SGR_OFF(SGR_BLINK)) screen_set_sgr(ATTR_BLINK, 0);

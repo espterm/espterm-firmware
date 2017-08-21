@@ -1,0 +1,37 @@
+del {
+  opacity: 0.3;
+  text-decoration: none;
+}
+
+ins {
+  color: #009A5A;
+  text-decoration: none;
+}
+
+ins[block] {
+  display: block;
+  white-space: normal;
+  box-sizing: border-box;
+  max-width: 700px;
+  border: 2px solid #006666;
+  background: #eee;
+  padding: 0.3em;
+  margin: .5em 0;
+  /* copied from the man2html style */
+  font-family: Tahoma, Georgia, "Times New Roman", Times, serif;
+  color: black;
+}
+
+ins[block] p {
+  margin: 0;
+  margin-bottom: 0.3em;
+}
+
+ins[block] p:last-child {
+  margin-bottom: 0;
+}
+
+.nav li {
+  padding-bottom: 7px;
+  font-size: 90%;
+}

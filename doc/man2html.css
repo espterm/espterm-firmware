@@ -1,0 +1,49 @@
+body {
+/* Verdana, - too wide */
+/* Lucida Grande, - cluttered */
+/* Droid Serif - ? */
+/* Optima, - maybe - seems light */
+/* Verdana, - large */
+/* Tahoma, - not bad */
+	font-family: Tahoma, Georgia, "Times New Roman", Times, serif;
+}
+
+h1,h2,h3,h4 {
+	font-family: Helvetica, Geneva, Arial, SunSans-Regular, sans-serif;
+	margin: 0px;
+	line-height: 100%;
+}
+
+h3,h4 {
+	margin-left: 30px;
+}
+
+pre,
+code,
+kbd,
+samp,
+tt{
+	/* font-family:monospace,monospace; */
+	font-family: "Andale Mono", "Monotype.com", monospace;
+	font-size:1em;
+	padding: 0;
+	margin: 0;
+	padding: 0;
+}
+
+*.no-header {
+	visibility:hidden;
+	overflow:hidden;
+	float:left;
+	clear: both;
+	width: 1px;
+	height: 1px;
+}
+
+pre {
+	white-space: pre-wrap;       /* CSS 3 */
+	white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+	white-space: -pre-wrap;      /* Opera 4-6 */
+	white-space: -o-pre-wrap;    /* Opera 7 */
+	word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
