@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<meta charset="UTF-8">
 <title>ESPTerm supported escape sequences overview</title>
-<link rel="stylesheet" href="man2html.css">
+<!-- <link rel="stylesheet" href="man2html.css">
 <link rel="stylesheet" href="simplenav15.css">
-<link rel="stylesheet" href="espterm-highlight.css">
+<link rel="stylesheet" href="espterm-highlight.css"> -->
 </head>
 <body>
-<hr>
+<a name="top"></a><hr>
 <ins block>
 	<p>
 	This page lists all control sequences of <b>xterm</b>, which <b>ESPTerm</b> uses as a reference implementation.
@@ -2061,7 +2061,7 @@ ESC Z     Identify.
 </del></pre>
 <div class="nav">
 <ul>
-<li><a href="ctlseqs.html" class="nav-top">(top)</a><br>
+<li><a href="#top" class="nav-top">(top)</a><br>
 <li><a href="#h2-Definitions">Definitions</a></li>
 <li><a href="#h2-Control-Bytes_-Characters_-and-Sequences">Control Bytes, Characters, and Sequences</a></li>
 <li><a href="#h2-C1-_8-Bit_-Control-Characters">C1 (8-Bit) Control Characters</a></li>
@@ -2097,5 +2097,161 @@ ESC Z     Identify.
 <li><a href="#h2-VT52-Mode"><del>VT52 Mode</del></a></li>
 </ul>
 </div>
+
+<style type="text/css">
+/* --------------------------------------------------------- */
+
+body {
+/* Verdana, - too wide */
+/* Lucida Grande, - cluttered */
+/* Droid Serif - ? */
+/* Optima, - maybe - seems light */
+/* Verdana, - large */
+/* Tahoma, - not bad */
+	font-family: Tahoma, Georgia, "Times New Roman", Times, serif;
+}
+
+h1,h2,h3,h4 {
+	font-family: Helvetica, Geneva, Arial, SunSans-Regular, sans-serif;
+	margin: 0px;
+	line-height: 100%;
+}
+
+h3,h4 {
+	margin-left: 30px;
+}
+
+pre,
+code,
+kbd,
+samp,
+tt{
+	/* font-family:monospace,monospace; */
+	font-family: "Andale Mono", "Monotype.com", monospace;
+	font-size:1em;
+	padding: 0;
+	margin: 0;
+	padding: 0;
+}
+
+*.no-header {
+	visibility:hidden;
+	overflow:hidden;
+	float:left;
+	clear: both;
+	width: 1px;
+	height: 1px;
+}
+
+pre {
+	white-space: pre-wrap;       /* CSS 3 */
+	white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+	white-space: -pre-wrap;      /* Opera 4-6 */
+	white-space: -o-pre-wrap;    /* Opera 7 */
+	word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+
+/* --------------------------------------------------------- */
+
+/*
+ * This is a separate file rather than embedded because it allows us to
+ * suppress non-working CSS from IE8, etc.
+ */
+
+@media only screen and (min-width: 500px) {
+body {
+	margin-left: 30%;
+}
+p,li,dd {
+      max-width:700px;
+}
+*.nav {
+	margin-left: -30%;
+	width: 28%;
+	position: fixed;
+	top: 0;
+	overflow: auto;
+	height: 100%;
+}
+}
+
+@media only screen and (min-width: 784px) {
+body {
+	margin-left: 16em;
+}
+*.nav {
+	margin-left: -16em;
+	width: 15em;
+	position: fixed;
+	top: 0;
+	overflow: auto;
+	height: 100%;
+}
+}
+
+*.nav ul {
+	list-style-type: none;
+	padding-left: 1em;
+}
+
+*.nav-break {
+	margin-top:  10px;
+}
+*.nav-top
+{
+	color: #FFF;
+	background-color: #ccc;
+	text-decoration:none;
+	text-transform:uppercase;
+	font-style:italic;
+}
+
+*.menu-nav ul
+{
+	text-decoration:none;
+}
+
+/* --------------------------------------------------------- */
+
+del {
+  opacity: 0.3;
+  text-decoration: none;
+}
+
+ins {
+  color: #009A5A;
+  text-decoration: none;
+}
+
+ins[block] {
+  display: block;
+  white-space: normal;
+  box-sizing: border-box;
+  max-width: 700px;
+  border: 2px solid #006666;
+  background: #eee;
+  padding: 0.3em;
+  margin: .5em 0;
+  /* copied from the man2html style */
+  font-family: Tahoma, Georgia, "Times New Roman", Times, serif;
+  color: black;
+}
+
+ins[block] p {
+  margin: 0;
+  margin-bottom: 0.3em;
+}
+
+ins[block] p:last-child {
+  margin-bottom: 0;
+}
+
+.nav li {
+  padding-bottom: 7px;
+  font-size: 90%;
+}
+
+</style>
+
 </body>
 </html>
