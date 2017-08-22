@@ -67,14 +67,12 @@ CFLAGS		= -Os -ggdb -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fn
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
 		-Wno-address -Wno-unused
 
-CFLAGS += -DHTTPD_MAX_BACKLOG_SIZE=10240
 CFLAGS += -DGIT_HASH='"$(shell git rev-parse --short HEAD)"'
 CFLAGS += -DADMIN_PASSWORD=$(ADMIN_PASSWORD)
 
-# Debug logging
-CFLAGS += -DDEBUG_ANSI=1
-CFLAGS += -DDEBUG_ANSI_NOIMPL=1
-CFLAGS += -DDEBUG_INPUT=1
+ifdef GLOBAL_CFLAGS
+CFLAGS += $(GLOBAL_CFLAGS)
+endif
 
 # linker flags used to generate the main object file
 LDFLAGS		= -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static

@@ -217,6 +217,11 @@ screen_reset(void)
 
 	screen_clear_all_tabs();
 
+	// Set initial tabstops
+	for (int i = 0; i < TABSTOP_WORDS; i++) {
+		tab_stops[i] = 0x80808080;
+	}
+
 	NOTIFY_DONE();
 }
 

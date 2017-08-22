@@ -144,8 +144,7 @@ add_definitions(
         -DFLAG_GZIP=2
         -DADMIN_PASSWORD="asdf"
         -DGIT_HASH="blabla"
-        -DDEBUG_ANSI=1
-        -DDEBUG_ANSI_NOIMPL=1
+        -DDEBUG_HEAP=1
         -DESPFS_HEATSHRINK)
 
 add_executable(esp_vt100_firmware ${SOURCE_FILES})

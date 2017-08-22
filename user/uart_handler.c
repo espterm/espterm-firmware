@@ -63,7 +63,7 @@ void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
 	ETS_UART_INTR_ATTACH((void *)uart0_rx_intr_handler, &(UartDev.rcv_buff)); // the buf will be used as an arg
 
 	// fifo threshold config (max: UART_RXFIFO_FULL_THRHD = 127)
-	uint32_t conf = ((60) << UART_RXFIFO_FULL_THRHD_S);
+	uint32_t conf = ((90) << UART_RXFIFO_FULL_THRHD_S);
 	conf |= ((0x10 & UART_TXFIFO_EMPTY_THRHD) << UART_TXFIFO_EMPTY_THRHD_S);
 	// timeout config
 	conf |= ((0x02 & UART_RX_TOUT_THRHD) << UART_RX_TOUT_THRHD_S); // timeout threshold

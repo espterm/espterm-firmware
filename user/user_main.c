@@ -113,10 +113,12 @@ void ICACHE_FLASH_ATTR user_init(void)
 	espFsInit((void *) (webpages_espfs_start));
 #endif
 
+#if DEBUG_HEAP
 	// Heap use timer & blink
 	os_timer_disarm(&prHeapTimer);
 	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
 	os_timer_arm(&prHeapTimer, 1000, 1);
+#endif
 
 	// do later (some functions do not work if called from user_init)
 	os_timer_disarm(&userStartTimer);

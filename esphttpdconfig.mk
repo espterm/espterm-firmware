@@ -40,3 +40,15 @@ ESP_SPI_FLASH_SIZE_K = 1024
 
 # Admin password, used to store settings to flash as defaults
 ADMIN_PASSWORD = "19738426"
+
+GLOBAL_CFLAGS = \
+    -DDEBUG_ROUTER=0 \
+    -DDEBUG_CAPTDNS=0 \
+    -DDEBUG_HTTP=1 \
+    -DDEBUG_ESPFS=0 \
+    -DDEBUG_WS=0 \
+    -DDEBUG_ANSI=0 \
+    -DDEBUG_ANSI_NOIMPL=0 \
+    -DHTTPD_MAX_BACKLOG_SIZE=8192 \
+    -DDEBUG_INPUT=0 \
+    -DDEBUG_HEAP=1 \

@@ -9,13 +9,21 @@
 
 #include <esp8266.h>
 
+#ifndef DEBUG_ANSI
+#define DEBUG_ANSI 0
+#endif
+
+#ifndef DEBUG_ANSI_NOIMPL
+#define DEBUG_ANSI_NOIMPL 0
+#endif
+
 // defined in the makefile
 #if DEBUG_ANSI
 #define ansi_warn warn
 #define ansi_dbg dbg
 #else
-#define ansi_warn(...)
-#define ansi_dbg(...)
+#define ansi_warn(fmt, ...)
+#define ansi_dbg(fmt, ...)
 #endif
 
 #if DEBUG_ANSI_NOIMPL

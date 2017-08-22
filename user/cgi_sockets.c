@@ -21,12 +21,14 @@ static ETSTimer notifyTim2;
 static void ICACHE_FLASH_ATTR
 notifyTimCb(void *arg) {
 	void *data = NULL;
+	int max_bl, total_bl;
+	cgiWebsockMeasureBacklog(URL_WS_UPDATE, &max_bl, &total_bl);
 
-	if (!notify_available) {
+	if (!notify_available || (max_bl > 2048)) { // do not send if we have anything significant backlogged
 		// postpone a little
 		os_timer_disarm(&notifyTim);
 		os_timer_setfn(&notifyTim, notifyTimCb, NULL);
-		os_timer_arm(&notifyTim, 1, 0);
+		os_timer_arm(&notifyTim, 5, 0);
 		return;
 	}
 	notify_available = false;
