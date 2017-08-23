@@ -14,6 +14,7 @@
 #include <esp8266.h>
 #include "uart_driver.h"
 #include "uart_handler.h"
+#include "uart_buffer.h"
 
 // messy irq/task based UART handling below
 
@@ -57,6 +58,8 @@ void ICACHE_FLASH_ATTR UART_Init(void)
 /** Configure Rx on UART0 */
 void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
 {
+	UART_AllocBuffers();
+
 	// Start the Rx reading task
 	system_os_task(uart_recvTask, uart_recvTaskPrio, uart_recvTaskQueue, uart_recvTaskQueueLen);
 	// set handler
@@ -79,6 +82,9 @@ void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
 
 	// Enable IRQ in Extensa
 	ETS_UART_INTR_ENABLE();
+
+	// Start the periodic reading event
+	system_os_post(uart_recvTaskPrio, 5, 0);
 }
 
 
@@ -103,29 +109,40 @@ void uart_rx_intr_enable(uint8 uart_no)
  */
 #define UART_GetRxFifoCount(uart_no) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT)
 
-
-void ICACHE_FLASH_ATTR UART_PollRx(void)
-{
-	uint8 fifo_len = (uint8) UART_GetRxFifoCount(UART0);
-
-	for (uint8 idx = 0; idx < fifo_len; idx++) {
-		uint8 d_tmp = (uint8) (READ_PERI_REG(UART_FIFO(UART0)) & 0xFF);
-		UART_HandleRxByte(d_tmp);
-	}
-}
+//
+//void ICACHE_FLASH_ATTR UART_PollRx(void)
+//{
+//	uint8 fifo_len = (uint8) UART_GetRxFifoCount(UART0);
+//
+//	for (uint8 idx = 0; idx < fifo_len; idx++) {
+//		uint8 d_tmp = (uint8) (READ_PERI_REG(UART_FIFO(UART0)) & 0xFF);
+//		UART_HandleRxByte(d_tmp);
+//	}
+//}
 
 
 static void ICACHE_FLASH_ATTR uart_recvTask(os_event_t *events)
 {
+	static char buf[200];
+
 	if (events->sig == 0) {
-		UART_PollRx();
+		UART_RxFifoDeq();
 
 		// clear irq flags
 		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_FULL_INT_CLR | UART_RXFIFO_TOUT_INT_CLR);
 		// enable rx irq again
 		uart_rx_intr_enable(UART0);
-	} else if (events->sig == 1) {
+	}
+	else if (events->sig == 1) {
 		// ???
+	}
+	else if (events->sig == 5) {
+		// Send a few to the parser...
+		int bytes = UART_ReadAsync(buf, 200);
+		for (uint8 idx = 0; idx < bytes; idx++) {
+			UART_HandleRxByte(buf[idx]);
+		}
+		system_os_post(uart_recvTaskPrio, 5, 0); // call me later
 	}
 }
 
@@ -169,6 +186,8 @@ uart0_rx_intr_handler(void *para)
 
 	if (status_reg & UART_TXFIFO_EMPTY_INT_ST) {
 		CLEAR_PERI_REG_MASK(UART_INT_ENA(UART0), UART_TXFIFO_EMPTY_INT_ENA);
+		UART_DispatchFromTxBuffer(UART0);
+//		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_TXFIFO_EMPTY_INT_CLR); - is called by the dispatch func if more data is to be sent.
 	}
 
 	if (status_reg & UART_RXFIFO_OVF_INT_ST) {

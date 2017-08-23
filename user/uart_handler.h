@@ -18,10 +18,11 @@ void UART_Init(void);
 /** Configure async Rx on UART0 */
 void UART_SetupAsyncReceiver(void);
 
-/** User must provide this func for handling received bytes */
+///** User must provide this func for handling received bytes */
 extern void UART_HandleRxByte(char c);
 
-/** Poll uart manually while waiting for something */
-void UART_PollRx(void);
+void uart_rx_intr_disable(uint8 uart_no);
+
+void uart_rx_intr_enable(uint8 uart_no);
 
 #endif

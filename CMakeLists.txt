@@ -110,6 +110,8 @@ set(SOURCE_FILES
         user/serial.h
         user/routes.c
         user/routes.h
+        user/uart_asyncdrv.c-
+        user/uart_asyncdrv.h-
         user/cgi_main.c
         user/cgi_main.h
         user/cgi_sockets.c
@@ -123,7 +125,23 @@ set(SOURCE_FILES
         user/persist.h
         include/helpers.h
         user/syscfg.c
-        user/syscfg.h user/ascii.h user/sgr.h user/apars_utf8.c user/apars_utf8.h user/apars_logging.h user/version.h user/apars_csi.c user/apars_csi.h user/apars_short.c user/apars_short.h user/apars_string.c user/apars_string.h user/apars_osc.c user/apars_osc.h user/apars_dcs.c user/apars_dcs.h)
+        user/syscfg.h
+        user/ascii.h
+        user/sgr.h
+        user/apars_utf8.c
+        user/apars_utf8.h
+        user/apars_logging.h
+        user/version.h
+        user/apars_csi.c
+        user/apars_csi.h
+        user/apars_short.c
+        user/apars_short.h
+        user/apars_string.c
+        user/apars_string.h
+        user/apars_osc.c
+        user/apars_osc.h
+        user/apars_dcs.c
+        user/apars_dcs.h user/uart_buffer.c user/uart_buffer.h)
 
 include_directories(include)
 include_directories(user)
