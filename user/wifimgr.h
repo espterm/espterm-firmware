@@ -17,6 +17,8 @@
 // Must be constant to avoid corrupting user config after upgrade
 #define WIFICONF_SIZE 340
 
+#define WIFICONF_VERSION 0
+
 /**
  * A structure holding all configured WiFi parameters
  * and the active state.
@@ -42,6 +44,7 @@ typedef struct {
 	u8 sta_password[PASSWORD_LEN];
 	bool sta_dhcp_enable;
 	struct ip_info sta_addr;
+	u8 config_version;
 } WiFiConfigBundle;
 
 typedef struct  {

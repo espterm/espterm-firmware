@@ -41,7 +41,8 @@
 #define TERM_BTN_LEN 10
 #define TERM_TITLE_LEN 64
 
-#define SCR_DEF_DISPLAY_TOUT_MS 20
+#define SCR_DEF_DISPLAY_TOUT_MS 10
+#define SCR_DEF_DISPLAY_COOLDOWN_MS 30
 #define SCR_DEF_PARSER_TOUT_MS 10
 #define SCR_DEF_FN_ALT_MODE false
 #define SCR_DEF_WIDTH 26
@@ -49,7 +50,9 @@
 #define SCR_DEF_TITLE "ESPTerm"
 
 /** Maximum screen size (determines size of the static data array) */
-#define MAX_SCREEN_SIZE (80*25)
+#define MAX_SCREEN_SIZE (80*26)
+
+#define TERMCONF_VERSION 1
 
 // --- Persistent Settings ---
 
@@ -64,6 +67,8 @@ typedef struct {
 	u32 parser_tout_ms;
 	u32 display_tout_ms;
 	bool fn_alt_mode; // xterm compatibility mode (alternate codes for some FN keys)
+	u8 config_version;
+	u32 display_cooldown_ms;
 } TerminalConfigBundle;
 
 // Live config

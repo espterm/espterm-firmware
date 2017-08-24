@@ -11,25 +11,36 @@
 static char sock_buff[SOCK_BUF_LEN];
 
 volatile bool notify_available = true;
+volatile bool notify_cooldown = false;
 
-static ETSTimer notifyTim;
-static ETSTimer notifyTim2;
+static ETSTimer notifyContentTim;
+static ETSTimer notifyLabelsTim;
+static ETSTimer notifyCooldownTim;
 
 // we're trying to do a kind of mutex here, without the actual primitives
 // this might glitch, very rarely.
 // it's recommended to put some delay between setting labels and updating the screen.
 
+/**
+ * Cooldown delay is over
+ * @param arg
+ */
 static void ICACHE_FLASH_ATTR
-notifyTimCb(void *arg) {
+notifyCooldownTimCb(void *arg)
+{
+	notify_cooldown = false;
+}
+
+static void ICACHE_FLASH_ATTR
+notifyContentTimCb(void *arg)
+{
 	void *data = NULL;
 	int max_bl, total_bl;
 	cgiWebsockMeasureBacklog(URL_WS_UPDATE, &max_bl, &total_bl);
 
-	if (!notify_available || (max_bl > 2048)) { // do not send if we have anything significant backlogged
+	if (!notify_available || notify_cooldown || (max_bl > 2048)) { // do not send if we have anything significant backlogged
 		// postpone a little
-		os_timer_disarm(&notifyTim);
-		os_timer_setfn(&notifyTim, notifyTimCb, NULL);
-		os_timer_arm(&notifyTim, 5, 0);
+		TIMER_START(&notifyContentTim, notifyContentTimCb, 5, 0);
 		return;
 	}
 	notify_available = false;
@@ -46,17 +57,18 @@ notifyTimCb(void *arg) {
 	// cleanup
 	screenSerializeToBuffer(NULL, SOCK_BUF_LEN, &data);
 
+	notify_cooldown = true;
 	notify_available = true;
+
+	TIMER_START(&notifyCooldownTim, notifyCooldownTimCb, termconf->display_cooldown_ms, 0);
 }
 
 static void ICACHE_FLASH_ATTR
 notifyLabelsTimCb(void *arg)
 {
-	if (!notify_available) {
+	if (!notify_available || notify_cooldown) {
 		// postpone a little
-		os_timer_disarm(&notifyTim2);
-		os_timer_setfn(&notifyTim2, notifyLabelsTimCb, NULL);
-		os_timer_arm(&notifyTim2, 1, 0);
+		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, 1, 0);
 		return;
 	}
 	notify_available = false;
@@ -64,7 +76,10 @@ notifyLabelsTimCb(void *arg)
 	screenSerializeLabelsToBuffer(sock_buff, SOCK_BUF_LEN);
 	cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), 0);
 
+	notify_cooldown = true;
 	notify_available = true;
+
+	TIMER_START(&notifyCooldownTim, notifyCooldownTimCb, termconf->display_cooldown_ms, 0);
 }
 
 /** Beep */
@@ -87,17 +102,15 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 	// PRs are welcome for a nicer update "queue" solution
 	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 
+	// NOTE: the timers are restarted if already running
+
 	if (topic == CHANGE_LABELS) {
 		// separate timer from content change timer, to avoid losing that update
-		os_timer_disarm(&notifyTim2);
-		os_timer_setfn(&notifyTim2, notifyLabelsTimCb, NULL);
-		os_timer_arm(&notifyTim2, termconf->display_tout_ms, 0);
+		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, termconf->display_tout_ms, 0);
 	}
 	else if (topic == CHANGE_CONTENT) {
 		// throttle delay
-		os_timer_disarm(&notifyTim);
-		os_timer_setfn(&notifyTim, notifyTimCb, NULL);
-		os_timer_arm(&notifyTim, termconf->display_tout_ms, 0);
+		TIMER_START(&notifyContentTim, notifyContentTimCb, termconf->display_tout_ms, 0);
 	}
 }
 
