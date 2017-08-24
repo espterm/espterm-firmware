@@ -84,7 +84,7 @@ bool ICACHE_FLASH_ATTR UART_CheckOutputFinished(UARTn uart_no, uint32 time_out_u
 	uint8 tx_fifo_len;
 
 	while (1) {
-		tx_fifo_len = UART_TxQueLen(uart_no);
+		tx_fifo_len = UART_TxFifoCount(uart_no);
 
 		// TODO If using output circbuf, check if empty
 
@@ -162,7 +162,7 @@ STATUS UART_WriteChar(UARTn uart_no, uint8 c, uint32 timeout_us)
 	uint32 t_s = system_get_time();
 
 	while ((system_get_time() - t_s) < timeout_us) {
-		uint8 fifo_cnt = UART_TxQueLen(uart_no);
+		uint8 fifo_cnt = UART_TxFifoCount(uart_no);
 
 		if (fifo_cnt < UART_TX_FULL_THRESH_VAL) {
 			WRITE_PERI_REG(UART_FIFO(uart_no), c);

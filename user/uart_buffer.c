@@ -8,7 +8,7 @@
 #include <esp8266.h>
 #include <uart_register.h>
 
-#define UART_TX_BUFFER_SIZE 512  //Ring buffer length of tx buffer
+#define UART_TX_BUFFER_SIZE 256  //Ring buffer length of tx buffer
 #define UART_RX_BUFFER_SIZE 512 //Ring buffer length of rx buffer
 
 struct UartBuffer {
@@ -83,7 +83,6 @@ static void UART_WriteToAsyncBuffer(struct UartBuffer *pCur, const char *pdata, 
 		pCur->pInPos = (pCur->pUartBuff + (pCur->pInPos - pCur->pUartBuff) % pCur->UartBuffSize);
 		pCur->Space -= (data_len - tail_len);
 	}
-
 }
 
 /******************************************************************************
@@ -96,6 +95,11 @@ void ICACHE_FLASH_ATTR UART_FreeAsyncBuffer(struct UartBuffer *pBuff)
 {
 	os_free(pBuff->pUartBuff);
 	os_free(pBuff);
+}
+
+u16 ICACHE_FLASH_ATTR UART_AsyncRxCount(void)
+{
+	return (u16) (pRxBuffer->UartBuffSize - pRxBuffer->Space);
 }
 
 /**
@@ -139,6 +143,7 @@ UART_ReadAsync(char *pdata, uint16 data_len)
 			pRxBuffer->Space += len_tmp;
 		}
 	}
+	// this maybe shouldnt be here??
 	if (pRxBuffer->Space >= UART_FIFO_LEN) {
 		uart_rx_intr_enable(UART0);
 	}
@@ -146,13 +151,13 @@ UART_ReadAsync(char *pdata, uint16 data_len)
 }
 
 //move data from uart fifo to rx buffer
-void UART_RxFifoDeq(void)
+void UART_RxFifoCollect(void)
 {
 	uint8 fifo_len, buf_idx;
 	uint8 fifo_data;
 	fifo_len = (uint8) ((READ_PERI_REG(UART_STATUS(UART0)) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT);
 	if (fifo_len >= pRxBuffer->Space) {
-		os_printf("buf full!!!\n\r");
+		UART_WriteChar(UART1, '%', 100);
 	}
 	else {
 		buf_idx = 0;
@@ -165,8 +170,8 @@ void UART_RxFifoDeq(void)
 			}
 		}
 		pRxBuffer->Space -= fifo_len;
+
 		if (pRxBuffer->Space >= UART_FIFO_LEN) {
-			//os_printf("after rx enq buf enough\n\r");
 			uart_rx_intr_enable(UART0);
 		}
 	}
@@ -175,29 +180,32 @@ void UART_RxFifoDeq(void)
 /**
  * Schedule data to be sent
  * @param pdata
- * @param data_len
+ * @param data_len - can be -1 for strlen
  */
 void ICACHE_FLASH_ATTR
-UART_SendAsync(char *pdata, uint16 data_len)
+UART_SendAsync(const char *pdata, int16_t data_len)
 {
-	if (pTxBuffer == NULL) {
-		info("\n\rnull, create buffer struct\n\r");
-		pTxBuffer = UART_AsyncBufferInit(UART_TX_BUFFER_SIZE);
-		if (pTxBuffer != NULL) {
-			UART_WriteToAsyncBuffer(pTxBuffer, pdata, data_len);
+	u16 real_len = (u16) data_len;
+	if (data_len <= 0) real_len = (u16) strlen(pdata);
+
+//	if (pTxBuffer == NULL) {
+//		printf("init tx buf\n\r");
+//		pTxBuffer = UART_AsyncBufferInit(UART_TX_BUFFER_SIZE);
+//		if (pTxBuffer != NULL) {
+//			UART_WriteToAsyncBuffer(pTxBuffer, pdata, real_len);
+//		}
+//		else {
+//			printf("tx alloc fail\r\n");
+//		}
+//	}
+//	else {
+		if (real_len <= pTxBuffer->Space) {
+			UART_WriteToAsyncBuffer(pTxBuffer, pdata, real_len);
 		}
 		else {
-			error("uart tx MALLOC no buf \n\r");
+			UART_WriteChar(UART1, '^', 100);
 		}
-	}
-	else {
-		if (data_len <= pTxBuffer->Space) {
-			UART_WriteToAsyncBuffer(pTxBuffer, pdata, data_len);
-		}
-		else {
-			error("UART TX BUF FULL!!!!\n\r");
-		}
-	}
+//	}
 
 	// Here we enable TX empty interrupt that will take care of sending the content
 	SET_PERI_REG_MASK(UART_CONF1(UART0), (UART_TX_EMPTY_THRESH_VAL & UART_TXFIFO_EMPTY_THRHD) << UART_TXFIFO_EMPTY_THRHD_S);
@@ -233,7 +241,7 @@ void UART_DispatchFromTxBuffer(uint8 uart_no)
 	uint8 len_tmp;
 	uint16 data_len;
 
-	if (pTxBuffer) {
+//	if (pTxBuffer) {
 		data_len = (uint8) (pTxBuffer->UartBuffSize - pTxBuffer->Space);
 		if (data_len > fifo_remain) {
 			len_tmp = fifo_remain;
@@ -244,8 +252,8 @@ void UART_DispatchFromTxBuffer(uint8 uart_no)
 			len_tmp = (uint8) data_len;
 			UART_TxFifoEnq(pTxBuffer, len_tmp, uart_no);
 		}
-	}
-	else {
-		error("pTxBuff null \n\r");
-	}
+//	}
+//	else {
+//		error("pTxBuff null \n\r");
+//	}
 }

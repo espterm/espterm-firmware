@@ -19,11 +19,21 @@
 // messy irq/task based UART handling below
 
 static void uart0_rx_intr_handler(void *para);
+
 static void uart_recvTask(os_event_t *events);
+static void uart_processTask(os_event_t *events);
+
+// Those heavily affect the byte loss ratio
+#define PROCESS_CHUNK_LEN 1
+#define FIFO_FULL_THRES 4
 
 #define uart_recvTaskPrio        1
-#define uart_recvTaskQueueLen    15
+#define uart_recvTaskQueueLen    25
 static os_event_t uart_recvTaskQueue[uart_recvTaskQueueLen];
+//
+#define uart_processTaskPrio        0
+#define uart_processTaskQueueLen    25
+static os_event_t uart_processTaskQueue[uart_processTaskQueueLen];
 
 /** Clear the fifos */
 void ICACHE_FLASH_ATTR clear_rxtx(int uart_no)
@@ -62,14 +72,16 @@ void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
 
 	// Start the Rx reading task
 	system_os_task(uart_recvTask, uart_recvTaskPrio, uart_recvTaskQueue, uart_recvTaskQueueLen);
+	system_os_task(uart_processTask, uart_processTaskPrio, uart_processTaskQueue, uart_processTaskQueueLen);
+
 	// set handler
 	ETS_UART_INTR_ATTACH((void *)uart0_rx_intr_handler, &(UartDev.rcv_buff)); // the buf will be used as an arg
 
 	// fifo threshold config (max: UART_RXFIFO_FULL_THRHD = 127)
-	uint32_t conf = ((90) << UART_RXFIFO_FULL_THRHD_S);
+	uint32_t conf = ((FIFO_FULL_THRES & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
 	conf |= ((0x10 & UART_TXFIFO_EMPTY_THRHD) << UART_TXFIFO_EMPTY_THRHD_S);
 	// timeout config
-	conf |= ((0x02 & UART_RX_TOUT_THRHD) << UART_RX_TOUT_THRHD_S); // timeout threshold
+	conf |= ((0x06 & UART_RX_TOUT_THRHD) << UART_RX_TOUT_THRHD_S); // timeout threshold
 	conf |= UART_RX_TOUT_EN; // enable timeout
 	WRITE_PERI_REG(UART_CONF1(UART0), conf);
 
@@ -82,32 +94,12 @@ void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
 
 	// Enable IRQ in Extensa
 	ETS_UART_INTR_ENABLE();
-
-	// Start the periodic reading event
-	system_os_post(uart_recvTaskPrio, 5, 0);
 }
 
 
 // ---- async receive stuff ----
 
 
-void uart_rx_intr_disable(uint8 uart_no)
-{
-	CLEAR_PERI_REG_MASK(UART_INT_ENA(uart_no), UART_RXFIFO_FULL_INT_ENA | UART_RXFIFO_TOUT_INT_ENA);
-}
-
-
-void uart_rx_intr_enable(uint8 uart_no)
-{
-	SET_PERI_REG_MASK(UART_INT_ENA(uart_no), UART_RXFIFO_FULL_INT_ENA | UART_RXFIFO_TOUT_INT_ENA);
-}
-
-
-/**
- * @brief get number of bytes in UART tx fifo
- * @param UART number
- */
-#define UART_GetRxFifoCount(uart_no) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT)
 
 //
 //void ICACHE_FLASH_ATTR UART_PollRx(void)
@@ -120,29 +112,67 @@ void uart_rx_intr_enable(uint8 uart_no)
 //	}
 //}
 
-
-static void ICACHE_FLASH_ATTR uart_recvTask(os_event_t *events)
+/**
+ * This is the system task handling UART Rx bytes.
+ * The function must be re-entrant.
+ *
+ * @param events
+ */
+static void uart_recvTask(os_event_t *events)
 {
-	static char buf[200];
+//#define PROCESS_CHUNK_LEN 64
+//	static char buf[PROCESS_CHUNK_LEN];
 
 	if (events->sig == 0) {
-		UART_RxFifoDeq();
+		UART_RxFifoCollect();
 
 		// clear irq flags
 		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_FULL_INT_CLR | UART_RXFIFO_TOUT_INT_CLR);
 		// enable rx irq again
 		uart_rx_intr_enable(UART0);
+
+		// Trigger the Reading task
+		system_os_post(uart_processTaskPrio, 5, 0);
 	}
 	else if (events->sig == 1) {
 		// ???
 	}
-	else if (events->sig == 5) {
+//	else if (events->sig == 5) {
+//		// Send a few to the parser...
+//		int bytes = UART_ReadAsync(buf, PROCESS_CHUNK_LEN);
+//		for (uint8 idx = 0; idx < bytes; idx++) {
+//			UART_HandleRxByte(buf[idx]);
+//		}
+//
+//		// ask for another run
+//		if (UART_AsyncRxCount() > 0) {
+//			system_os_post(uart_recvTaskPrio, 5, 0);
+//		}
+//	}
+}
+
+
+/**
+ * This is the system task handling UART Rx bytes.
+ * The function must be re-entrant.
+ *
+ * @param events
+ */
+static void uart_processTask(os_event_t *events)
+{
+	static char buf[PROCESS_CHUNK_LEN];
+
+	if (events->sig == 5) {
 		// Send a few to the parser...
-		int bytes = UART_ReadAsync(buf, 200);
+		int bytes = UART_ReadAsync(buf, PROCESS_CHUNK_LEN);
 		for (uint8 idx = 0; idx < bytes; idx++) {
 			UART_HandleRxByte(buf[idx]);
 		}
-		system_os_post(uart_recvTaskPrio, 5, 0); // call me later
+
+		// ask for another run
+		if (UART_AsyncRxCount() > 0) {
+			system_os_post(uart_processTaskPrio, 5, 0);
+		}
 	}
 }
 
@@ -172,7 +202,7 @@ uart0_rx_intr_handler(void *para)
 		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_FULL_INT_CLR);
 
 		// run handler
-		system_os_post(uart_recvTaskPrio, 0, 0); /* -> notify the polling thread */
+		system_os_post(uart_recvTaskPrio, 0, 1); /* -> notify the polling thread */
 	}
 
 	if (status_reg & UART_RXFIFO_TOUT_INT_ST) {
@@ -187,10 +217,13 @@ uart0_rx_intr_handler(void *para)
 	if (status_reg & UART_TXFIFO_EMPTY_INT_ST) {
 		CLEAR_PERI_REG_MASK(UART_INT_ENA(UART0), UART_TXFIFO_EMPTY_INT_ENA);
 		UART_DispatchFromTxBuffer(UART0);
-//		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_TXFIFO_EMPTY_INT_CLR); - is called by the dispatch func if more data is to be sent.
+//		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_TXFIFO_EMPTY_INT_CLR); //- is called by the dispatch func if more data is to be sent.
 	}
 
 	if (status_reg & UART_RXFIFO_OVF_INT_ST) {
 		WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_OVF_INT_CLR);
+
+		// overflow error
+		UART_WriteChar(UART1, '!', 100);
 	}
 }

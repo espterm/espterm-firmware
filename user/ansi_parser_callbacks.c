@@ -10,6 +10,7 @@
 #include "uart_driver.h"
 #include "cgi_sockets.h"
 #include "version.h"
+#include "uart_buffer.h"
 
 /**
  * Send a response to UART0
@@ -18,7 +19,8 @@
 void ICACHE_FLASH_ATTR
 apars_respond(const char *str)
 {
-	UART_WriteString(UART0, str, UART_TIMEOUT_US);
+	UART_SendAsync(str, -1);
+	//UART_WriteString(UART0, str, UART_TIMEOUT_US);
 }
 
 /**

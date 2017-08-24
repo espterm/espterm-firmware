@@ -40,6 +40,10 @@ enum ASCII_CODES {
 	US = 31,
 	SP = 32,
 	DEL = 127,
+
+	// aliases
+	XON = DC1,
+	XOFF = DC3,
 };
 
 #endif //ESP_VT100_FIRMWARE_ASCII_H
