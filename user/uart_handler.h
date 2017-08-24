@@ -21,7 +21,22 @@ void UART_SetupAsyncReceiver(void);
 /** User must provide this func for handling received bytes */
 extern void UART_HandleRxByte(char c);
 
-/** Poll uart manually while waiting for something */
-void UART_PollRx(void);
+static inline void uart_rx_intr_disable(uint8 uart_no)
+{
+	CLEAR_PERI_REG_MASK(UART_INT_ENA(uart_no), UART_RXFIFO_FULL_INT_ENA | UART_RXFIFO_TOUT_INT_ENA);
+}
+
+static inline void uart_rx_intr_enable(uint8 uart_no)
+{
+	SET_PERI_REG_MASK(UART_INT_ENA(uart_no), UART_RXFIFO_FULL_INT_ENA | UART_RXFIFO_TOUT_INT_ENA);
+}
+
+/**
+ * @brief get number of bytes in UART tx fifo
+ * @param UART number
+ */
+static inline u8 UART_GetRxFifoCount(u8 uart_no) {
+	return (u8) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT);
+}
 
 #endif

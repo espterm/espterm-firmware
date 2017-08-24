@@ -30,7 +30,7 @@ static void buf_pop(void *unused)
 		lb_ls++;
 		if (lb_ls >= LOGBUF_SIZE) lb_ls = 0;
 
-		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 2000)) {
+		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 1000)) {
 			quantity--;
 		} else {
 			// try another time
@@ -38,6 +38,11 @@ static void buf_pop(void *unused)
 			break;
 		}
 	}
+}
+
+LOCAL void my_putc(char c)
+{
+	UART_WriteCharCRLF(UART1, (u8) c, 10);
 }
 
 /**
@@ -50,8 +55,9 @@ void ICACHE_FLASH_ATTR serialInitBase(void)
 	UART_SetParity(UART1, PARITY_NONE);
 	UART_SetStopBits(UART1, ONE_STOP_BIT);
 	UART_SetBaudrate(UART1, BIT_RATE_115200);
-	//UART_SetPrintPort(UART1);
+	UART_SetPrintPort(UART1);
 	os_install_putc1(buf_putc);
+	//os_install_putc1(my_putc);
 	UART_SetupAsyncReceiver();
 
 	// 1 ms timer

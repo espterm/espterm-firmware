@@ -172,8 +172,8 @@ extern UartDevice UartDev;
 //==============================================
 
 // FIFO used count
-#define UART_TxQueLen(uart_no) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT)
-#define UART_RxQueLen(uart_no) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT)
+#define UART_TxFifoCount(uart_no) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_TXFIFO_CNT_S) & UART_TXFIFO_CNT)
+#define UART_RxFifoCount(uart_no) ((READ_PERI_REG(UART_STATUS((uart_no))) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT)
 
 STATUS UART_WriteCharCRLF(UARTn uart_no, uint8 c, uint32 timeout_us);
 STATUS UART_WriteChar(UARTn uart_no, uint8 c, uint32 timeout_us);

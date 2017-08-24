@@ -5,6 +5,7 @@
 #include "cgi_sockets.h"
 #include "uart_driver.h"
 #include "screen.h"
+#include "uart_buffer.h"
 
 #define SOCK_BUF_LEN 1024
 static char sock_buff[SOCK_BUF_LEN];
@@ -113,13 +114,13 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 
 	if (strstarts(data, "STR:")) {
 		// pass string verbatim
-		UART_WriteString(UART0, data+4, UART_TIMEOUT_US);
+		UART_SendAsync(data+4, -1);
 	}
 	else if (strstarts(data, "BTN:")) {
 		// send button as low ASCII value 1-9
-		int btnNum = data[4] - '0';
+		u8 btnNum = (u8) (data[4] - '0');
 		if (btnNum > 0 && btnNum < 10) {
-			UART_WriteChar(UART0, (unsigned char)btnNum, UART_TIMEOUT_US);
+			UART_SendAsync((const char *) &btnNum, 1);
 		}
 	}
 	else if (strstarts(data, "TAP:")) {
