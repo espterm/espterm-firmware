@@ -276,7 +276,7 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 
 		case 'r':
 			if (leadchar == NUL && (count == 2 || count == 0)) {
-				screen_set_scrolling_region(n1, n2);
+				screen_set_scrolling_region(n1-1, n2-1);
 			}
 			else if (leadchar == '?') {
 				// Restore private attributes (CSI ? Pm h/l)

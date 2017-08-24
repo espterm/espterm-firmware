@@ -48,12 +48,20 @@ static struct {
 	bool numpad_alt_mode;   //!< Application Mode - affects how user input of control keys is sent
 	bool cursors_alt_mode; //!< Application mode for cursor keys
 
-	bool newline_mode;
+	bool newline_mode; // LNM - CR automatically sends LF
 	bool reverse;
+
+	// Vertical margin bounds (inclusive start/end of scrolling region)
+	int vm0;
+	int vm1;
 
 	char charset0;
 	char charset1;
 } scr;
+
+#define R0 scr.vm0
+#define R1 scr.vm1
+#define RH (scr.vm1 - scr.vm0 + 1)
 
 typedef struct {
 	int x;        //!< X coordinate
@@ -69,8 +77,10 @@ typedef struct {
 	// Other attribs
 	int charsetN;
 	bool wraparound;   //!< Wrapping when EOL
+	bool origin_mode; // DECOM - absolute positioning is relative to vertical margins
+	bool selective_erase; // TODO implement
 
-	// Not saved/restored
+	// Not saved/restored FIXME those should not be saved, but are (a bug?)
 	bool insert_mode;    //!< Insert mode (move rest of the line to the right)
 	bool visible; //!< Visible (not attribute, DEC special)
 } CursorTypeDef;
@@ -104,6 +114,8 @@ static volatile int notifyLock = 0;
 #define clear_invalid_hanging() do { \
 									if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; \
 								} while(false)
+
+#define cursor_inside_region() (cursor.y >= R0 && cursor.y <= R1)
 
 //region --- Settings ---
 
@@ -198,6 +210,8 @@ cursor_reset(void)
 	cursor.hanging = false;
 	cursor.visible = true;
 	cursor.insert_mode = false;
+	cursor.selective_erase = false;
+	cursor.origin_mode = false;
 
 	cursor.charsetN = 0;
 	cursor.wraparound = true;
@@ -234,6 +248,9 @@ screen_reset(void)
 
 	scr.charset0 = 'B';
 	scr.charset1 = '0';
+
+	scr.vm0 = 0;
+	scr.vm1 = H-1;
 
 	// size is left unchanged
 	screen_clear(CLEAR_ALL);
@@ -385,7 +402,7 @@ screen_tab_reverse(int count)
 /**
  * Clear range, inclusive
  */
-static inline void
+static void ICACHE_FLASH_ATTR
 clear_range(unsigned int from, unsigned int to)
 {
 	if (to >= W*H) to = W*H-1;
@@ -412,6 +429,7 @@ clear_range(unsigned int from, unsigned int to)
 void ICACHE_FLASH_ATTR
 screen_clear(ClearMode mode)
 {
+	// Those ignore margins and DECOM
 	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
@@ -467,14 +485,15 @@ screen_clear_in_line(unsigned int count)
 
 void screen_insert_lines(unsigned int lines)
 {
+	if (!cursor_inside_region()) return; // can't insert if not inside region
 	NOTIFY_LOCK();
 	// shift the following lines
 	int targetStart = cursor.y + lines;
-	if (targetStart >= H) {
-		targetStart = H;
+	if (targetStart > R1) {
+		targetStart = R1-1;
 	} else {
 		// do the moving
-		for (int i = H-1; i >= targetStart; i--) {
+		for (int i = R1; i >= targetStart; i--) {
 			memcpy(screen+i*W, screen+(i-lines)*W, sizeof(Cell)*W);
 		}
 	}
@@ -490,7 +509,9 @@ void screen_insert_lines(unsigned int lines)
 
 void screen_delete_lines(unsigned int lines)
 {
+	if (!cursor_inside_region()) return; // can't delete if not inside region
 	NOTIFY_LOCK();
+
 	// shift lines up
 	int targetEnd = H - 1 - lines;
 	if (targetEnd <= cursor.y) {
@@ -503,7 +524,7 @@ void screen_delete_lines(unsigned int lines)
 	}
 
 	// clear the rest
-	clear_range(targetEnd*W, W*H-1);
+	clear_range(targetEnd*W, W*R1);
 	NOTIFY_DONE();
 }
 
@@ -551,6 +572,8 @@ void ICACHE_FLASH_ATTR
 screen_fill_with_E(void)
 {
 	NOTIFY_LOCK();
+	screen_reset(); // based on observation from xterm
+
 	Cell sample;
 	sample.c[0] = 'E';
 	sample.c[1] = 0;
@@ -608,8 +631,8 @@ void ICACHE_FLASH_ATTR
 screen_scroll_up(unsigned int lines)
 {
 	NOTIFY_LOCK();
-	if (lines >= H - 1) {
-		screen_clear(CLEAR_ALL);
+	if (lines >= RH) {
+		clear_range(R0*W, (R1+1)*H-1);
 		goto done;
 	}
 
@@ -619,11 +642,11 @@ screen_scroll_up(unsigned int lines)
 	}
 
 	int y;
-	for (y = 0; y < H - lines; y++) {
+	for (y = R0; y <= R1 - lines; y++) {
 		memcpy(screen + y * W, screen + (y + lines) * W, W * sizeof(Cell));
 	}
 
-	clear_range(y * W, W * H - 1);
+	clear_range(R0 * W+y * W, (R1+1)*W-1);
 
 	done:
 	NOTIFY_DONE();
@@ -636,8 +659,8 @@ void ICACHE_FLASH_ATTR
 screen_scroll_down(unsigned int lines)
 {
 	NOTIFY_LOCK();
-	if (lines >= H - 1) {
-		screen_clear(CLEAR_ALL);
+	if (lines >= RH) {
+		clear_range(R0*W, (R1+1)*H-1);
 		goto done;
 	}
 
@@ -647,11 +670,11 @@ screen_scroll_down(unsigned int lines)
 	}
 
 	int y;
-	for (y = H-1; y >= lines; y--) {
+	for (y = R1; y >= R0+lines; y--) {
 		memcpy(screen + y * W, screen + (y - lines) * W, W * sizeof(Cell));
 	}
 
-	clear_range(0, lines * W-1);
+	clear_range(R0*W, R0*W+ lines * W-1);
 	done:
 	NOTIFY_DONE();
 }
@@ -660,14 +683,18 @@ screen_scroll_down(unsigned int lines)
 void ICACHE_FLASH_ATTR
 screen_set_scrolling_region(int from, int to)
 {
-	// TODO implement (also add to scr)
 	if (from == 0 && to == 0) {
-		// whole screen
-	} else if (from > 1 && from < H-1 && to > from) {
-		// set range
+		scr.vm0 = 0;
+		scr.vm1 = H-1;
+	} else if (from >= 0 && from < H-1 && to > from) {
+		scr.vm0 = from;
+		scr.vm1 = to;
 	} else {
 		// Bad range, do nothing
 	}
+
+	// Always move cursor home (may be translated due to DECOM)
+	screen_cursor_set(0, 0);
 }
 
 //endregion
@@ -681,8 +708,18 @@ void ICACHE_FLASH_ATTR
 screen_cursor_set(int y, int x)
 {
 	NOTIFY_LOCK();
+	if (cursor.origin_mode) {
+		y += R0;
+		if (y > R1) y = R1;
+		if (y < R0) y = R0;
+	}
+	else {
+		if (y > H-1) y = H-1;
+		if (y < 0) y = 0;
+	}
+
 	if (x >= W) x = W - 1;
-	if (y >= H) y = H - 1;
+	if (x < 0) x = 0;
 	cursor.x = x;
 	cursor.y = y;
 	clear_invalid_hanging();
@@ -719,7 +756,14 @@ void ICACHE_FLASH_ATTR
 screen_cursor_set_y(int y)
 {
 	NOTIFY_LOCK();
-	if (y >= H) y = H - 1;
+	if (cursor.origin_mode) {
+		y += R0;
+		if (y > R1) y = R1;
+		if (y < R0) y = R0;
+	} else {
+		if (y > H-1) y = H-1;
+		if (y < 0) y = 0;
+	}
 	cursor.y = y;
 	NOTIFY_DONE();
 }
@@ -740,21 +784,41 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		cursor.hanging = false;
 	}
 
+	bool was_inside = cursor_inside_region();
+
 	cursor.x += dx;
 	cursor.y += dy;
 	if (cursor.x >= (int)W) cursor.x = W - 1;
 	if (cursor.x < (int)0) cursor.x = 0;
 
-	if (cursor.y < 0) {
-		move = -cursor.y;
-		cursor.y = 0;
-		if (scroll) screen_scroll_down((unsigned int)move);
+	if (cursor.y < R0) {
+		if (was_inside) {
+			move = -(cursor.y - R0);
+			cursor.y = R0;
+			if (scroll) screen_scroll_down((unsigned int) move);
+		}
+		else {
+			// outside the region, just validate that we're not going offscreen
+			// scrolling is not possible in this case
+			if (cursor.y < 0) {
+				cursor.y = 0;
+			}
+		}
 	}
 
-	if (cursor.y >= H) {
-		move = cursor.y - (H - 1);
-		cursor.y = H - 1;
-		if (scroll) screen_scroll_up((unsigned int)move);
+	if (cursor.y > R1) {
+		if (was_inside) {
+			move = cursor.y - R1;
+			cursor.y = R1;
+			if (scroll) screen_scroll_up((unsigned int) move);
+		}
+		else {
+			// outside the region, just validate that we're not going offscreen
+			// scrolling is not possible in this case
+			if (cursor.y >= H) {
+				cursor.y = H-1;
+			}
+		}
 	}
 
 	NOTIFY_DONE();
@@ -850,7 +914,7 @@ screen_set_sgr_inverse(bool ena)
 }
 
 /**
- * Check if coords are in range
+ * Check if coords are in range - used for verifying mouse clicks
  *
  * @param y
  * @param x
@@ -915,7 +979,8 @@ screen_set_newline_mode(bool nlm)
 void ICACHE_FLASH_ATTR
 screen_set_origin_mode(bool region_origin)
 {
-	// TODO implement (also add to scr)
+	cursor.origin_mode = region_origin;
+	screen_cursor_set(0, 0);
 }
 
 void ICACHE_FLASH_ATTR
@@ -989,10 +1054,10 @@ screen_putchar(const char *ch)
 			cursor.x = 0;
 			cursor.y++;
 			// Y wrap
-			if (cursor.y > H - 1) {
+			if (cursor.y > R1) {
 				// Scroll up, so we have space for writing
 				screen_scroll_up(1);
-				cursor.y = H - 1;
+				cursor.y = R1;
 			}
 
 			cursor.hanging = false;
@@ -1039,7 +1104,7 @@ screen_putchar(const char *ch)
  */
 static const u16 codepage_0[] =
 	{//	Unicode    ASCII   SYM
-		0x25c6, // 96	`	◆
+		0x2666, // 96	`	♦
 		0x2592, // 97	a	▒
 		0x2409, // 98	b	HT
 		0x240c, // 99	c	FF

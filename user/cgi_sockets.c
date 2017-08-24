@@ -6,6 +6,7 @@
 #include "uart_driver.h"
 #include "screen.h"
 #include "uart_buffer.h"
+#include "ansi_parser.h"
 
 #define SOCK_BUF_LEN 1024
 static char sock_buff[SOCK_BUF_LEN];
@@ -128,6 +129,10 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	if (strstarts(data, "STR:")) {
 		// pass string verbatim
 		UART_SendAsync(data+4, -1);
+		// debug loopback
+//		for(int i=4;i<strlen(data); i++) {
+//			ansi_parser(data[i]);
+//		}
 	}
 	else if (strstarts(data, "BTN:")) {
 		// send button as low ASCII value 1-9
@@ -167,7 +172,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 
 		// Send as 1-based to user
 		sprintf(buf, "\033[%d;%dM", y+1, x+1);
-		UART_WriteString(UART0, buf, UART_TIMEOUT_US);
+		UART_SendAsync(buf, -1);
 	}
 	else {
 		ws_warn("Bad command.");
