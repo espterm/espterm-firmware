@@ -156,6 +156,8 @@ wifimgr_apply_settings(void)
 {
 	info("[WiFi] Initializing...");
 
+	// !!! Update to current version !!!
+
 	// Force wifi cycle
 	// Disconnect - may not be needed?
 	WIFI_MODE opmode = wifi_get_opmode();

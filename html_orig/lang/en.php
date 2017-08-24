@@ -42,8 +42,9 @@ return [
 	'term.buttons' => 'Button labels',
 	'term.theme' => 'Color scheme',
 	'term.parser_tout_ms' => 'Parser timeout',
-	'term.display_tout_ms' => 'Redraw timeout',
-	'term.fn_alt_mode' => 'Xterm Fn keys',
+	'term.display_tout_ms' => 'Redraw delay',
+	'term.display_cooldown_ms' => 'Redraw cooldown',
+	'term.fn_alt_mode' => 'SS3 Fn keys',
 
 	// terminal color labels
 	'color.0' => 'Black',

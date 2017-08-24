@@ -87,7 +87,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		if (n >= 0) {
 			termconf->parser_tout_ms = n;
 		} else {
-			warn("Bad timeout %s", buff);
+			warn("Bad parser timeout %s", buff);
 			redir_url += sprintf(redir_url, "parser_tout_ms,");
 		}
 	}
@@ -95,11 +95,22 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	if (GET_ARG("display_tout_ms")) {
 		dbg("Display update idle timeout: %s ms", buff);
 		n = atoi(buff);
-		if (n >= 0) {
+		if (n > 0) {
 			termconf->display_tout_ms = n;
 		} else {
-			warn("Bad timeout %s", buff);
+			warn("Bad update timeout %s", buff);
 			redir_url += sprintf(redir_url, "display_tout_ms,");
+		}
+	}
+
+	if (GET_ARG("display_cooldown_ms")) {
+		dbg("Display update cooldown: %s ms", buff);
+		n = atoi(buff);
+		if (n > 0) {
+			termconf->display_cooldown_ms = n;
+		} else {
+			warn("Bad cooldown %s", buff);
+			redir_url += sprintf(redir_url, "display_cooldown_ms,");
 		}
 	}
 
@@ -194,6 +205,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "display_tout_ms")) {
 		sprintf(buff, "%d", termconf->display_tout_ms);
+	}
+	else if (streq(token, "display_cooldown_ms")) {
+		sprintf(buff, "%d", termconf->display_cooldown_ms);
 	}
 	else if (streq(token, "fn_alt_mode")) {
 		sprintf(buff, "%d", (int)termconf->fn_alt_mode);

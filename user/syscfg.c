@@ -12,6 +12,8 @@ SystemConfigBundle * const sysconf = &persist.current.sysconf;
 void ICACHE_FLASH_ATTR
 sysconf_apply_settings(void)
 {
+	// !!! Update to current version !!!
+
 	serialInit();
 }
 

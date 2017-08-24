@@ -10,11 +10,13 @@
 // Size designed for the wifi config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define SYSCONF_SIZE 200
+#define SYSCONF_VERSION 0
 
 typedef struct {
 	u32 uart_baudrate;
 	u8 uart_parity;
 	u8 uart_stopbits;
+	u8 config_version;
 } SystemConfigBundle;
 
 extern SystemConfigBundle * const sysconf;

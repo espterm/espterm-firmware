@@ -116,6 +116,12 @@
 		<span class="mq-no-phone">&nbsp;ms</span>
 	</div>
 
+	<div class="Row">
+		<label for="display_cooldown_ms"><?= tr('term.display_cooldown_ms') ?><span class="mq-phone">&nbsp;(ms)</span></label>
+		<input type="number" step=1 min=0 name="display_cooldown_ms" id="display_cooldown_ms" value="%display_cooldown_ms%" required>
+		<span class="mq-no-phone">&nbsp;ms</span>
+	</div>
+
 	<div class="Row checkbox" >
 		<label><?= tr('term.fn_alt_mode') ?></label><!--
 		--><span class="box" tabindex=0 role=checkbox></span>

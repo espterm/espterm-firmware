@@ -137,16 +137,39 @@ void terminal_apply_settings(void)
 /** this is used when changing terminal settings that do not affect the screen size */
 void terminal_apply_settings_noclear(void)
 {
-	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
+	bool changed = false;
+
+	// Migrate to v1
+	if (termconf->config_version < 1) {
+		dbg("termconf: Updating to version 1");
+		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
+		changed = 1;
+	}
+
+	termconf->config_version = TERMCONF_VERSION;
+
+	// Validation...
+	if (termconf->display_tout_ms == 0) {
+		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
+		changed = 1;
+	}
+	if (termconf->display_cooldown_ms == 0) {
+		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
+		changed = 1;
+	}
 
 	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
 	if (W*H > MAX_SCREEN_SIZE) {
 		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
 		error("reverting terminal settings to default");
 		terminal_restore_defaults();
-		persist_store();
+		changed = true;
 		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
 		screen_init();
+	}
+
+	if (changed) {
+		persist_store();
 	}
 }
 //endregion
