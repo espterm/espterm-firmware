@@ -3,7 +3,7 @@
 ESPTerm is a terminal emulator running on the ESP8266 WiFi chip.
 The firmware emulates VT102 with some additional features based on `xterm` and later VT models, and the terminal screen can be accessed using any web browser, even on a phone or tablet. It works with ESP-01, ESP-01S, ESP-12 and likely many other modules (I use ESP-12 on a NodeMCU board for development).
 
-ESPTerm can be used to add remote access via WiFi to any embeded project, all you need is a serial port.
+ESPTerm can add remote access via WiFi to any embeded project, all you need is a serial port.
 
 ## Screenshots, photos
 
