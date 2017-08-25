@@ -8,6 +8,8 @@
 #include "uart_buffer.h"
 #include "ansi_parser.h"
 
+#define LOOPBACK 0
+
 #define SOCK_BUF_LEN 1024
 static char sock_buff[SOCK_BUF_LEN];
 
@@ -128,11 +130,13 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 
 	if (strstarts(data, "STR:")) {
 		// pass string verbatim
+#if LOOPBACK
+		for(int i=4;i<strlen(data); i++) {
+			ansi_parser(data[i]);
+		}
+#else
 		UART_SendAsync(data+4, -1);
-		// debug loopback
-//		for(int i=4;i<strlen(data); i++) {
-//			ansi_parser(data[i]);
-//		}
+#endif
 	}
 	else if (strstarts(data, "BTN:")) {
 		// send button as low ASCII value 1-9

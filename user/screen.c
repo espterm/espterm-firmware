@@ -4,6 +4,7 @@
 #include "persist.h"
 #include "sgr.h"
 #include "ascii.h"
+#include "apars_logging.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
@@ -646,7 +647,7 @@ screen_scroll_up(unsigned int lines)
 		memcpy(screen + y * W, screen + (y + lines) * W, W * sizeof(Cell));
 	}
 
-	clear_range(R0 * W+y * W, (R1+1)*W-1);
+	clear_range(y * W, (R1+1)*W-1);
 
 	done:
 	NOTIFY_DONE();
@@ -683,7 +684,7 @@ screen_scroll_down(unsigned int lines)
 void ICACHE_FLASH_ATTR
 screen_set_scrolling_region(int from, int to)
 {
-	if (from == 0 && to == 0) {
+	if (from <= 0 && to <= 0) {
 		scr.vm0 = 0;
 		scr.vm1 = H-1;
 	} else if (from >= 0 && from < H-1 && to > from) {
@@ -691,6 +692,7 @@ screen_set_scrolling_region(int from, int to)
 		scr.vm1 = to;
 	} else {
 		// Bad range, do nothing
+		ansi_warn("Bad SR bounds %d, %d", from, to);
 	}
 
 	// Always move cursor home (may be translated due to DECOM)

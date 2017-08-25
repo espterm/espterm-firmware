@@ -424,8 +424,14 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 				screen_set_charset(1, 'B');
 			}
 			else if (n == 3) {
-				// 132 column mode - not implemented due to RAM demands
-				ansi_noimpl("80->132");
+				// DECCOLM 132 column mode - not implemented due to RAM demands
+				ansi_noimpl("132col");
+
+				// DECCOLM side effects as per
+				// https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/deccolm-cls.html
+				screen_clear(CLEAR_ALL);
+				screen_set_scrolling_region(0, 0);
+				screen_cursor_set(0, 0);
 			}
 			else if (n == 4) {
 				// Smooth scroll - not implemented
@@ -463,7 +469,7 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 			else if (n == 40) {
 				// allow/disallow 80->132 mode
 				// not implemented because of RAM demands
-				ansi_noimpl("80->132 enable");
+				ansi_noimpl("132col enable");
 			}
 			else if (n == 45) {
 				// reverse wrap-around
