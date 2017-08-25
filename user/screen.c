@@ -10,7 +10,7 @@ TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
 
 // forward declare
-static void utf8_remap(char* out, char g, char table);
+static void utf8_remap(char* out, char g, char charset);
 
 #define W termconf_scratch.width
 #define H termconf_scratch.height
@@ -55,9 +55,6 @@ static struct {
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
 	int vm1;
-
-	char charset0;
-	char charset1;
 } scr;
 
 #define R0 scr.vm0
@@ -77,6 +74,8 @@ typedef struct {
 
 	// Other attribs
 	int charsetN;
+	char charset0;
+	char charset1;
 	bool wraparound;   //!< Wrapping when EOL
 	bool origin_mode; // DECOM - absolute positioning is relative to vertical margins
 	bool selective_erase; // TODO implement
@@ -95,6 +94,7 @@ static CursorTypeDef cursor;
  * Saved cursor position, used with the SCP RCP commands
  */
 static CursorTypeDef cursor_sav;
+bool cursor_saved = false;
 
 /**
  * This is used to prevent premature change notifications
@@ -215,6 +215,8 @@ cursor_reset(void)
 	cursor.origin_mode = false;
 
 	cursor.charsetN = 0;
+	cursor.charset0 = CS_USASCII;
+	cursor.charset1 = CS_DEC_SUPPLEMENTAL;
 	cursor.wraparound = true;
 
 	screen_reset_sgr();
@@ -246,9 +248,6 @@ screen_reset(void)
 	scr.cursors_alt_mode = false;
 	scr.newline_mode = false;
 	scr.reverse = false;
-
-	scr.charset0 = 'B';
-	scr.charset1 = '0';
 
 	scr.vm0 = 0;
 	scr.vm1 = H-1;
@@ -834,6 +833,7 @@ screen_cursor_save(bool withAttrs)
 {
 	// always save with attribs
 	memcpy(&cursor_sav, &cursor, sizeof(CursorTypeDef));
+	cursor_saved = true;
 }
 
 /**
@@ -844,12 +844,18 @@ screen_cursor_restore(bool withAttrs)
 {
 	NOTIFY_LOCK();
 
-	if (withAttrs) {
-		memcpy(&cursor_sav, &cursor, sizeof(CursorTypeDef));
-	} else {
-		cursor.x = cursor_sav.x;
-		cursor.y = cursor_sav.y;
-		cursor.hanging = cursor_sav.hanging;
+	if (!cursor_saved) {
+		cursor_reset();
+	}
+	else {
+		if (withAttrs) {
+			memcpy(&cursor, &cursor_sav, sizeof(CursorTypeDef));
+		}
+		else {
+			cursor.x = cursor_sav.x;
+			cursor.y = cursor_sav.y;
+			cursor.hanging = cursor_sav.hanging;
+		}
 	}
 
 	NOTIFY_DONE();
@@ -938,8 +944,8 @@ screen_set_charset_n(int Gx)
 void ICACHE_FLASH_ATTR
 screen_set_charset(int Gx, char charset)
 {
-	if (Gx == 0) scr.charset0 = charset;
-	else if (Gx == 1) scr.charset1 = charset;
+	if (Gx == 0) cursor.charset0 = charset;
+	else if (Gx == 1) cursor.charset1 = charset;
 }
 
 void ICACHE_FLASH_ATTR
@@ -1073,7 +1079,7 @@ screen_putchar(const char *ch)
 
 	if (ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII
-		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? scr.charset0 : scr.charset1);
+		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
 	}
 	else {
 		// copy unicode char
@@ -1241,31 +1247,36 @@ static const u16 codepage_1[] =
  * UTF remap
  * @param out - output char[4]
  * @param g  - ASCII char
- * @param table - table name (0, A, B)
+ * @param charset - table name (0, A, B)
  */
 static void ICACHE_FLASH_ATTR
-utf8_remap(char *out, char g, char table)
+utf8_remap(char *out, char g, char charset)
 {
 	u16 n;
 	u16 utf = (unsigned char)g;
 
-	switch (table) {
-		case '0': /* DEC Special Character & Line Drawing Set */
+	switch (charset) {
+		case CS_DEC_SUPPLEMENTAL: /* DEC Special Character & Line Drawing Set */
 			if ((g >= 96) && (g < 0x7F)) {
 				n = codepage_0[g - 96];
 				if (n) utf = n;
 			}
 			break;
 
-		case '1': /* ESPTerm Character Rom 1 */
+		case CS_DOS_437: /* ESPTerm Character Rom 1 */
 			if ((g >= 33) && (g < 0x7F)) {
 				n = codepage_1[g - 33];
 				if (n) utf = n;
 			}
 			break;
 
-		case 'A': /* UK, replaces # with GBP */
+		case CS_UKASCII: /* UK, replaces # with GBP */
 			if (g == '#') utf = 0x20a4;
+			break;
+
+		default:
+		case CS_USASCII:
+			// No change
 			break;
 	}
 

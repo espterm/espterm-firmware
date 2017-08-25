@@ -108,6 +108,13 @@ typedef struct {
 	u8 xsb;
 } WordB3;
 
+typedef enum {
+	CS_USASCII = 'B',
+	CS_UKASCII = 'A',
+	CS_DEC_SUPPLEMENTAL = '0',
+	CS_DOS_437 = '1',
+} CHARSET;
+
 /** Encode number to two nice ASCII bytes */
 void encode2B(u16 number, WordB2 *stru);
 
