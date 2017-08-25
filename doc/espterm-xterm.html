@@ -671,10 +671,11 @@ CSI ? <i>Pm</i> h
             <i>Ps</i> = 1  -&gt; Application Cursor Keys (DECCKM).
             <i>Ps</i> = 2  -&gt; Designate USASCII for character sets G0-G3
           (DECANM), <del>and set VT100 mode.</del>
-            <del><i>Ps</i> = 3  -&gt; 132 Column Mode (DECCOLM).</del>
+            <i>Ps</i> = 3  -&gt; 132 Column Mode (DECCOLM). <ins>ESPTerm doesn't have enough RAM for 132x25,
+          but it implements the side effects of clearing the screen and resetting the scolling region.</ins>
             <del><i>Ps</i> = 4  -&gt; Smooth (Slow) Scroll (DECSCLM).</del>
             <i>Ps</i> = 5  -&gt; Reverse Video (DECSCNM).
-            <i>Ps</i> = 6  -&gt; Origin Mode (DECOM). <ins><b>TODO implement</b></ins>
+            <i>Ps</i> = 6  -&gt; Origin Mode (DECOM).
             <i>Ps</i> = 7  -&gt; Wraparound Mode (DECAWM).
             <del><i>Ps</i> = 8  -&gt; Auto-repeat Keys (DECARM).</del>
             <del><i>Ps</i> = 9  -&gt; Send Mouse X &amp; Y on button press.  See the sec-
@@ -1078,7 +1079,7 @@ CSI ! p   Soft terminal reset (DECSTR).
             <i>Ps</i> = 2  -&gt; DECSED and DECSEL can erase.</del>
 CSI <i>Ps</i> ; <i>Ps</i> r
           Set Scrolling Region [top;bottom] (default = full size of win-
-          dow) (DECSTBM). <ins><b>TODO</b> implement</ins>
+          dow) (DECSTBM).
 CSI ? <i>Pm</i> r
           Restore DEC Private Mode Values.  The value of <i>Ps</i> previously
           saved is restored.  <i>Ps</i> values are the same as for DECSET. <ins><b>TODO</b> implement</ins>
@@ -1304,10 +1305,12 @@ OSC <i>Ps</i> ; <i>Pt</i> ST
           and window title.
             <i>Ps</i> = 0  -&gt; Change <del>Icon Name and</del> Window Title to <i>Pt</i>.
             <del><i>Ps</i> = 1  -&gt; Change Icon Name to <i>Pt</i>.</del>
-            <i>Ps</i> = 2  -&gt; Change Window Title to <i>Pt</i>.
+            <i>Ps</i> = 2  -&gt; Change Window Title to <i>Pt</i>. <ins>(same as 0)</ins>
             <del><i>Ps</i> = 3  -&gt; Set X property on top-level window.  <i>Pt</i> should be
           in the form "<i>prop=value</i>", or just "<i>prop</i>" to delete the prop-
           erty</del>
+            <ins><i>Ps</i> = 81-85  -&gt; Change text of button 1 through 5. Empty string
+          makes the button appear disabled (grayed out).</ins>
             <del><i>Ps</i> = 4 ; <i>c</i>; <i>spec</i> -&gt; Change Color Number <i>c</i> to the color spec-
           ified by <i>spec</i>.  This can be a name or RGB specification as per
           <i>XParseColor</i>.  Any number of <i>c</i>/<i>spec</i> pairs may be given.  The
