@@ -516,7 +516,7 @@ void screen_delete_lines(unsigned int lines)
 	NOTIFY_LOCK();
 
 	// shift lines up
-	int targetEnd = H - 1 - lines;
+	int targetEnd = R1 - lines - 1;
 	if (targetEnd <= cursor.y) {
 		targetEnd = cursor.y;
 	} else {
@@ -635,7 +635,7 @@ screen_scroll_up(unsigned int lines)
 {
 	NOTIFY_LOCK();
 	if (lines >= RH) {
-		clear_range(R0*W, (R1+1)*H-1);
+		clear_range(R0*W, (R1+1)*W-1);
 		goto done;
 	}
 
@@ -663,7 +663,7 @@ screen_scroll_down(unsigned int lines)
 {
 	NOTIFY_LOCK();
 	if (lines >= RH) {
-		clear_range(R0*W, (R1+1)*H-1);
+		clear_range(R0*W, (R1+1)*W-1);
 		goto done;
 	}
 
