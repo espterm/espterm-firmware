@@ -123,7 +123,8 @@ static volatile int notifyLock = 0;
 /**
  * Restore hard defaults
  */
-void terminal_restore_defaults(void)
+void ICACHE_FLASH_ATTR
+terminal_restore_defaults(void)
 {
 	termconf->default_bg = 0;
 	termconf->default_fg = 7;
@@ -141,14 +142,16 @@ void terminal_restore_defaults(void)
 /**
  * Apply settings after eg. restore from defaults
  */
-void terminal_apply_settings(void)
+void ICACHE_FLASH_ATTR
+terminal_apply_settings(void)
 {
 	terminal_apply_settings_noclear();
 	screen_init();
 }
 
 /** this is used when changing terminal settings that do not affect the screen size */
-void terminal_apply_settings_noclear(void)
+void ICACHE_FLASH_ATTR
+terminal_apply_settings_noclear(void)
 {
 	bool changed = false;
 
@@ -709,21 +712,8 @@ void ICACHE_FLASH_ATTR
 screen_cursor_set(int y, int x)
 {
 	NOTIFY_LOCK();
-	if (cursor.origin_mode) {
-		y += R0;
-		if (y > R1) y = R1;
-		if (y < R0) y = R0;
-	}
-	else {
-		if (y > H-1) y = H-1;
-		if (y < 0) y = 0;
-	}
-
-	if (x >= W) x = W - 1;
-	if (x < 0) x = 0;
-	cursor.x = x;
-	cursor.y = y;
-	clear_invalid_hanging();
+	screen_cursor_set_x(x);
+	screen_cursor_set_y(y);
 	NOTIFY_DONE();
 }
 
@@ -745,8 +735,12 @@ screen_cursor_set_x(int x)
 {
 	NOTIFY_LOCK();
 	if (x >= W) x = W - 1;
+	if (x < 0) x = 0;
 	cursor.x = x;
-	clear_invalid_hanging();
+	// Always clear hanging on cursor set
+	// hanging happens when the cursor is virtually at col=81, which
+	// cannot be set using the cursor-set commands.
+	cursor.hanging = false;
 	NOTIFY_DONE();
 }
 
@@ -1039,9 +1033,7 @@ screen_putchar(const char *ch)
 		case BS:
 			if (cursor.x > 0) {
 				// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
-				if (cursor.hanging) {
-					cursor.hanging = false;
-				}
+				cursor.hanging = false;
 				cursor.x--;
 			}
 			// we should not wrap around, and backspace should not even clear the cell (verified in xterm)
