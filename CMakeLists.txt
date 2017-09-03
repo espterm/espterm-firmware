@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.7)
 # Do not attempt to build it with cmake, use make instead.        #
 ###################################################################
 
-project(esp_vt100_firmware)
+project(ESPTerm)
 
 set(CMAKE_CXX_STANDARD GNU99)
 
@@ -165,4 +165,4 @@ add_definitions(
         -DDEBUG_HEAP=1
         -DESPFS_HEATSHRINK)
 
-add_executable(esp_vt100_firmware ${SOURCE_FILES})
+add_executable(ESPTerm ${SOURCE_FILES})
