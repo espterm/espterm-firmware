@@ -103,44 +103,69 @@
 	}
 }
 
+@mixin mobcol-base {
+	h2 {
+		position: relative;
+		cursor: pointer;
+		padding: 2px 1.3rem 2px 5px;
+		margin: 0 -5px 0 -5px;
+
+		&::after {
+			position: absolute;
+			right: 4px;
+			content: '▸';
+
+			top:50%;
+			font-size: 120%;
+			font-weight: bold;
+			transform: translate(0,-50%) rotate(90deg);
+		}
+	}
+
+	&.expanded h2::after {
+		transform: translate(-25%,-50%) rotate(-90deg);
+		margin-bottom: dist(0);
+	}
+
+	.Row {
+		display: none;
+	}
+
+	&.expanded {
+		.Row {
+			display: flex;
+
+			&.v {
+				display: block;
+			}
+		}
+	}
+}
+
+.Box.fold {
+	@include mobcol-base;
+}
+
 @include media($phone) {
-	.Box.mobcol {
+	.Box.fold, .Box.mobcol {
 		h2 {
-			position: relative;
-			cursor: pointer;
 			padding: 2px 1.3rem 2px 5px;
 			margin: 0 -5px 0 -5px;
-
-			&::after {
-				position: absolute;
-				right: 4px;
-				content: '▸';
-
-				top:50%;
-				font-size: 120%;
-				font-weight: bold;
-				transform: translate(0,-50%) rotate(90deg);
-			}
 		}
 
 		&.expanded h2::after {
-			transform: translate(-25%,-50%) rotate(-90deg);
 			margin-bottom: dist(0);
 		}
+	}
 
-		.Row {
-			display: none;
-		}
+	.Box.mobcol {
+		@include mobcol-base;
 
 		#ap-box {
 			display: none;
 		}
 
 		&.expanded {
-			.Row {
-				display: flex;
-			}
-
 			#ap-box {
 				display: block;
 			}

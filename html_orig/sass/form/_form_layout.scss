@@ -29,6 +29,20 @@ form { @include naked(); }
 		margin-bottom: 0;
 	}
 
+	&.v {
+		display: block;
+	}
+
+	.aside {
+		float: right;
+		margin-left: 5px;
+		margin-bottom: 5px;
+
+		@include media($phone) {
+			margin: 0; float: none;
+		}
+	}
+
 	.spacer {
 		width: $form-label-w;
 

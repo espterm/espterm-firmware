@@ -33,7 +33,7 @@
 	}
 }
 
-.ansiref {
+.Row table {
 	&,td,th{
 		border: 1px solid #666;
 	}
@@ -45,7 +45,9 @@
 	th {
 		background-color: rgba(255,255,255,.1);
 	}
+}
 
+.ansiref {
 	td:nth-child(1) {
 		font-family: monospace;
 	}
@@ -54,11 +56,7 @@
 		width: 100%;
 
 		td:nth-child(1) {
-			width: 9em;
-		}
-
-		td:nth-child(2) {
-			width: 8em;
+			width: 6em;
 		}
 	}
 }

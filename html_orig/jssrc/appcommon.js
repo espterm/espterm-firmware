@@ -16,7 +16,7 @@ $.ready(function () {
 	});
 
 	// Expanding boxes on mobile
-	$('.Box.mobcol').forEach(function(x) {
+	$('.Box.mobcol,.Box.fold').forEach(function(x) {
 		var h = x.querySelector('h2');
 
 		var hdl = function() {

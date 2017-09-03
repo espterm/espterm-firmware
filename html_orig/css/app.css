@@ -416,8 +416,12 @@ a:hover {
   cursor: pointer; }
 
 ul > * {
-  padding-top: .2em;
-  padding-bottom: .2em; }
+  padding-top: .3em;
+  padding-bottom: .3em; }
+
+ul {
+  margin-top: 0;
+  margin-bottom: 0; }
 
 /* Main outer container */
 #outer {
@@ -629,7 +633,36 @@ ul > * {
       .Box.mobopen .Row.explain {
         margin-top: 18px; } }
 
+.Box.fold h2 {
+  position: relative;
+  cursor: pointer;
+  padding: 2px 1.3rem 2px 5px;
+  margin: 0 -5px 0 -5px; }
+  .Box.fold h2::after {
+    position: absolute;
+    right: 4px;
+    content: '▸';
+    top: 50%;
+    font-size: 120%;
+    font-weight: bold;
+    transform: translate(0, -50%) rotate(90deg); }
+.Box.fold.expanded h2::after {
+  transform: translate(-25%, -50%) rotate(-90deg);
+  margin-bottom: 1rem; }
+.Box.fold .Row {
+  display: none; }
+.Box.fold.expanded .Row {
+  display: flex; }
+  .Box.fold.expanded .Row.v {
+    display: block; }
+
 @media screen and (max-width: 544px) {
+  .Box.fold h2, .Box.mobcol h2 {
+    padding: 2px 1.3rem 2px 5px;
+    margin: 0 -5px 0 -5px; }
+  .Box.fold.expanded h2::after, .Box.mobcol.expanded h2::after {
+    margin-bottom: 1rem; }
+
   .Box.mobcol h2 {
     position: relative;
     cursor: pointer;
@@ -648,10 +681,12 @@ ul > * {
     margin-bottom: 1rem; }
   .Box.mobcol .Row {
     display: none; }
-  .Box.mobcol #ap-box {
-    display: none; }
   .Box.mobcol.expanded .Row {
     display: flex; }
+    .Box.mobcol.expanded .Row.v {
+      display: block; }
+  .Box.mobcol #ap-box {
+    display: none; }
   .Box.mobcol.expanded #ap-box {
     display: block; } }
 .Modal {
@@ -875,6 +910,16 @@ form {
     margin-top: 0; }
   .Row:last-child {
     margin-bottom: 0; }
+  .Row.v {
+    display: block; }
+  .Row .aside {
+    float: right;
+    margin-left: 5px;
+    margin-bottom: 5px; }
+    @media screen and (max-width: 544px) {
+      .Row .aside {
+        margin: 0;
+        float: none; } }
   .Row .spacer {
     width: 160px; }
     @media screen and (max-width: 544px) {
@@ -1605,20 +1650,19 @@ body.term #botnav {
     padding: 0.38198rem 0;
     text-align: center; }
 
-.ansiref, .ansiref td, .ansiref th {
+.Row table, .Row table td, .Row table th {
   border: 1px solid #666; }
-.ansiref th, .ansiref td {
+.Row table th, .Row table td {
   white-space: normal; }
-.ansiref th {
+.Row table th {
   background-color: rgba(255, 255, 255, 0.1); }
+
 .ansiref td:nth-child(1) {
   font-family: monospace; }
 .ansiref.w100 {
   width: 100%; }
   .ansiref.w100 td:nth-child(1) {
-    width: 9em; }
-  .ansiref.w100 td:nth-child(2) {
-    width: 8em; }
+    width: 6em; }
 
 @media screen and (min-width: 545px) {
   .mq-phone {
