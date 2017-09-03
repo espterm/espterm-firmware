@@ -176,7 +176,17 @@
 		<p>
 			The user can input text using their keyboard, or on Android, using the on-screen keyboard which is open using
 			a button beneath the screen. Supported are all printable characters, as well as many control keys, such as arrows, Ctrl+letters
-			and function keys. Sequences sent by function keys are based on VT102 and xterm. Here are some examples:
+			and function keys. Sequences sent by function keys are based on VT102 and xterm.
+		</p>
+
+		<p>
+			The codes sent by Home, End, F1-F4 and cursor keys are affected by various keyboard modes (Application Cursor Keys,
+			Application Numpad Mode, SS3 Fn Keys Mode).
+			Some can be set in the <a href="<?= url('cfg_term') ?>">Terminal Settings</a>, others via commands.
+		</p>
+
+		<p>
+			Here are some examples of control key codes:
 		</p>
 
 		<table>
@@ -532,7 +542,7 @@
 </div>
 
 <div class="Box fold">
-	<h2>Title and Button Labels</h2>
+	<h2>System Commands</h2>
 
 	<div class="Row v">
 		<p>
@@ -541,33 +551,6 @@
 			Those changes are not retained after restart.
 		</p>
 
-		<table class="ansiref w100">
-			<thead><tr><th>Code</th><th>Meaning</th></tr></thead>
-			<tbody>
-			<tr>
-				<td>\e]0;<i>title</i>\a</td>
-				<td>Set screen title (this is a standard OSC command)</td>
-			</tr>
-			<tr>
-				<td>
-					\e]<i>81</i>;<i>btn1</i>\a<br>
-					\e]<i>82</i>;<i>btn2</i>\a<br>
-					\e]<i>83</i>;<i>btn3</i>\a<br>
-					\e]<i>84</i>;<i>btn4</i>\a<br>
-					\e]<i>85</i>;<i>btn5</i>\a<br>
-				</td>
-				<td>Set button 1-5 label - eg. <code>\e]81;Yes\a</code>
-					sets the first button text to "Yes".</td>
-			</tr>
-			</tbody>
-		</table>
-	</div>
-</div>
-
-<div class="Box fold">
-	<h2>System Commands</h2>
-
-	<div class="Row v">
 		<table class="ansiref w100">
 			<thead><tr><th>Code</th><th>Meaning</th></tr></thead>
 			<tbody>
@@ -591,6 +574,25 @@
 					When this code is received on the UART, it means ESPTerm has restarted and is ready. Use this to detect
 					spontaneous restarts which require a full screen repaint.
 				</td>
+			</tr>
+			<tr>
+				<td>\e]0;<i>title</i>\a</td>
+				<td>Set screen title (this is a standard OSC command)</td>
+			</tr>
+			<tr>
+				<td>
+					\e]<i>81</i>;<i>btn1</i>\a<br>
+					\e]<i>82</i>;<i>btn2</i>\a<br>
+					\e]<i>83</i>;<i>btn3</i>\a<br>
+					\e]<i>84</i>;<i>btn4</i>\a<br>
+					\e]<i>85</i>;<i>btn5</i>\a<br>
+				</td>
+				<td>Set button 1-5 label - eg. <code>\e]81;Yes\a</code>
+					sets the first button text to "Yes".</td>
+			</tr>
+			<tr>
+				<td>\e[8;<i>r</i>;<i>c</i>t</td>
+				<td>Set screen size (this is a command borrowed from xterm)</td>
 			</tr>
 			</tbody>
 		</table>
