@@ -1567,12 +1567,14 @@ var Screen = (function () {
 		bg: 0,
 		attrs: 0,
 		suppress: false, // do not turn on in blink interval (for safe moving)
+		forceOn: false,
 		hidden: false,    // do not show
 		hanging: false,   // xenl
 	};
 
 	var screen = [];
 	var blinkIval;
+	var cursorFlashStartIval;
 
 	var frakturExceptions = {
 		'C': '\u212d',
@@ -1717,7 +1719,7 @@ var Screen = (function () {
 			}
 
 			if (!cursor.suppress) {
-				_draw(_curCell(), cursor.a);
+				_draw(_curCell(), cursor.forceOn || cursor.a);
 			}
 		}, 500);
 
@@ -1752,6 +1754,8 @@ var Screen = (function () {
 
 		if (!inited) _init();
 
+		var cursorMoved;
+
 		// Set size
 		num = parse2B(str, i); i += 2;  // height
 		num2 = parse2B(str, i); i += 2; // width
@@ -1763,6 +1767,7 @@ var Screen = (function () {
 		// Cursor position
 		num = parse2B(str, i); i += 2; // row
 		num2 = parse2B(str, i); i += 2; // col
+		cursorMoved = (cursor.x != num2 || cursor.y != num);
 		cursorSet(num, num2);
 		// console.log("Cursor at ",num, num2);
 
@@ -1826,9 +1831,17 @@ var Screen = (function () {
 
 		_drawAll();
 
-		if (!cursor.hidden || cursor.hanging) {
-			// hide cursor asap
-			_draw(_curCell(), false);
+		// if (!cursor.hidden || cursor.hanging || !cursor.suppress) {
+		// 	// hide cursor asap
+		// 	_draw(_curCell(), false);
+		// }
+
+		if (cursorMoved) {
+			cursor.forceOn = true;
+			cursorFlashStartIval = setTimeout(function() {
+				cursor.forceOn = false;
+			}, 1200);
+			_draw(_curCell(), true);
 		}
 	}
 
