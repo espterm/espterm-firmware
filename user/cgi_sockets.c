@@ -19,6 +19,7 @@ volatile bool notify_cooldown = false;
 static ETSTimer notifyContentTim;
 static ETSTimer notifyLabelsTim;
 static ETSTimer notifyCooldownTim;
+static ETSTimer heartbeatTim;
 
 // we're trying to do a kind of mutex here, without the actual primitives
 // this might glitch, very rarely.
@@ -183,9 +184,18 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	}
 }
 
+void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
+{
+	if (notify_available) {
+		cgiWebsockBroadcast(URL_WS_UPDATE, ".", 1, 0);
+	}
+}
+
 /** Socket connected for updates */
 void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 {
 	ws_info("Socket connected to "URL_WS_UPDATE);
 	ws->recvCb = updateSockRx;
+
+	TIMER_START(&heartbeatTim, heartbeatTimCb, 1000, 1);
 }

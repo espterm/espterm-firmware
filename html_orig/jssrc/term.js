@@ -353,6 +353,7 @@ var Screen = (function () {
 /** Handle connections */
 var Conn = (function() {
 	var ws;
+	var heartbeatTout;
 
 	function onOpen(evt) {
 		console.log("CONNECTED");
@@ -369,9 +370,13 @@ var Conn = (function() {
 
 	function onMessage(evt) {
 		try {
-			//console.log("RX: ", evt.data);
-			// Assume all our messages are screen updates
-			Screen.load(evt.data);
+			// . = heartbeat
+			if (evt.data != '.') {
+				//console.log("RX: ", evt.data);
+				// Assume all our messages are screen updates
+				Screen.load(evt.data);
+			}
+			heartbeat();
 		} catch(e) {
 			console.error(e);
 		}
@@ -392,6 +397,8 @@ var Conn = (function() {
 	}
 
 	function init() {
+		heartbeat();
+
 		ws = new WebSocket("ws://"+_root+"/term/update.ws");
 		ws.onopen = onOpen;
 		ws.onclose = onClose;
@@ -404,9 +411,20 @@ var Conn = (function() {
 			if (status !== 200) location.reload(true);
 			console.log("Data received!");
 			Screen.load(resp);
+			heartbeat();
 
 			showPage();
 		});
+	}
+
+	function heartbeat() {
+		clearTimeout(heartbeatTout);
+		heartbeatTout = setTimeout(heartbeatFail, 3000);
+	}
+
+	function heartbeatFail() {
+		console.error("Heartbeat lost, reloading...");
+		location.reload();
 	}
 
 	return {
