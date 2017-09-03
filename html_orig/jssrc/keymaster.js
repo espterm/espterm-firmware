@@ -67,6 +67,14 @@
       for(k in _mods) _mods[k] = event[modifierMap[k]];
   };
 
+  function isModifierPressed(mod) {
+    if (mod=='control'||mod=='ctrl') return _mods[17];
+	if (mod=='shift') return _mods[16];
+	if (mod=='meta') return _mods[91];
+	if (mod=='alt') return _mods[18];
+	return false;
+  }
+
   // handle keydown event
   function dispatch(event) {
     var key, handler, k, i, modifiersMatch, scope;
@@ -292,6 +300,7 @@
   global.key.deleteScope = deleteScope;
   global.key.filter = filter;
   global.key.isPressed = isPressed;
+  global.key.isModifier = isModifierPressed;
   global.key.getPressedKeyCodes = getPressedKeyCodes;
   global.key.noConflict = noConflict;
   global.key.unbind = unbindKey;

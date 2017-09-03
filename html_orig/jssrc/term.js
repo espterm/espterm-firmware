@@ -124,8 +124,21 @@ var Screen = (function () {
 			(function() {
 				var x = i % W;
 				var y = Math.floor(i / W);
-				e.addEventListener('click', function () {
-					Input.onTap(y, x);
+				e.addEventListener('mouseenter', function (evt) {
+					Input.onMouseMove(x, y);
+				});
+				e.addEventListener('mousedown', function (evt) {
+					Input.onMouseDown(x, y, evt.button+1);
+				});
+				e.addEventListener('mouseup', function (evt) {
+					Input.onMouseUp(x, y, evt.button+1);
+				});
+				e.addEventListener('contextmenu', function (evt) {
+					evt.preventDefault();
+				});
+				e.addEventListener('mousewheel', function (evt) {
+					Input.onMouseWheel(x, y, evt.deltaY>0?1:-1);
+					return false;
 				});
 			})();
 
@@ -446,10 +459,6 @@ var Input = (function() {
 		Conn.send("STR:"+str);
 	}
 
-	function sendPosMsg(y, x) {
-		Conn.send("TAP:"+y+','+x);
-	}
-
 	function sendBtnMsg(n) {
 		Conn.send("BTN:"+n);
 	}
@@ -572,6 +581,10 @@ var Input = (function() {
 		_bindFnKeys();
 	}
 
+	var mb1 = 0;
+	var mb2 = 0;
+	var mb3 = 0;
+
 	function init() {
 		_initKeys();
 
@@ -581,11 +594,30 @@ var Input = (function() {
 				sendBtnMsg(+this.dataset['n']);
 			});
 		});
+
+		window.addEventListener('mousedown', function(evt) {
+			if (evt.button == 0) mb1 = 1;
+			if (evt.button == 1) mb2 = 1;
+			if (evt.button == 2) mb3 = 1;
+		});
+
+		window.addEventListener('mouseup', function(evt) {
+			if (evt.button == 0) mb1 = 0;
+			if (evt.button == 1) mb2 = 0;
+			if (evt.button == 2) mb3 = 0;
+		});
+	}
+
+	function packModifiersForMouse() {
+		return (key.isModifier('ctrl')?1:0) |
+			(key.isModifier('shift')?2:0) |
+			(key.isModifier('alt')?4:0) |
+			(key.isModifier('meta')?8:0);
 	}
 
 	return {
 		init: init,
-		onTap: sendPosMsg,
+		// onTap: sendPosMsg,
 		sendString: sendStrMsg,
 		setAlts: function(cu, np, fn) {
 			if (opts.cu_alt != cu || opts.np_alt != np || opts.fn_alt != fn) {
@@ -596,6 +628,28 @@ var Input = (function() {
 				// rebind keys - codes have changed
 				_bindFnKeys();
 			}
+		},
+		onMouseMove: function(x, y) {
+			// TODO gather held buttons & key modifiers
+			var b = (mb1?1:0) | (mb2?2:0) | (mb3?4:0);
+			var m = packModifiersForMouse();
+			Conn.send("MM:"+y+','+x+','+b+','+m);
+		},
+		onMouseDown: function(x, y, which) {
+			if(which>3) return;
+			var m = packModifiersForMouse();
+			Conn.send("MP:"+y+','+x+','+which+','+m);
+		},
+		onMouseUp: function(x, y, which) {
+			if(which>3) return;
+			var m = packModifiersForMouse();
+			Conn.send("MR:"+y+','+x+','+which+','+m);
+		},
+		onMouseWheel: function(x, y, dir) {
+			// -1 ... btn 4 (away from user)
+			// +1 ... btn 5 (towards user)
+			var m = packModifiersForMouse();
+			Conn.send("MP:"+y+','+x+','+(dir<0?4:5)+','+m);
 		},
 	};
 })();
