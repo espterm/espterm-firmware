@@ -1726,7 +1726,7 @@ var Screen = (function () {
 		// blink attribute
 		setInterval(function () {
 			$('#screen').removeClass('blink-hide');
-			setTimeout(function() {
+			setTimeout(function () {
 				$('#screen').addClass('blink-hide');
 			}, 800); // 200 ms ON
 		}, 1000);

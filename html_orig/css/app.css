@@ -1152,7 +1152,7 @@ body.term #screen {
   -ms-user-select: none;
   user-select: none;
   font-family: monospace;
-  font-size: 16pt;
+  font-size: 20px;
   white-space: nowrap;
   background: #111213;
   padding: 6px;
@@ -1160,12 +1160,11 @@ body.term #screen {
   border: 2px solid #3983CD; }
   body.term #screen span {
     white-space: pre;
-    cursor: pointer; }
-    body.term #screen span:hover {
-      outline: 1px solid rgba(255, 255, 255, 0.4); }
-      @media screen and (max-width: 544px) {
-        body.term #screen span:hover {
-          outline: 0 none; } }
+    cursor: pointer;
+    display: inline-block;
+    line-height: 1.15em;
+    width: 0.6em;
+    overflow: visible; }
 body.term #buttons {
   margin-top: 10px;
   white-space: nowrap; }

@@ -1146,14 +1146,14 @@ static const u16 codepage_1[] =
 		0x2663,	// 37	%	♣	(5)
 		0x2660,	// 38	&	♠	(6)
 		0x2022,	// 39	'	•	(7)  - inverse dot and circle left out, can be done with SGR
-		0x231B,	// 40	(	⌛        - hourglass (timer icon)
+	0x0,//0x231B,	// 40	(	⌛        - hourglass (timer icon)
 		0x25CB,	// 41	)	○	(9)
 		0x21AF,	// 42	*	↯        - electricity (lightning monitor...)
 		0x266A,	// 43	+	♪	(13)
 		0x266B,	// 44	,	♫	(14)
 		0x263C,	// 45	-	☼	(15)
 		0x2302,	// 46	.	⌂	(127)
-		0x2622,	// 47	/	☢         - radioactivity (geiger counter...)
+	0x0,//0x2622,	// 47	/	☢         - radioactivity (geiger counter...)
 		0x2591,	// 48	0	░	(176) - this block is kept aligned and ordered from DOS, moved -128
 		0x2592,	// 49	1	▒	(177)
 		0x2593,	// 50	2	▓	(178)
@@ -1212,10 +1212,10 @@ static const u16 codepage_1[] =
 		0x25BC,	// 103	g	▼	(31)
 		0x25BA,	// 104	h	►	(16)
 		0x25C4,	// 105	i	◄	(17)
-		0x25E2,	// 106	j	◢         - added for slanted corners
-		0x25E3,	// 107	k	◣
-		0x25E4,	// 108	l	◤
-		0x25E5,	// 109	m	◥
+	0x0,//0x25E2,	// 106	j	◢         - added for slanted corners
+	0x0,//0x25E3,	// 107	k	◣
+	0x0,//0x25E4,	// 108	l	◤
+	0x0,//0x25E5,	// 109	m	◥
 		0x256D,	// 110	n	╭         - rounded corners
 		0x256E,	// 111	o	╮
 		0x256F,	// 112	p	╯
@@ -1231,8 +1231,8 @@ static const u16 codepage_1[] =
 		0x0,	// 122	z
 		0x0,	// 123	{
 		0x0,	// 124	|
-		0x2714,	// 125	}	✔         - checkboxes or checklist items
-		0x2718,	// 126	~	✘
+	0x0,//0x2714,	// 125	}	✔         - checkboxes or checklist items
+	0x0,//0x2718,	// 126	~	✘
 	};
 
 /**
