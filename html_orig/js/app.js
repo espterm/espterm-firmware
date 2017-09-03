@@ -2196,20 +2196,19 @@ var Input = (function() {
 			}
 		},
 		onMouseMove: function(x, y) {
-			// TODO gather held buttons & key modifiers
 			var b = (mb1?1:0) | (mb2?2:0) | (mb3?4:0);
 			var m = packModifiersForMouse();
 			Conn.send("MM:"+y+','+x+','+b+','+m);
 		},
-		onMouseDown: function(x, y, which) {
-			if(which>3) return;
+		onMouseDown: function(x, y, b) {
+			if(b>3) return;
 			var m = packModifiersForMouse();
-			Conn.send("MP:"+y+','+x+','+which+','+m);
+			Conn.send("MP:"+y+','+x+','+b+','+m);
 		},
-		onMouseUp: function(x, y, which) {
-			if(which>3) return;
+		onMouseUp: function(x, y, b) {
+			if(b>3) return;
 			var m = packModifiersForMouse();
-			Conn.send("MR:"+y+','+x+','+which+','+m);
+			Conn.send("MR:"+y+','+x+','+b+','+m);
 		},
 		onMouseWheel: function(x, y, dir) {
 			// -1 ... btn 4 (away from user)
