@@ -4,7 +4,7 @@
 #include "ansi_parser.h"
 #include "syscfg.h"
 
-#define LOGBUF_SIZE 1500
+#define LOGBUF_SIZE 2048
 static char logbuf[LOGBUF_SIZE];
 static u32 lb_nw = 1;
 static u32 lb_ls = 0;

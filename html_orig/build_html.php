@@ -14,6 +14,8 @@ function process_html($s) {
 	return $s;
 }
 
+$no_tpl_files = ['help', 'cfg_wifi_conn'];
+
 ob_start();
 foreach($_pages as $_k => $p) {
 	if ($p->bodyclass == 'api') continue;
@@ -30,7 +32,7 @@ foreach($_pages as $_k => $p) {
 //	$s = process_html($s);
 
 	ob_clean();                                   // clean up
-	$of = __DIR__ . '/../html/' . $_k . '.tpl';
+	$of = __DIR__ . '/../html/' . $_k . (in_array($_k, $no_tpl_files) ? '.html' : '.tpl');
 	file_put_contents($of, $s);                   // write to a file
 }
 

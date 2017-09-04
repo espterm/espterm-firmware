@@ -29,7 +29,7 @@ HttpdBuiltInUrl routes[] = {
 	// --- Web pages ---
 	ROUTE_TPL_FILE("/", tplScreen, "/term.tpl"),
 	ROUTE_TPL_FILE("/about/?", tplAbout, "/about.tpl"),
-	ROUTE_FILE("/help/?", "/help.tpl"),
+	ROUTE_FILE("/help/?", "/help.html"),
 
 	// --- Sockets ---
 	ROUTE_CGI("/term/init", cgiTermInitialImage),
@@ -46,7 +46,7 @@ HttpdBuiltInUrl routes[] = {
 	ROUTE_REDIRECT("/cfg/?", "/cfg/wifi"),
 
 	ROUTE_TPL_FILE("/cfg/wifi/?", tplWlan, "/cfg_wifi.tpl"),
-	ROUTE_FILE("/cfg/wifi/connecting/?", "/cfg_wifi_conn.tpl"),
+	ROUTE_FILE("/cfg/wifi/connecting/?", "/cfg_wifi_conn.html"),
 	ROUTE_CGI("/cfg/wifi/scan", cgiWiFiScan),
 	ROUTE_CGI("/cfg/wifi/connstatus", cgiWiFiConnStatus),
 	ROUTE_CGI("/cfg/wifi/set", cgiWiFiSetParams),

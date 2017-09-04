@@ -50,7 +50,7 @@
 #define SCR_DEF_TITLE "ESPTerm"
 
 /** Maximum screen size (determines size of the static data array) */
-#define MAX_SCREEN_SIZE (80*26)
+#define MAX_SCREEN_SIZE (80*25)
 
 #define TERMCONF_VERSION 1
 

@@ -45,9 +45,9 @@ UART_AsyncBufferInit(uint32 buf_size)
 		return NULL;
 	}
 	else {
-		struct UartBuffer *pBuff = (struct UartBuffer *) os_malloc(sizeof(struct UartBuffer));
+		struct UartBuffer *pBuff = (struct UartBuffer *) malloc(sizeof(struct UartBuffer));
 		pBuff->UartBuffSize = buf_size;
-		pBuff->pUartBuff = (uint8 *) os_malloc(pBuff->UartBuffSize);
+		pBuff->pUartBuff = (uint8 *) malloc(pBuff->UartBuffSize);
 		pBuff->pInPos = pBuff->pUartBuff;
 		pBuff->pOutPos = pBuff->pUartBuff;
 		pBuff->Space = (uint16) pBuff->UartBuffSize;
@@ -68,17 +68,17 @@ static void UART_WriteToAsyncBuffer(struct UartBuffer *pCur, const char *pdata, 
 
 	uint16 tail_len = (uint16) (pCur->pUartBuff + pCur->UartBuffSize - pCur->pInPos);
 	if (tail_len >= data_len) {  //do not need to loop back  the queue
-		os_memcpy(pCur->pInPos, pdata, data_len);
+		memcpy(pCur->pInPos, pdata, data_len);
 		pCur->pInPos += (data_len);
 		pCur->pInPos = (pCur->pUartBuff + (pCur->pInPos - pCur->pUartBuff) % pCur->UartBuffSize);
 		pCur->Space -= data_len;
 	}
 	else {
-		os_memcpy(pCur->pInPos, pdata, tail_len);
+		memcpy(pCur->pInPos, pdata, tail_len);
 		pCur->pInPos += (tail_len);
 		pCur->pInPos = (pCur->pUartBuff + (pCur->pInPos - pCur->pUartBuff) % pCur->UartBuffSize);
 		pCur->Space -= tail_len;
-		os_memcpy(pCur->pInPos, pdata + tail_len, data_len - tail_len);
+		memcpy(pCur->pInPos, pdata + tail_len, data_len - tail_len);
 		pCur->pInPos += (data_len - tail_len);
 		pCur->pInPos = (pCur->pUartBuff + (pCur->pInPos - pCur->pUartBuff) % pCur->UartBuffSize);
 		pCur->Space -= (data_len - tail_len);
@@ -93,8 +93,8 @@ static void UART_WriteToAsyncBuffer(struct UartBuffer *pCur, const char *pdata, 
 *******************************************************************************/
 void ICACHE_FLASH_ATTR UART_FreeAsyncBuffer(struct UartBuffer *pBuff)
 {
-	os_free(pBuff->pUartBuff);
-	os_free(pBuff);
+	free(pBuff->pUartBuff);
+	free(pBuff);
 }
 
 u16 ICACHE_FLASH_ATTR UART_AsyncRxCount(void)
@@ -116,19 +116,19 @@ UART_ReadAsync(char *pdata, uint16 data_len)
 	uint16 len_tmp = 0;
 	len_tmp = ((data_len > buf_len) ? buf_len : data_len);
 	if (pRxBuffer->pOutPos <= pRxBuffer->pInPos) {
-		os_memcpy(pdata, pRxBuffer->pOutPos, len_tmp);
+		memcpy(pdata, pRxBuffer->pOutPos, len_tmp);
 		pRxBuffer->pOutPos += len_tmp;
 		pRxBuffer->Space += len_tmp;
 	}
 	else {
 		if (len_tmp > tail_len) {
-			os_memcpy(pdata, pRxBuffer->pOutPos, tail_len);
+			memcpy(pdata, pRxBuffer->pOutPos, tail_len);
 			pRxBuffer->pOutPos += tail_len;
 			pRxBuffer->pOutPos = (pRxBuffer->pUartBuff +
 								  (pRxBuffer->pOutPos - pRxBuffer->pUartBuff) % pRxBuffer->UartBuffSize);
 			pRxBuffer->Space += tail_len;
 
-			os_memcpy(pdata + tail_len, pRxBuffer->pOutPos, len_tmp - tail_len);
+			memcpy(pdata + tail_len, pRxBuffer->pOutPos, len_tmp - tail_len);
 			pRxBuffer->pOutPos += (len_tmp - tail_len);
 			pRxBuffer->pOutPos = (pRxBuffer->pUartBuff +
 								  (pRxBuffer->pOutPos - pRxBuffer->pUartBuff) % pRxBuffer->UartBuffSize);
@@ -136,7 +136,7 @@ UART_ReadAsync(char *pdata, uint16 data_len)
 		}
 		else {
 			//os_printf("case 3 in rx deq\n\r");
-			os_memcpy(pdata, pRxBuffer->pOutPos, len_tmp);
+			memcpy(pdata, pRxBuffer->pOutPos, len_tmp);
 			pRxBuffer->pOutPos += len_tmp;
 			pRxBuffer->pOutPos = (pRxBuffer->pUartBuff +
 								  (pRxBuffer->pOutPos - pRxBuffer->pUartBuff) % pRxBuffer->UartBuffSize);

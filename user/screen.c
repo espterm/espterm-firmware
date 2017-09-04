@@ -201,6 +201,8 @@ terminal_apply_settings_noclear(void)
 void ICACHE_FLASH_ATTR
 screen_init(void)
 {
+	dbg("Screen buffer size = %d bytes", sizeof(screen));
+
 	NOTIFY_LOCK();
 	screen_reset();
 	NOTIFY_DONE();

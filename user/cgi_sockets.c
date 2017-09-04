@@ -11,8 +11,9 @@
 
 #define LOOPBACK 0
 
-#define SOCK_BUF_LEN 1024
-static char sock_buff[SOCK_BUF_LEN];
+#define HB_TIME 1500
+
+#define SOCK_BUF_LEN 2000
 
 volatile bool notify_available = true;
 volatile bool notify_cooldown = false;
@@ -41,6 +42,8 @@ notifyContentTimCb(void *arg)
 {
 	void *data = NULL;
 	int max_bl, total_bl;
+	char sock_buff[SOCK_BUF_LEN];
+
 	cgiWebsockMeasureBacklog(URL_WS_UPDATE, &max_bl, &total_bl);
 
 	if (!notify_available || notify_cooldown || (max_bl > 2048)) { // do not send if we have anything significant backlogged
@@ -71,6 +74,8 @@ notifyContentTimCb(void *arg)
 static void ICACHE_FLASH_ATTR
 notifyLabelsTimCb(void *arg)
 {
+	char sock_buff[SOCK_BUF_LEN];
+
 	if (!notify_available || notify_cooldown) {
 		// postpone a little
 		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, 1, 0);
@@ -250,5 +255,5 @@ void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 	ws_info("Socket connected to "URL_WS_UPDATE);
 	ws->recvCb = updateSockRx;
 
-	TIMER_START(&heartbeatTim, heartbeatTimCb, 1000, 1);
+	TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 1);
 }

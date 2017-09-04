@@ -163,6 +163,7 @@ add_definitions(
         -DADMIN_PASSWORD="asdf"
         -DGIT_HASH="blabla"
         -DDEBUG_HEAP=1
+        -DDEBUG_MALLOC=1
         -DESPFS_HEATSHRINK)
 
 add_executable(ESPTerm ${SOURCE_FILES})
