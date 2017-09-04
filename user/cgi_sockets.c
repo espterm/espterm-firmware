@@ -121,6 +121,10 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 
 void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mods)
 {
+	// one-based
+	x++;
+	y++;
+
 	bool ctrl = (mods & 1) > 0;
 	bool shift = (mods & 2) > 0;
 	bool alt = (mods & 4) > 0;
@@ -129,7 +133,7 @@ void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mo
 	enum MTE mte = mouse_tracking.encoding;
 
 	// No message on release in X10 mode
-	if (mtm == MTM_X10 && button == 0) {
+	if (mtm == MTM_X10 && (button == 0 || evt == 'r')) {
 		return;
 	}
 
@@ -144,7 +148,7 @@ void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mo
 	int eventcode = 0;
 
 	if (mtm == MTM_X10) {
-		eventcode = button;
+		eventcode = button-1;
 	}
 	else {
 		if (button == 0 || (evt == 'r' && mte != MTE_SGR)) eventcode = 3; // release
@@ -174,7 +178,7 @@ void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mo
 		sprintf(buf, "\x1b[M%c%c%c", (u8)(32+eventcode), (u8)(32+x), (u8)(32+y));
 	}
 	else if (mte == MTE_SGR) {
-		sprintf(buf, "\x1b[%d;%d;%d%c", eventcode, x, y, evt == 'p' ? 'M' : 'm');
+		sprintf(buf, "\x1b[<%d;%d;%d%c", eventcode, x, y, evt == 'p' ? 'M' : 'm');
 	}
 	else if (mte == MTE_URXVT) {
 		sprintf(buf, "\x1b[%d;%d;%dM", (u8)(32+eventcode), (u8)(32+x), (u8)(32+y));

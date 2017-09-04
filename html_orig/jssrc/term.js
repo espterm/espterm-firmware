@@ -678,11 +678,13 @@ var Input = (function() {
 			if (b > 3 || b < 1) return;
 			var m = packModifiersForMouse();
 			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+			console.log("B ",b," M ",m);
 		},
 		onMouseUp: function (x, y, b) {
 			if (b > 3 || b < 1) return;
 			var m = packModifiersForMouse();
 			Conn.send("r" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+			console.log("B ",b," M ",m);
 		},
 		onMouseWheel: function (x, y, dir) {
 			// -1 ... btn 4 (away from user)
@@ -690,6 +692,7 @@ var Input = (function() {
 			var m = packModifiersForMouse();
 			var b = (dir < 0 ? 4 : 5);
 			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+			console.log("B ",b," M ",m);
 		},
 	};
 })();

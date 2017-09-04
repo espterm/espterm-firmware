@@ -81,18 +81,18 @@ extern TerminalConfigBundle * const termconf;
 extern TerminalConfigBundle termconf_scratch;
 
 enum MTM {
-	MTM_NONE,
-	MTM_X10,
-	MTM_NORMAL,
-	MTM_BUTTON_MOTION,
-	MTM_ANY_MOTION,
+	MTM_NONE = 0,
+	MTM_X10 = 1,
+	MTM_NORMAL = 2,
+	MTM_BUTTON_MOTION = 3,
+	MTM_ANY_MOTION = 4,
 };
 
 enum MTE {
-	MTE_SIMPLE,
-	MTE_UTF8,
-	MTE_SGR,
-	MTE_URXVT,
+	MTE_SIMPLE = 0,
+	MTE_UTF8 = 1,
+	MTE_SGR = 2,
+	MTE_URXVT = 3,
 };
 
 typedef struct {
