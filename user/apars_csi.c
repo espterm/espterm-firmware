@@ -469,8 +469,6 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 				else if (n == 1005) mouse_tracking.encoding = yn ? MTE_UTF8 : MTE_SIMPLE;
 				else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
 				else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
-
-				dbg("Mouse opt %d yesno %d", n, yn);
 			}
 			else if (n == 12) {
 				// TODO Cursor blink on/off
