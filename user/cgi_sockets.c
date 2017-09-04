@@ -7,6 +7,7 @@
 #include "screen.h"
 #include "uart_buffer.h"
 #include "ansi_parser.h"
+#include "jstring.h"
 
 #define LOOPBACK 0
 
@@ -118,75 +119,127 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 	}
 }
 
+void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mods)
+{
+	// one-based
+	x++;
+	y++;
+
+	bool ctrl = (mods & 1) > 0;
+	bool shift = (mods & 2) > 0;
+	bool alt = (mods & 4) > 0;
+	bool meta = (mods & 8) > 0;
+	enum MTM mtm = mouse_tracking.mode;
+	enum MTE mte = mouse_tracking.encoding;
+
+	// No message on release in X10 mode
+	if (mtm == MTM_X10 && (button == 0 || evt == 'r')) {
+		return;
+	}
+
+	if (evt == 'm' && mtm != MTM_BUTTON_MOTION && mtm != MTM_ANY_MOTION) {
+		return;
+	}
+
+	if (evt == 'm' && mtm == MTM_BUTTON_MOTION && button == 0) {
+		return;
+	}
+
+	int eventcode = 0;
+
+	if (mtm == MTM_X10) {
+		eventcode = button-1;
+	}
+	else {
+		if (button == 0 || (evt == 'r' && mte != MTE_SGR)) eventcode = 3; // release
+		else if (button == 1) eventcode = 0;
+		else if (button == 2) eventcode = 1;
+		else if (button == 3) eventcode = 2;
+		else if (button == 4) eventcode = 64;
+		else if (button == 5) eventcode = 65;
+
+		if (shift) eventcode |= 4;
+		if (alt || meta) eventcode |= 8;
+		if (ctrl) eventcode |= 16;
+
+		if (mtm == MTM_BUTTON_MOTION || mtm == MTM_ANY_MOTION) {
+			if (evt == 'm') {
+				eventcode |= 32;
+			}
+		}
+	}
+
+	// Encode
+	char buf[20];
+	buf[0] = 0;
+	if (mte == MTE_SIMPLE || mte == MTE_UTF8) {
+		// strictly, for UTF8 this will break if any coord is over 127,
+		// but that is unlikely due to screen size limitations in ESPTerm
+		sprintf(buf, "\x1b[M%c%c%c", (u8)(32+eventcode), (u8)(32+x), (u8)(32+y));
+	}
+	else if (mte == MTE_SGR) {
+		sprintf(buf, "\x1b[<%d;%d;%d%c", eventcode, x, y, evt == 'p' ? 'M' : 'm');
+	}
+	else if (mte == MTE_URXVT) {
+		sprintf(buf, "\x1b[%d;%d;%dM", (u8)(32+eventcode), (u8)(32+x), (u8)(32+y));
+	}
+
+	UART_SendAsync(buf, -1);
+}
+
 /** Socket received a message */
 void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 {
-	char buf[20];
 	// Add terminator if missing (seems to randomly happen)
 	data[len] = 0;
 
-	// TODO re-implement those, use single byte markers and B2 encoding
-
 	ws_dbg("Sock RX str: %s, len %d", data, len);
 
-	if (strstarts(data, "STR:")) {
+	int y, x, m, b;
+	u8 btnNum;
+
+	char c = data[0];
+	switch (c) {
+		case 's':
 		// pass string verbatim
 #if LOOPBACK
 		for(int i=4;i<strlen(data); i++) {
 			ansi_parser(data[i]);
 		}
 #else
-		UART_SendAsync(data+4, -1);
+			UART_SendAsync(data+1, -1);
 #endif
-	}
-	else if (strstarts(data, "BTN:")) {
-		// send button as low ASCII value 1-9
-		u8 btnNum = (u8) (data[4] - '0');
-		if (btnNum > 0 && btnNum < 10) {
-			UART_SendAsync((const char *) &btnNum, 1);
-		}
-	}
-	else if (strstarts(data, "TAP:")) {
-		// this comes in as 0-based
-
-		int y=0, x=0;
-
-		char *pc=data+4;
-		char c;
-		int phase=0;
-
-		while((c=*pc++) != '\0') {
-			if (c==','||c==';') {
-				phase++;
+			break;
+		case 'b':
+			// action button press
+			btnNum = (u8) (data[1]);
+			if (btnNum > 0 && btnNum < 10) {
+				UART_SendAsync((const char *) &btnNum, 1); // TODO this is where we use user-configured codes
 			}
-			else if (c>='0' && c<='9') {
-				if (phase==0) {
-					y=y*10+(c-'0');
-				} else {
-					x=x*10+(c-'0');
-				}
-			}
-		}
+			break;
+		case 'm':
+		case 'p':
+		case 'r':
+			if (mouse_tracking.mode == MTM_NONE) break; // no need to parse, not enabled
 
-		if (!screen_isCoordValid(y, x)) {
-			ws_warn("Mouse input at invalid coordinates");
-			return;
-		}
+			// mouse move
+			y = parse2B(data+1); // row, 0-based
+			x = parse2B(data+3); // column, 0-based
+			b = parse2B(data+5); // mouse button, 0 = none, 1-5 = button number
+			m = parse2B(data+7); // modifier keys held
 
-		ws_dbg("Screen clicked at row %d, col %d", y+1, x+1);
-
-		// Send as 1-based to user
-		sprintf(buf, "\033[%d;%dM", y+1, x+1);
-		UART_SendAsync(buf, -1);
-	}
-	else {
-		ws_warn("Bad command.");
+			sendMouseAction(c,y,x,b,m);
+			break;
+		default:
+			ws_warn("Bad command.");
 	}
 }
 
 void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 {
 	if (notify_available) {
+		// Heartbeat packet - indicate we're still connected
+		// JS reloads the page if heartbeat is lost for a couple seconds
 		cgiWebsockBroadcast(URL_WS_UPDATE, ".", 1, 0);
 	}
 }

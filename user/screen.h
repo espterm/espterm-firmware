@@ -80,6 +80,29 @@ extern TerminalConfigBundle * const termconf;
  */
 extern TerminalConfigBundle termconf_scratch;
 
+enum MTM {
+	MTM_NONE = 0,
+	MTM_X10 = 1,
+	MTM_NORMAL = 2,
+	MTM_BUTTON_MOTION = 3,
+	MTM_ANY_MOTION = 4,
+};
+
+enum MTE {
+	MTE_SIMPLE = 0,
+	MTE_UTF8 = 1,
+	MTE_SGR = 2,
+	MTE_URXVT = 3,
+};
+
+typedef struct {
+	enum MTM mode;
+	bool focus_tracking;
+	enum MTE encoding;
+} MouseTrackingConfig;
+
+extern MouseTrackingConfig mouse_tracking;
+
 /** Restore default settings to termconf. Does not apply or copy to scratch. */
 void terminal_restore_defaults(void);
 /** Apply settings, redraw (clears the screen) */
@@ -97,26 +120,12 @@ void screen_set_button_text(int num, const char *text);
 
 // --- Encoding ---
 
-typedef struct {
-	u8 lsb;
-	u8 msb;
-} WordB2;
-
-typedef struct {
-	u8 lsb;
-	u8 msb;
-	u8 xsb;
-} WordB3;
-
 typedef enum {
 	CS_USASCII = 'B',
 	CS_UKASCII = 'A',
 	CS_DEC_SUPPLEMENTAL = '0',
 	CS_DOS_437 = '1',
 } CHARSET;
-
-/** Encode number to two nice ASCII bytes */
-void encode2B(u16 number, WordB2 *stru);
 
 httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
 

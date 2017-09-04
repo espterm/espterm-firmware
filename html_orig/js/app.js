@@ -770,6 +770,14 @@
       for(k in _mods) _mods[k] = event[modifierMap[k]];
   };
 
+  function isModifierPressed(mod) {
+    if (mod=='control'||mod=='ctrl') return _mods[17];
+	if (mod=='shift') return _mods[16];
+	if (mod=='meta') return _mods[91];
+	if (mod=='alt') return _mods[18];
+	return false;
+  }
+
   // handle keydown event
   function dispatch(event) {
     var key, handler, k, i, modifiersMatch, scope;
@@ -995,6 +1003,7 @@
   global.key.deleteScope = deleteScope;
   global.key.filter = filter;
   global.key.isPressed = isPressed;
+  global.key.isModifier = isModifierPressed;
   global.key.getPressedKeyCodes = getPressedKeyCodes;
   global.key.noConflict = noConflict;
   global.key.unbind = unbindKey;
@@ -1555,6 +1564,41 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 	w.init = wifiInit;
 	w.startScanning = startScanning;
 })(window.WiFi = {});
+/** Decode two-byte number */
+function parse2B(s, i) {
+	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
+}
+
+/** Decode three-byte number */
+function parse3B(s, i) {
+	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
+}
+
+function Chr(n) {
+	return String.fromCharCode(n);
+}
+
+function encode2B(n) {
+	var lsb, msb;
+	lsb = (n % 127);
+	n = ((n - lsb) / 127);
+	lsb += 1;
+	msb = (n + 1);
+	return Chr(lsb) + Chr(msb);
+}
+
+function encode3B(n) {
+	var lsb, msb, xsb;
+	lsb = (n % 127);
+	n = (n - lsb) / 127;
+	lsb += 1;
+	msb = (n % 127);
+	n = (n - msb) / 127;
+	msb += 1;
+	xsb = (n + 1);
+	return Chr(lsb) + Chr(msb) + Chr(xsb);
+}
+
 var Screen = (function () {
 	var W = 0, H = 0; // dimensions
 	var inited = false;
@@ -1681,8 +1725,21 @@ var Screen = (function () {
 			(function() {
 				var x = i % W;
 				var y = Math.floor(i / W);
-				e.addEventListener('click', function () {
-					Input.onTap(y, x);
+				e.addEventListener('mouseenter', function (evt) {
+					Input.onMouseMove(x, y);
+				});
+				e.addEventListener('mousedown', function (evt) {
+					Input.onMouseDown(x, y, evt.button+1);
+				});
+				e.addEventListener('mouseup', function (evt) {
+					Input.onMouseUp(x, y, evt.button+1);
+				});
+				e.addEventListener('contextmenu', function (evt) {
+					evt.preventDefault();
+				});
+				e.addEventListener('mousewheel', function (evt) {
+					Input.onMouseWheel(x, y, evt.deltaY>0?1:-1);
+					return false;
 				});
 			})();
 
@@ -1732,16 +1789,6 @@ var Screen = (function () {
 		}, 1000);
 
 		inited = true;
-	}
-
-	/** Decode two-byte number */
-	function parse2B(s, i) {
-		return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
-	}
-
-	/** Decode three-byte number */
-	function parse3B(s, i) {
-		return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
 	}
 
 	var SEQ_SET_COLOR_ATTR = 1;
@@ -1991,7 +2038,22 @@ var Conn = (function() {
 	};
 })();
 
-/** User input */
+/**
+ * User input
+ *
+ * --- Rx messages: ---
+ * S - screen content (binary encoding of the entire screen with simple compression)
+ * T - text labels - Title and buttons, \0x01-separated
+ * B - beep
+ * . - heartbeat
+ *
+ * --- Tx messages ---
+ * s - string
+ * b - action button
+ * p - mb press
+ * r - mb release
+ * m - mouse move
+ */
 var Input = (function() {
 	var opts = {
 		np_alt: false,
@@ -2000,15 +2062,11 @@ var Input = (function() {
 	};
 
 	function sendStrMsg(str) {
-		Conn.send("STR:"+str);
-	}
-
-	function sendPosMsg(y, x) {
-		Conn.send("TAP:"+y+','+x);
+		Conn.send("s"+str);
 	}
 
 	function sendBtnMsg(n) {
-		Conn.send("BTN:"+n);
+		Conn.send("b"+Chr(n));
 	}
 
 	function fa(alt, normal) {
@@ -2129,6 +2187,10 @@ var Input = (function() {
 		_bindFnKeys();
 	}
 
+	var mb1 = 0;
+	var mb2 = 0;
+	var mb3 = 0;
+
 	function init() {
 		_initKeys();
 
@@ -2138,11 +2200,30 @@ var Input = (function() {
 				sendBtnMsg(+this.dataset['n']);
 			});
 		});
+
+		window.addEventListener('mousedown', function(evt) {
+			if (evt.button == 0) mb1 = 1;
+			if (evt.button == 1) mb2 = 1;
+			if (evt.button == 2) mb3 = 1;
+		});
+
+		window.addEventListener('mouseup', function(evt) {
+			if (evt.button == 0) mb1 = 0;
+			if (evt.button == 1) mb2 = 0;
+			if (evt.button == 2) mb3 = 0;
+		});
+	}
+
+	function packModifiersForMouse() {
+		return (key.isModifier('ctrl')?1:0) |
+			(key.isModifier('shift')?2:0) |
+			(key.isModifier('alt')?4:0) |
+			(key.isModifier('meta')?8:0);
 	}
 
 	return {
 		init: init,
-		onTap: sendPosMsg,
+		// onTap: sendPosMsg,
 		sendString: sendStrMsg,
 		setAlts: function(cu, np, fn) {
 			if (opts.cu_alt != cu || opts.np_alt != np || opts.fn_alt != fn) {
@@ -2153,6 +2234,31 @@ var Input = (function() {
 				// rebind keys - codes have changed
 				_bindFnKeys();
 			}
+		},
+		onMouseMove: function (x, y) {
+			var b = mb1 ? 1 : mb2 ? 2 : mb3 ? 3 : 0;
+			var m = packModifiersForMouse();
+			Conn.send("m" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+		},
+		onMouseDown: function (x, y, b) {
+			if (b > 3 || b < 1) return;
+			var m = packModifiersForMouse();
+			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+			console.log("B ",b," M ",m);
+		},
+		onMouseUp: function (x, y, b) {
+			if (b > 3 || b < 1) return;
+			var m = packModifiersForMouse();
+			Conn.send("r" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+			console.log("B ",b," M ",m);
+		},
+		onMouseWheel: function (x, y, dir) {
+			// -1 ... btn 4 (away from user)
+			// +1 ... btn 5 (towards user)
+			var m = packModifiersForMouse();
+			var b = (dir < 0 ? 4 : 5);
+			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
+			console.log("B ",b," M ",m);
 		},
 	};
 })();

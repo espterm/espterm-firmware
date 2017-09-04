@@ -5,9 +5,12 @@
 #include "sgr.h"
 #include "ascii.h"
 #include "apars_logging.h"
+#include "jstring.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
+
+MouseTrackingConfig mouse_tracking;
 
 // forward declare
 static void utf8_remap(char* out, char g, char charset);
@@ -254,6 +257,10 @@ screen_reset(void)
 
 	scr.vm0 = 0;
 	scr.vm1 = H-1;
+
+	mouse_tracking.encoding = MTE_SIMPLE;
+	mouse_tracking.focus_tracking = false;
+	mouse_tracking.mode = MTM_NONE;
 
 	// size is left unchanged
 	screen_clear(CLEAR_ALL);
@@ -624,6 +631,18 @@ void ICACHE_FLASH_ATTR
 screen_set_title(const char *title)
 {
 	strncpy(termconf_scratch.title, title, TERM_TITLE_LEN);
+	screen_notifyChange(CHANGE_LABELS);
+}
+
+/**
+ * Helper function to set terminal button label
+ * @param num - button number 1-5
+ * @param str - button text
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_text(int num, const char *text)
+{
+	strncpy(termconf_scratch.btn[num-1], text, TERM_BTN_LEN);
 	screen_notifyChange(CHANGE_LABELS);
 }
 
@@ -1306,30 +1325,6 @@ struct ScreenSerializeState {
 	char lastChar[4];
 	int index;
 };
-
-void ICACHE_FLASH_ATTR
-encode2B(u16 number, WordB2 *stru)
-{
-	stru->lsb = (u8) (number % 127);
-	number = (u16) ((number - stru->lsb) / 127);
-	stru->lsb += 1;
-
-	stru->msb = (u8) (number + 1);
-}
-
-void ICACHE_FLASH_ATTR
-encode3B(u32 number, WordB3 *stru)
-{
-	stru->lsb = (u8) (number % 127);
-	number = (number - stru->lsb) / 127;
-	stru->lsb += 1;
-
-	stru->msb = (u8) (number % 127);
-	number = (number - stru->msb) / 127;
-	stru->msb += 1;
-
-	stru->xsb = (u8) (number + 1);
-}
 
 /**
  * buffer should be at least 64+5*10+6 long (title + buttons + 6), ie. 120

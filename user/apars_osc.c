@@ -16,18 +16,6 @@
 #include "ansi_parser.h"
 
 /**
- * Helper function to set terminal button label
- * @param num - button number 1-5
- * @param str - button text
- */
-static void ICACHE_FLASH_ATTR
-set_button_text(int num, const char *str)
-{
-	strncpy(termconf_scratch.btn[num-1], str, TERM_BTN_LEN);
-	screen_notifyChange(CHANGE_LABELS);
-}
-
-/**
  * Helper function to parse incoming OSC (Operating System Control)
  * @param buffer - the OSC body (after OSC and before ST)
  */
@@ -52,7 +40,7 @@ apars_handle_osc(const char *buffer)
 			screen_set_title(buffer);
 		}
 		else if (n >= 81 && n <= 85) { // numbers chosen to not collide with any xterm supported codes
-			set_button_text(n - 80, buffer);
+			screen_set_button_text(n - 80, buffer);
 		}
 		else {
 			ansi_noimpl("OSC %d ; %s ST", n, buffer);
