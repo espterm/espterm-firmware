@@ -1564,6 +1564,41 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 	w.init = wifiInit;
 	w.startScanning = startScanning;
 })(window.WiFi = {});
+/** Decode two-byte number */
+function parse2B(s, i) {
+	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
+}
+
+/** Decode three-byte number */
+function parse3B(s, i) {
+	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
+}
+
+function Chr(n) {
+	return String.fromCharCode(n);
+}
+
+function encode2B(n) {
+	var lsb, msb;
+	lsb = (n % 127);
+	n = ((n - lsb) / 127);
+	lsb += 1;
+	msb = (n + 1);
+	return Chr(lsb) + Chr(msb);
+}
+
+function encode3B(n) {
+	var lsb, msb, xsb;
+	lsb = (n % 127);
+	n = (n - lsb) / 127;
+	lsb += 1;
+	msb = (n % 127);
+	n = (n - msb) / 127;
+	msb += 1;
+	xsb = (n + 1);
+	return Chr(lsb) + Chr(msb) + Chr(xsb);
+}
+
 var Screen = (function () {
 	var W = 0, H = 0; // dimensions
 	var inited = false;
@@ -1754,16 +1789,6 @@ var Screen = (function () {
 		}, 1000);
 
 		inited = true;
-	}
-
-	/** Decode two-byte number */
-	function parse2B(s, i) {
-		return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
-	}
-
-	/** Decode three-byte number */
-	function parse3B(s, i) {
-		return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
 	}
 
 	var SEQ_SET_COLOR_ATTR = 1;
@@ -2013,7 +2038,22 @@ var Conn = (function() {
 	};
 })();
 
-/** User input */
+/**
+ * User input
+ *
+ * --- Rx messages: ---
+ * S - screen content (binary encoding of the entire screen with simple compression)
+ * T - text labels - Title and buttons, \0x01-separated
+ * B - beep
+ * . - heartbeat
+ *
+ * --- Tx messages ---
+ * s - string
+ * b - action button
+ * p - mb press
+ * r - mb release
+ * m - mouse move
+ */
 var Input = (function() {
 	var opts = {
 		np_alt: false,
@@ -2022,11 +2062,11 @@ var Input = (function() {
 	};
 
 	function sendStrMsg(str) {
-		Conn.send("STR:"+str);
+		Conn.send("s"+str);
 	}
 
 	function sendBtnMsg(n) {
-		Conn.send("BTN:"+n);
+		Conn.send("b"+Chr(n));
 	}
 
 	function fa(alt, normal) {
@@ -2195,26 +2235,27 @@ var Input = (function() {
 				_bindFnKeys();
 			}
 		},
-		onMouseMove: function(x, y) {
-			var b = (mb1?1:0) | (mb2?2:0) | (mb3?4:0);
+		onMouseMove: function (x, y) {
+			var b = mb1 ? 1 : mb2 ? 2 : mb3 ? 3 : 0;
 			var m = packModifiersForMouse();
-			Conn.send("MM:"+y+','+x+','+b+','+m);
+			Conn.send("m" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
 		},
-		onMouseDown: function(x, y, b) {
-			if(b>3) return;
+		onMouseDown: function (x, y, b) {
+			if (b > 3 || b < 1) return;
 			var m = packModifiersForMouse();
-			Conn.send("MP:"+y+','+x+','+b+','+m);
+			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
 		},
-		onMouseUp: function(x, y, b) {
-			if(b>3) return;
+		onMouseUp: function (x, y, b) {
+			if (b > 3 || b < 1) return;
 			var m = packModifiersForMouse();
-			Conn.send("MR:"+y+','+x+','+b+','+m);
+			Conn.send("r" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
 		},
-		onMouseWheel: function(x, y, dir) {
+		onMouseWheel: function (x, y, dir) {
 			// -1 ... btn 4 (away from user)
 			// +1 ... btn 5 (towards user)
 			var m = packModifiersForMouse();
-			Conn.send("MP:"+y+','+x+','+(dir<0?4:5)+','+m);
+			var b = (dir < 0 ? 4 : 5);
+			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
 		},
 	};
 })();

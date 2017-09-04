@@ -451,16 +451,24 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 				// - discard repeated keypress events between keydown and keyup.
 				ansi_noimpl("Auto-repeat toggle");
 			}
-			else if (n == 9 || (n >= 1000 && n <= 1006)) {
-				// TODO mouse
-				// 1000 - C11 mouse - Send Mouse X & Y on button press and release.
-				// 1001 - Hilite mouse tracking
+			else if (n == 9 || (n >= 1000 && n <= 1006) || n == 1015) {
+				// 9 - X10 tracking
+				// 1000 - X11 mouse - Send Mouse X & Y on button press and release.
+				// 1001 - Hilite mouse tracking - not impl
 				// 1002 - Cell Motion Mouse Tracking
 				// 1003 - All Motion Mouse Tracking
 				// 1004 - Send FocusIn/FocusOut events
-				// 1005 - Enable UTF-8 Mouse Mode
+				// 1005 - Enable UTF-8 Mouse Mode - we implement this as an alias to X10 mode
 				// 1006 - SGR mouse mode
-				ansi_noimpl("Mouse tracking");
+
+				if (n == 9) mouse_tracking.mode = yn ? MTM_X10 : MTM_NONE;
+				else if (n == 1000) mouse_tracking.mode = yn ? MTM_NORMAL : MTM_NONE;
+				else if (n == 1002) mouse_tracking.mode = yn ? MTM_BUTTON_MOTION : MTM_NONE;
+				else if (n == 1003) mouse_tracking.mode = yn ? MTM_ANY_MOTION : MTM_NONE;
+				else if (n == 1004) mouse_tracking.focus_tracking = yn;
+				else if (n == 1005) mouse_tracking.encoding = yn ? MTE_UTF8 : MTE_SIMPLE;
+				else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
+				else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
 			}
 			else if (n == 12) {
 				// TODO Cursor blink on/off
