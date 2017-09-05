@@ -213,7 +213,7 @@
 </div>
 
 <div class="Box fold">
-	<h2>User Input</h2>
+	<h2>User Input: Keyboard, Mouse, Buttons</h2>
 
 	<div class="Row v">
 		<h3>Keyboard</h3>
@@ -325,18 +325,135 @@
 		<h3>Action buttons</h3>
 
 		<p>
-			The blue buttons under the screen send ASCII codes 1, 2, 3, 4, 5, which incidentally correspond to Ctrl+A,B,C,D,E.
-			This choice was made to make button press parsing as simple as possible.
+			The blue buttons under the screen send ASCII codes 1, 2, 3, 4, 5, which incidentally 
+			correspond to Ctrl+A,B,C,D,E. This choice was made to make button press parsing as simple as possible.
 		</p>
 
 		<h3>Mouse</h3>
 
 		<p>
-			ESPTerm implements standard mouse tracking schemes based on Xterm. Mouse tracking can be used to add
-			powerful user interactions such as on-screen buttons, draggable on-screen sliders or dials, menus etc.
+			ESPTerm implements standard mouse tracking schemes based on Xterm. Mouse tracking can be used to implement
+			powerful user interactions such as on-screen buttons, draggable sliders or dials, menus etc. ESPTerm's 
+			mouse tracking was tested using <code>vttest</code> and should be compatible with all terminal applications 
+			that request mouse tracking.
 		</p>
 		
-		TODO
+		<p>
+			Mouse can be tracked in different ways; some are easier to parse, others more powerful. The coordinates
+			can also be encoded in different ways. All mouse tracking options are set using option commands:
+			<code>CSI ? <i>n</i> h</code> to enable, <code>CSI ? <i>n</i> l</code> to disable option <i>n</i>.
+		</p>
+		
+		<h4>Mouse Tracking Modes</h4>
+		
+		<p>
+			All tracking modes produce three numbers which are then encoded and send to the application.
+			First is the <b>event number</b> (N), then the <b>X and Y coordinates</b>, 1-based.
+			Mouse wheel works as two buttons which generate only press events.
+		</p>
+		
+		<table>
+			<thead><tr><th>Option</th><th>Name</th><th>Description</th></tr></thead>
+			<tr>
+				<td>9</td>
+				<td>X10 mode</td>
+				<td>
+					This is the most basic tracking mode, in which <b>only button presses</b> are reported.
+					N = button - 1: (0 left, 1 middle, 2 right, 3, 4 wheel).
+				</td>
+			</tr>
+			<tr>
+				<td>1000</td>
+				<td>Normal mode</td>
+				<td>
+					In Normal mode, both button presses and releases are reported.
+					The lower two bits of N indicate the button pressed: 
+					00b (0) left, 01b (1) middle, 10b (2) right, 11b (3) button release.
+					Wheel buttons are reported as 0 and 1 with added 64 (e.g. 64 and 65).
+					Normal mode also supports tracking of modifier keys, which are added to N as bit masks:
+					4 Shift, 8 Meta/Alt, 16 Control/Cmd. Example: middle button with Shift = 1 + 4 = 101b (5).
+				</td>
+			</tr>
+			<tr>
+				<td>1002</td>
+				<td>Button-Event tracking</td>
+				<td>
+					This is similar to Normal mode (1000), but mouse motion with a button held is also reported. 
+					A motion event is generated when the mouse cursor moves between screen character cells. 
+					A motion event has the same N as a press event, but 32 is added.
+					For example, drag-drop event with the middle button will produce N = 1 (press), 33 (dragging) and 3 (release).
+				</td>
+			</tr>
+			<tr>
+				<td>1003</td>
+				<td>Any-Event tracking</td>
+				<td>
+					This mode is almost identical to Button Event tracking (1002), but motion events
+					are sent even when no mouse buttons are held. This could be used to draw on-screen mouse cursor, for example.
+					Motion events with no buttons will use N = 32 + 11b (35).
+				</td>
+			</tr>
+			<tr>
+				<td>1004</td>
+				<td>Focus tracking</td>
+				<td>
+					Focus tracking is a separate function from the other mouse tracking modes, therefore they can be enabled together.
+					Focus tracking reports when the terminal window (in Xterm) gets or loses focus, or in ESPTerm's case, when any 
+					user is connected. This can be used to pause/resume a game or on-screen animations. 
+					Focus tracking mode sends <code>CSI I</code> when the terminal receives, and <code>CSI O</code> when it loses focus.
+				</td>
+			</tr>		
+		</table>
+		
+		<h4>Mouse Report Encoding</h4>
+		
+		<p>
+			The following schemes can be used with any of the tracking modes (except Focus tracking, which is not affected).
+		</p>
+		
+		<table>
+			<thead><tr><th>Option</th><th>Name</th><th>Description</th></tr></thead>
+			<tr>
+				<td>N/A</td>
+				<td>Normal scheme</td>
+				<td>
+					This is the default scheme used when no other option is selected.
+					A mouse report in this scheme has the format <code>CSI M <i>n</i> <i>x</i> <i>y</i></code>,
+					where <i>n</i>, <i>x</i> and <i>y</i> are characters with ASCII value 32 + the respective number, e.g. 
+					0 becomes 32 (space), 1 becomes 33 (!). Example: <code>\e[M !!</code> - left button press at coordinates 1,1 when 
+					using X10 mode.
+				</td>
+			</tr>
+			<tr>
+				<td>1005</td>
+				<td>UTF-8 scheme</td>
+				<td>
+					This scheme should encode each of the numbers as a UTF-8 code point, expanding the maximum possible value.
+					Since ESPTerm's screen size is limited and this has no practical benefit, this serves simply as an alias
+					to the normal scheme.
+				</td>
+			</tr>
+			<tr>
+				<td>1006</td>
+				<td>SGR scheme</td>
+				<td>
+					In SGR scheme, the response is a SGR sequence with the three numbers as ASCII values. In this case,
+					32 is not added, like in the Normal and UTF-8 schemes. Also, button release is not reported as 11b,
+					but using the normal button code while changing the final SGR character: <code>M</code> for button press
+					and <code>m</code> for button release. Example: <code>\e[2;80;24m</code> - the right button was released 
+					at row 80, column 24.
+				</td>
+			</tr>
+			<tr>
+				<td>1015</td>
+				<td>URXVT scheme</td>
+				<td>
+					This is similar to the SGR scheme, but the final character is always <code>M</code> and the numbers are 
+					like in the Normal scheme, with 32 added. This scheme has no real advantage over the previous schemes and 
+					was added solely for completeness.
+				</td>
+			</tr>
+		</table>
 	</div>
 </div>
 
