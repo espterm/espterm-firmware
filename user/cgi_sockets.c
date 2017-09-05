@@ -11,7 +11,7 @@
 
 #define LOOPBACK 0
 
-#define HB_TIME 1500
+#define HB_TIME 1000
 
 #define SOCK_BUF_LEN 2000
 

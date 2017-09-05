@@ -1958,6 +1958,7 @@ var Screen = (function () {
 var Conn = (function() {
 	var ws;
 	var heartbeatTout;
+	var pingIv;
 
 	function onOpen(evt) {
 		console.log("CONNECTED");
@@ -2023,12 +2024,23 @@ var Conn = (function() {
 
 	function heartbeat() {
 		clearTimeout(heartbeatTout);
-		heartbeatTout = setTimeout(heartbeatFail, 3000);
+		heartbeatTout = setTimeout(heartbeatFail, 2000);
 	}
 
 	function heartbeatFail() {
-		console.error("Heartbeat lost, reloading...");
-		location.reload();
+		console.error("Heartbeat lost, probing server...");
+		pingIv = setInterval(function() {
+			console.log("> ping");
+			$.get('http://'+_root+'/system/ping', function(resp, status) {
+				if (status == 200) {
+					clearInterval(pingIv);
+					console.info("Server ready, reloading page...");
+					location.reload();
+				}
+			}, {
+				timeout: 100,
+			});
+		}, 500);
 	}
 
 	return {
