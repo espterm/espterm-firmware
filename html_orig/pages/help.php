@@ -12,9 +12,14 @@
 			<li><b>Loopback test</b>: Connect the Rx and Tx pins with a piece of wire. Anything you type in the browser should
 				appear on the screen. Set Parser Timeout = 0 in <a href="<?= url('cfg_term') ?>">Terminal Settings</a>
 				to be able to manually enter escape sequences.
+				
+			<li>There is very little RAM available to the webserver, and it can support at most 4 connections at the same time.
+				Each terminal session (open window with the terminal screen) uses one persistent connection for screen updates.
+				<b>Avoid leaving unused windows open</b>, or either the RAM or connections may be exhausted.
 
 			<li><b>For best performance</b>, use the module in Client mode (connected to external network) and minimize the number
-				of simultaneous connections. Enabling AP consumes extra RAM and strains the processor.
+				of simultaneous connections. Enabling AP consumes extra RAM because the DHCP server and Captive Portal 
+				DNS server are started.
 
 			<li>In AP mode, <b>check that the WiFi channel used is clear</b>; interference may cause flaky connection.
 				A good mobile app to use for this is
@@ -29,7 +34,7 @@
 </div>
 
 <div class="Box fold">
-	<h2>Escape Sequences Intro</h2>
+	<h2>Escape Sequences Intro & Nomenclature</h2>
 
 	<div class="Row v">
 		<img src="/img/vt100.jpg" class="aside" alt="VT102">
@@ -42,29 +47,69 @@
 			ESPTerm accepts UTF-8 characters received on the communication UART and displays them on the screen,
 			interpreting some codes as Control Characters. Those are e.g. Carriage Return (13), Line Feed (10), Tab (9), Backspace (8) and Bell (7).
 			Escape sequences start with the control character ESC (27), followed by any number of ASCII characters
-			forming the body of the command. On this page, we'll use <code>\e</code> to indicate ESC.
+			forming the body of the command.
 		</p>
-
-		<p>
-			Escape sequences can be divided based on their first character and structure. Most common types are:
-		</p>
-
-		<ul>
-			<li>CSI commands: <code>\e[</code> followed by 1 optional leading character, multiple numbers divided by
-				semicolons, and one or two trailing characters. Those control the cursor, set attributes and manipulate screen content. E.g. <code>\e[?7;10h</code>, <code>\e[2J</code></li>
-			<li>SGR commands: CSI terminated by <code>m</code>. Those set text attributes and colors. E.g. <code>\e[</code></li>
-			<li>OSC commands: <code>\e]</code> followed by any number of UTF-8 characters (ESPTerm supports up to 64)
-				terminated by <code>\e\\</code> (ESC and backslash) or Bell (7). Those are used to exchange text strings.</li>
-			<li>There are a few other commands that don't follow this pattern, such as <code>\e7</code> or
-				<code>\e#8</code>, mostly for historical reasons.</li>
-		</ul>
-
-		<p>A list of the most important escape sequences is presented in the following sections.</p>
+		
+		<h3>Nomenclature & Command Types</h3>
+		
+		<p>Examples on this help page use the following symbols for special characters and command types: 
+			(spaces are for clarity only, DO NOT include them in the commands!)</p>
+		
+		<table>
+			<thead><tr><th>Name</th><th>Symbol</th><th>ASCII</th><th>C string</th><th>Function</th></tr></thead>
+			<tbody>
+			<tr>
+				<td><b>ESC</b></td>
+				<td><code>\e</code></td>
+				<td><code>ESC (27)</code></td>
+				<td><code>"\e"</code>, <code>"\x1b"</code>, <code>"\033"</code></td>
+				<td>Introduces an escape sequence. <i>(Note: \e is a GCC extension)</i></td>
+			</tr>
+			<tr>
+				<td><b>Bell</b></td>
+				<td><code>\a</code></td>
+				<td><code>BEL (7)</code></td>
+				<td><code>"\a"</code>, <code>"\x7"</code>, <code>"\07"</code></td>
+				<td>Audible beep</td>
+			</tr>
+			<tr>
+				<td><b>String Terminator</b></td>
+				<td><code>ST</code></td>
+				<td><code>ESC \ (27 92)</code><br><i>or</i> <code>\a (7)</code><code></td>
+				<td></code>"\x1b\\"<code>, <code>"\a"</code></td>
+				<td>Terminates a string command (<code>\a</code> can be used as an alternative)</td>
+			</tr>
+			<tr>
+				<td><b>Control Sequence Introducer</b></td>
+				<td><code>CSI</code></td>
+				<td><code>ESC [</code></td>
+				<td><code>"\x1b["</code></td>
+				<td>Starts a CSI command. Examples: <code>\e[?7;10h</code>, <code>\e[2J</code></td>
+			</tr>
+			<tr>
+				<td><b>Operating System Command</b></td>
+				<td><code>OSC</code></td>
+				<td><code>ESC ]</code></td>
+				<td>"\x1b]"</td>
+				<td>Starts an OSC command. Is followed by a command string terminated by <code>ST</code>. Example: <code>\e]0;My Screen Title\a</td>
+			</tr>
+			<tr>
+				<td><b>Select Graphic Rendition</b></td>
+				<td><code>SGR</code></td>
+				<td><code>CSI <i>n</i> ; <i>n</i> ; <i>n</i> m<code></td>
+				<td><code>"\x1b[1;2;3m"</code></td>
+				<td>Set text attributes, like color or style. 0 to 10 numbers can be used, <code>\e[m</code> is treated as <code>\e[0m</code></td>
+			</tr>
+			</tbody>
+		</table>
+	
+		<p>There are also some other commands that don't follow the CSI, SGR or OSC pattern, such as <code>\e7</code> or
+			<code>\e#8</code>. A list of the most important escape sequences is presented in the following sections.</p>
 	</div>
 </div>
 
 <div class="Box fold">
-	<h2>Screen Behavior</h2>
+	<h2>Screen Behavior & Refreshing</h2>
 
 	<div class="Row v">
 		<p>The initial screen size, title text and button labels can be configured in <a href="<?= url('cfg_term') ?>">Terminal Settings</a>.</p>
@@ -192,25 +237,25 @@
 		<table>
 			<thead><tr><th>Key</th><th>Code</th><th>Key</th><th>Code</th></tr></thead>
 			<tr>
-				<td>🡑</td>
+				<td>Up</td>
 				<td><code>\e[A</code></td>
 				<td>F1</td>
 				<td><code>\eOP</code></td>
 			</tr>
 			<tr>
-				<td>🡓</td>
+				<td>Down</td>
 				<td><code>\e[B</code></td>
 				<td>F2</td>
 				<td><code>\eOQ</code></td>
 			</tr>
 			<tr>
-				<td>🡒</td>
+				<td>Right</td>
 				<td><code>\e[C</code></td>
 				<td>F3</td>
 				<td><code>\eOR</code></td>
 			</tr>
 			<tr>
-				<td>🡐</td>
+				<td>Left</td>
 				<td><code>\e[D</code></td>
 				<td>F4</td>
 				<td><code>\eOS</code></td>
@@ -287,9 +332,11 @@
 		<h3>Mouse</h3>
 
 		<p>
-			ESPTerm in the current version does not implement standard mouse input. Instead, clicks/taps produce CSI sequences
-			<code>\e[<i>r</i>;<i>c</i>M</code> (row, column). You can use this for virtual on-screen buttons.
+			ESPTerm implements standard mouse tracking schemes based on Xterm. Mouse tracking can be used to add
+			powerful user interactions such as on-screen buttons, draggable on-screen sliders or dials, menus etc.
 		</p>
+		
+		TODO
 	</div>
 </div>
 
