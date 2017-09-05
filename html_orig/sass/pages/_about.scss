@@ -22,6 +22,14 @@
 	}
 }
 
+.page-help {
+	code {
+		background: rgba(33, 97, 109, 0.31);
+		border-radius: 1px;
+		padding: 0 2px;
+	}
+}
+
 .colorprev {
 	margin-top: dist(-2);
 	margin-bottom: dist(-2);
@@ -48,10 +56,6 @@
 }
 
 .ansiref {
-	td:nth-child(1) {
-		font-family: monospace;
-	}
-
 	&.w100 {
 		width: 100%;
 
@@ -59,4 +63,20 @@
 			width: 6em;
 		}
 	}
+}
+
+.nomen {
+	width: 100%;
+
+	code {
+		white-space: nowrap;
+	}
+
+	td:last-child {
+		min-width: 15em;
+	}
+}
+
+.tscroll {
+	overflow-x: auto;
 }

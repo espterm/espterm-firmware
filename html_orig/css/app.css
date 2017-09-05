@@ -165,7 +165,7 @@ pre {
 code,
 pre
  {
-  font-family: monospace;
+  font-family: "DejaVu Sans Mono", "Inconsolata", monospace;
   font-size: 1em; }
 
 /* Forms
@@ -573,6 +573,7 @@ ul {
 .Box {
   display: block;
   max-width: 900px;
+  line-height: 1.35em;
   margin-top: 1rem;
   padding: 0.61805rem 1rem;
   border-radius: 3px;
@@ -1640,6 +1641,11 @@ body.term #botnav {
 .page-about td {
   white-space: normal; }
 
+.page-help code {
+  background: rgba(33, 97, 109, 0.31);
+  border-radius: 1px;
+  padding: 0 2px; }
+
 .colorprev {
   margin-top: 0.38198rem;
   margin-bottom: 0.38198rem; }
@@ -1656,12 +1662,20 @@ body.term #botnav {
 .Row table th {
   background-color: rgba(255, 255, 255, 0.1); }
 
-.ansiref td:nth-child(1) {
-  font-family: monospace; }
 .ansiref.w100 {
   width: 100%; }
   .ansiref.w100 td:nth-child(1) {
     width: 6em; }
+
+.nomen {
+  width: 100%; }
+  .nomen code {
+    white-space: nowrap; }
+  .nomen td:last-child {
+    min-width: 15em; }
+
+.tscroll {
+  overflow-x: auto; }
 
 @media screen and (min-width: 545px) {
   .mq-phone {

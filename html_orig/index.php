@@ -43,8 +43,12 @@ if (file_exists($_pf)) {
 
 	// special symbols
 	$str = str_replace('\,', '&#8239;', $str);
-	$str = preg_replace('/(?<=\w)~(?=\w)/', '&nbsp;', $str);
+	$str = preg_replace('/(?<=[^ ])~(?=[^ ])/', '&nbsp;', $str);
+	$str = preg_replace('/(?<!\w)`([^ `][^`]*?[^ `]|[^ `])`(?!\w)/', '<code>$1</code>', $str);
+	$str = preg_replace('/(?<!\w)_([^ _][^_]*?[^ _]|[^ _])_(?!\w)/', '<i>$1</i>', $str);
+	$str = preg_replace('/(?<!\w)\*([^ *][^*]*?[^ *]|[^ *])\*(?!\w)/', '<b>$1</b>', $str);
 
+	$str = preg_replace("/\s*(\\\\\\\\)[\n \t]+/", '<br>', $str);
 	include_str($str);
 } else {
 	echo "404";
