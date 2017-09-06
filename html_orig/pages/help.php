@@ -1,5 +1,5 @@
 <div class="Box">
-	<a href="#" onclick="hpfold(1)">Expand all</a>&nbsp;|&nbsp;<a href="#" onclick="hpfold(0)">Collapse all</a>
+	<a href="#" onclick="hpfold(1);return false">Expand all</a>&nbsp;|&nbsp;<a href="#" onclick="hpfold(0);return false">Collapse all</a>
 </div>
 
 <?php require __DIR__ . "/help/troubleshooting.php"; ?>

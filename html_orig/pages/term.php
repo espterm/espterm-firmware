@@ -25,7 +25,8 @@
 <textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
 <nav id="term-nav">
-	<a href="#" onclick="toggleSoftKb(true); return false" class="icn-keyboard mq-tablet-max"></a><!--
+	<a href="#" onclick="toggleSoftKb(true);return false" class="icn-keyboard mq-tablet-max"></a><!--
+	--><a href="#" onclick="termPaste();return false"><?= tr('term_nav.paste') ?></a><!--
 	--><a href="<?= url('cfg_term') ?>" class="x-term-conf-btn"><?= tr('term_nav.config') ?></a><!--
 	--><a href="<?= url('cfg_wifi') ?>" class="x-term-conf-btn"><?= tr('term_nav.wifi') ?></a><!--
 	--><a href="<?= url('help') ?>" class="x-term-conf-btn"><?= tr('term_nav.help') ?></a><!--
@@ -58,5 +59,10 @@
 		var i = qs('#softkb-input');
 		if (yes) i.focus();
 		else i.blur();
+	}
+
+	function termPaste() {
+		var t = prompt(<?= je(tr('term_nav.paste_prompt')) ?>);
+		if (t !== null && t.length) Input.sendString(t);
 	}
 </script>

@@ -20,6 +20,8 @@ return [
 	'term_nav.wifi' => 'WiFi',
 	'term_nav.help' => 'Help',
 	'term_nav.about' => 'About',
+	'term_nav.paste' => 'Paste',
+	'term_nav.paste_prompt' => 'Paste text to send:',
 
 	'net.ap' => 'DHCP Server (AP)',
 	'net.sta' => 'DHCP Client (Station)',

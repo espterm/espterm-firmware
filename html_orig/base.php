@@ -52,6 +52,12 @@ function e($s)
 	return htmlspecialchars($s, ENT_HTML5 | ENT_QUOTES);
 }
 
+function je($s)
+{
+	return htmlspecialchars(json_encode($s), ENT_HTML5);
+}
+
+
 function tr($key)
 {
 	global $_messages;
