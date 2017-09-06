@@ -8,12 +8,12 @@
 	}, 2000);
 </script>
 
-<h1></h1>
+<h1><!-- Screen title gets loaded here by JS --></h1>
 
-<div id="termwrap">
+<div id="term-wrap">
 	<div id="screen" class="theme-%theme%"></div>
 
-	<div id="buttons">
+	<div id="action-buttons">
 		<button data-n="1" class="btn-blue"></button><!--
 		--><button data-n="2" class="btn-blue"></button><!--
 		--><button data-n="3" class="btn-blue"></button><!--
@@ -24,12 +24,12 @@
 
 <textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
-<nav id="botnav">
+<nav id="term-nav">
 	<a href="#" onclick="toggleSoftKb(true); return false" class="icn-keyboard mq-tablet-max"></a><!--
-	--><a href="<?= url('cfg_term') ?>"><?= tr('term_nav.config') ?></a><!--
-	--><a href="<?= url('cfg_wifi') ?>"><?= tr('term_nav.wifi') ?></a><!--
-	--><a href="<?= url('help') ?>"><?= tr('term_nav.help') ?></a><!--
-	--><a href="<?= url('about') ?>"><?= tr('term_nav.about') ?></a>
+	--><a href="<?= url('cfg_term') ?>" class="x-term-conf-btn"><?= tr('term_nav.config') ?></a><!--
+	--><a href="<?= url('cfg_wifi') ?>" class="x-term-conf-btn"><?= tr('term_nav.wifi') ?></a><!--
+	--><a href="<?= url('help') ?>" class="x-term-conf-btn"><?= tr('term_nav.help') ?></a><!--
+	--><a href="<?= url('about') ?>" class="x-term-conf-btn"><?= tr('term_nav.about') ?></a>
 </nav>
 
 <script>

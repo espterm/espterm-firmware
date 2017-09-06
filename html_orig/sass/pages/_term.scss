@@ -13,73 +13,84 @@ body.term {
 		// longer duration to load everything in background nicely
 		transition: opacity 0.25s ease-in;
 	}
+}
 
-	#screen {
+#screen {
+	white-space: nowrap;
+	background: #111213;
+	padding: 6px;
+	display: inline-block;
+	border: 2px solid #3983CD;
+
+	font-size: 24px; // some font heights cause visual glitches with some font renderers. This should be configurable.
+	font-family: $screen-stack;
+
+	span {
+		white-space: pre;
+	}
+
+	> span {
+		position: relative;
+		cursor: pointer;
+
+		&::before {
+			content: " ";
+		}
+
+		> span {
+			position:absolute;
+			left: 0;
+			z-index: 1;
+		}
+	}
+
+	&.noselect {
 		@include noselect();
-		font-family: monospace;
-		font-size: 20px;//16pt; - 16pt causes vertical breaks in line drawing characters??
-		white-space: nowrap;
-		background: #111213;
-		padding: 6px;
-		display: inline-block;
-		border: 2px solid #3983CD; //#1bc249;
-
-		span {
-			white-space: pre;
-			cursor: pointer;
-
-			display: inline-block;
-			line-height: 1.15em; // this adjusts the spacing
-			width: 0.6em; // horizontal spacing, estimated to be about right
-			overflow: visible;
-		}
-	}
-
-	#buttons {
-		margin-top: 10px;
-		white-space: nowrap;
-
-		button {
-			margin: 0 3px;
-			padding: 8px 5px;
-			//width: 18%;
-			min-width: 62px;
-			//max-width: 65px;
-			//min-width: initial;
-			cursor: pointer;
-			font-weight: bold;
-		}
-	}
-
-	#botnav {
-		padding-top: 1.5em;
-		text-align: center;
-
-		a {
-			padding: 0 dist(-2);
-			text-decoration: underline;
-
-			&, &:visited, &:link {
-				color: #336085;
-			}
-
-			&:hover {
-				color: #5abfff;
-			}
-		}
-
-		.icn-keyboard {
-			text-decoration: none;
-			font-size: 150%;
-			vertical-align: middle;
-		}
 	}
 }
 
-#termwrap {
+#action-buttons {
+	margin-top: 10px;
+	white-space: nowrap;
+
+	button {
+		margin: 0 3px;
+		padding: 8px 5px;
+		min-width: 62px;
+		cursor: pointer;
+		font-weight: bold;
+	}
+}
+
+#term-nav {
+	padding-top: 1.5em;
+	text-align: center;
+
+	a {
+		padding: 0 dist(-2);
+		text-decoration: underline;
+
+		&, &:visited, &:link {
+			color: #336085;
+		}
+
+		&:hover {
+			color: #5abfff;
+		}
+	}
+
+	.icn-keyboard {
+		text-decoration: none;
+		font-size: 150%;
+		vertical-align: middle;
+	}
+}
+
+#term-wrap {
 	text-align: center;
 }
 
+// Dummy input field used to open android keyboard
 #softkb-input {
 	position: absolute;
 	top: -9999px;

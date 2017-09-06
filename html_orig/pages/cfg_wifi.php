@@ -65,7 +65,7 @@
 			<div class="wrap">
 				<div class="inner">
 					<div class="essid"></div>
-					<div class="passwd"><?= tr('wifi.sta_active_pw') ?>&nbsp;<span class="x-passwd"></span></div>
+					<div class="passwd"><?= tr('wifi.sta_active_pw') ?></div>
 					<div class="nopasswd"><?= tr('wifi.sta_active_nopw') ?></div>
 					<div class="ip"></div>
 				</div>

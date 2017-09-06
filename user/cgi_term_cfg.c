@@ -120,6 +120,18 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		termconf->fn_alt_mode = (bool)n;
 	}
 
+	if (GET_ARG("show_buttons")) {
+		dbg("Show buttons: %s", buff);
+		n = atoi(buff);
+		termconf->show_buttons = (bool)n;
+	}
+
+	if (GET_ARG("show_config_links")) {
+		dbg("Show config links: %s", buff);
+		n = atoi(buff);
+		termconf->show_config_links = (bool)n;
+	}
+
 	if (GET_ARG("default_fg")) {
 		dbg("Screen default FG: %s", buff);
 		n = atoi(buff);
@@ -211,6 +223,12 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "fn_alt_mode")) {
 		sprintf(buff, "%d", (int)termconf->fn_alt_mode);
+	}
+	else if (streq(token, "show_buttons")) {
+		sprintf(buff, "%d", (int)termconf->show_buttons);
+	}
+	else if (streq(token, "show_config_links")) {
+		sprintf(buff, "%d", (int)termconf->show_config_links);
 	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);

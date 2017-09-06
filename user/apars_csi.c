@@ -531,6 +531,14 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 			else if (n == 25) {
 				screen_set_cursor_visible(yn);
 			}
+			else if (n == 800) { // ESPTerm: Toggle display of buttons
+				termconf_scratch.show_buttons = yn;
+				screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
+			}
+			else if (n == 801) { // ESPTerm: Toggle display of config links
+				termconf_scratch.show_config_links = yn;
+				screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
+			}
 			else {
 				ansi_noimpl("CSI ? %d %c", n, opts->key);
 			}

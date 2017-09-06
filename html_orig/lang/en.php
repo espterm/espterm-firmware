@@ -28,11 +28,15 @@ return [
 	'net.details' => 'MAC addresses',
 
 	'term.defaults' => 'Initial Settings',
+	'term.expert' => 'Expert Options',
 	'term.explain_initials' => '
-		Those are the initial settings used after ESPTerm powers on. 
-		The selected colors will also be used after receiving a 
-		screen- or attributes-reset command. Those settings will be 
-		applied immediately after saving to preview the changes live.',
+		Those are the initial settings used after ESPTerm powers on or when the screen
+		reset command is received. Some options can be changed by the application via escape sequences, 
+		those changes won\'t be saved in Flash.
+		',
+	'term.explain_expert' => '
+		Those are advanced config options that usually don\'t need to be changed.
+		Edit them only if you know what you\'re doing.',
 
 	'term.example' => 'Default colors preview',
 
@@ -45,6 +49,8 @@ return [
 	'term.display_tout_ms' => 'Redraw delay',
 	'term.display_cooldown_ms' => 'Redraw cooldown',
 	'term.fn_alt_mode' => 'SS3 Fn keys',
+	'term.show_config_links' => 'Show nav links',
+	'term.show_buttons' => 'Show buttons',
 
 	// terminal color labels
 	'color.0' => 'Black',
@@ -94,7 +100,7 @@ return [
 
 	'wifi.not_conn' => 'Not connected.',
 	'wifi.sta_none' => 'None',
-	'wifi.sta_active_pw' => '🔒',
+	'wifi.sta_active_pw' => '🔒 Password saved',
 	'wifi.sta_active_nopw' => '🔓 Open access',
 	'wifi.connected_ip_is' => 'Connected, IP is ',
 	'wifi.sta_password' => 'Password:',

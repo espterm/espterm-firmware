@@ -16,6 +16,7 @@ form { @include naked(); }
 	vertical-align: middle;
 	margin: 12px auto;
 	text-align: left;
+	line-height: 1.35em;
 
 	display: flex;
 	flex-direction: row;

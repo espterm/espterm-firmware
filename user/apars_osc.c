@@ -39,7 +39,7 @@ apars_handle_osc(const char *buffer)
 		if (n == 0 || n == 2) {
 			screen_set_title(buffer);
 		}
-		else if (n >= 81 && n <= 85) { // numbers chosen to not collide with any xterm supported codes
+		else if (n >= 81 && n <= 85) { // ESPTerm: action button label
 			screen_set_button_text(n - 80, buffer);
 		}
 		else {

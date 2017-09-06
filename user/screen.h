@@ -44,7 +44,7 @@
 #define SCR_DEF_DISPLAY_TOUT_MS 10
 #define SCR_DEF_DISPLAY_COOLDOWN_MS 30
 #define SCR_DEF_PARSER_TOUT_MS 10
-#define SCR_DEF_FN_ALT_MODE false
+#define SCR_DEF_FN_ALT_MODE true // true - SS3 codes, easier to parse & for xterm compatibility
 #define SCR_DEF_WIDTH 26
 #define SCR_DEF_HEIGHT 10
 #define SCR_DEF_TITLE "ESPTerm"
@@ -52,7 +52,7 @@
 /** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*25)
 
-#define TERMCONF_VERSION 1
+#define TERMCONF_VERSION 2
 
 // --- Persistent Settings ---
 
@@ -69,6 +69,9 @@ typedef struct {
 	bool fn_alt_mode; // xterm compatibility mode (alternate codes for some FN keys)
 	u8 config_version;
 	u32 display_cooldown_ms;
+	bool loopback;
+	bool show_buttons;
+	bool show_config_links;
 } TerminalConfigBundle;
 
 // Live config
@@ -84,7 +87,7 @@ enum MTM {
 	MTM_NONE = 0,
 	MTM_X10 = 1,
 	MTM_NORMAL = 2,
-	MTM_BUTTON_MOTION = 3,
+	MTM_BUTTON_MOTION = 3, // any higher mode tracks motion
 	MTM_ANY_MOTION = 4,
 };
 
@@ -121,10 +124,10 @@ void screen_set_button_text(int num, const char *text);
 // --- Encoding ---
 
 typedef enum {
-	CS_USASCII = 'B',
-	CS_UKASCII = 'A',
-	CS_DEC_SUPPLEMENTAL = '0',
-	CS_DOS_437 = '1',
+	CS_B_USASCII = 'B',
+	CS_A_UKASCII = 'A',
+	CS_0_DEC_SUPPLEMENTAL = '0',
+	CS_1_DOS_437 = '1',
 } CHARSET;
 
 httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);

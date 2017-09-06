@@ -104,6 +104,18 @@
 		<input class="short" type="text" name="btn5" id="btn5" value="%h:btn5%">
 	</div>
 
+	<div class="Row buttons">
+		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
+	</div>
+</form>
+
+<form class="Box fold str" action="<?= e(url('term_set')) ?>" method="GET" id='form-2'>
+	<h2><?= tr('term.expert') ?></h2>
+
+	<div class="Row explain">
+		<?= tr('term.explain_expert') ?>
+	</div>
+
 	<div class="Row">
 		<label for="parser_tout_ms"><?= tr('term.parser_tout_ms') ?><span class="mq-phone">&nbsp;(ms)</span></label>
 		<input type="number" step=1 min=0 name="parser_tout_ms" id="parser_tout_ms" value="%parser_tout_ms%" required>
@@ -128,8 +140,20 @@
 		<input type="hidden" id="fn_alt_mode" name="fn_alt_mode" value="%fn_alt_mode%">
 	</div>
 
+	<div class="Row checkbox" >
+		<label><?= tr('term.show_buttons') ?></label><!--
+		--><span class="box" tabindex=0 role=checkbox></span>
+		<input type="hidden" id="show_buttons" name="show_buttons" value="%show_buttons%">
+	</div>
+
+	<div class="Row checkbox" >
+		<label><?= tr('term.show_config_links') ?></label><!--
+		--><span class="box" tabindex=0 role=checkbox></span>
+		<input type="hidden" id="show_config_links" name="show_config_links" value="%show_config_links%">
+	</div>
+
 	<div class="Row buttons">
-		<a class="button icn-ok" href="#" onclick="qs('#form-1').submit()"><?= tr('apply') ?></a>
+		<a class="button icn-ok" href="#" onclick="qs('#form-2').submit()"><?= tr('apply') ?></a>
 	</div>
 </form>
 

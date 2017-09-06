@@ -69,3 +69,78 @@ function include_str($code)
 	fclose($tmp);
 	return $ret;
 }
+
+if (!function_exists('utf8')) {
+	function utf8($num)
+	{
+		if($num<=0x7F)       return chr($num);
+		if($num<=0x7FF)      return chr(($num>>6)+192).chr(($num&63)+128);
+		if($num<=0xFFFF)     return chr(($num>>12)+224).chr((($num>>6)&63)+128).chr(($num&63)+128);
+		if($num<=0x1FFFFF)   return chr(($num>>18)+240).chr((($num>>12)&63)+128).chr((($num>>6)&63)+128).chr(($num&63)+128);
+		return '';
+	}
+}
+
+if (!function_exists('load_esp_charsets')) {
+	function load_esp_charsets() {
+		$chsf = __DIR__ . '/../user/character_sets.h';
+		$re_table = '/\/\/ %%BEGIN:(.)%%\s*(.*?)\s*\/\/ %%END:\1%%/s';
+		preg_match_all($re_table, file_get_contents($chsf), $m_tbl);
+
+		$re_bounds = '/#define CODEPAGE_(.)_BEGIN\s+(\d+)\n#define CODEPAGE_\1_END\s+(\d+)/';
+		preg_match_all($re_bounds, file_get_contents($chsf), $m_bounds);
+
+		$cps = [];
+
+		foreach ($m_tbl[2] as $i => $str) {
+			$name = $m_tbl[1][$i];
+			$start = intval($m_bounds[2][$i]);
+			$table = [];
+			$str = preg_replace('/,\s*\/\/[^\n]*/', '', $str);
+			$rows = explode("\n", $str);
+			$rows = array_map('trim', $rows);
+
+			foreach($rows as $j => $v) {
+				if (strpos($v, '0x') === 0) {
+					$v = substr($v, 2);
+					$v = hexdec($v);
+				} else {
+					$v = intval($v);
+				}
+				$ascii = $start+$j;
+				$table[] = [
+					$ascii,
+					chr($ascii),
+					utf8($v==0? $ascii :$v),
+				];
+			}
+			$cps[$name] = $table;
+		}
+		return $cps;
+	}
+}
+
+if (!function_exists('tplSubs')) {
+	function tplSubs($str, $reps)
+	{
+		return preg_replace_callback('/%(j:|js:|h:|html:)?([a-z0-9-_.]+)%/i', function ($m) use ($reps) {
+			$key = $m[2];
+			if (array_key_exists($key, $reps)) {
+				$val = $reps[$key];
+			} else {
+				$val = '';
+			}
+			switch ($m[1]) {
+				case 'j:':
+				case 'js:':
+					$v = json_encode($val);
+					return substr($v, 1, strlen($v) - 2);
+				case 'h:':
+				case 'html:':
+					return htmlspecialchars($val);
+				default:
+					return $val;
+			}
+		}, $str);
+	}
+}

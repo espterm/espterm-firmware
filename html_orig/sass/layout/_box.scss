@@ -1,7 +1,11 @@
+.botpad {
+	display:block;
+	height: 5em;
+}
+
 .Box {
 	display: block;
 	max-width: 900px;
-	line-height: 1.35em;
 
 	margin-top: dist(0);
 	padding: dist(-1) dist(0);

@@ -1134,6 +1134,41 @@ function jsp() {
 		return null;
 	}
 }
+
+/** Decode two-byte number */
+function parse2B(s, i) {
+	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
+}
+
+/** Decode three-byte number */
+function parse3B(s, i) {
+	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
+}
+
+function Chr(n) {
+	return String.fromCharCode(n);
+}
+
+function encode2B(n) {
+	var lsb, msb;
+	lsb = (n % 127);
+	n = ((n - lsb) / 127);
+	lsb += 1;
+	msb = (n + 1);
+	return Chr(lsb) + Chr(msb);
+}
+
+function encode3B(n) {
+	var lsb, msb, xsb;
+	lsb = (n % 127);
+	n = (n - lsb) / 127;
+	lsb += 1;
+	msb = (n % 127);
+	n = (n - msb) / 127;
+	msb += 1;
+	xsb = (n + 1);
+	return Chr(lsb) + Chr(msb) + Chr(xsb);
+}
 /** Module for toggling a modal overlay */
 (function () {
 	var modal = {};
@@ -1423,7 +1458,6 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 
 		$('#sta-nw .essid').html(e(name));
 		var nopw = undef(password) || password.length == 0;
-		$('#sta-nw .x-passwd').html(e(password));
 		$('#sta-nw .passwd').toggleClass('hidden', nopw);
 		$('#sta-nw .nopasswd').toggleClass('hidden', !nopw);
 		$('#sta-nw .ip').html(ip.length>0 ? tr('wifi.connected_ip_is')+ip : tr('wifi.not_conn'));
@@ -1564,41 +1598,6 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 	w.init = wifiInit;
 	w.startScanning = startScanning;
 })(window.WiFi = {});
-/** Decode two-byte number */
-function parse2B(s, i) {
-	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
-}
-
-/** Decode three-byte number */
-function parse3B(s, i) {
-	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
-}
-
-function Chr(n) {
-	return String.fromCharCode(n);
-}
-
-function encode2B(n) {
-	var lsb, msb;
-	lsb = (n % 127);
-	n = ((n - lsb) / 127);
-	lsb += 1;
-	msb = (n + 1);
-	return Chr(lsb) + Chr(msb);
-}
-
-function encode3B(n) {
-	var lsb, msb, xsb;
-	lsb = (n % 127);
-	n = (n - lsb) / 127;
-	lsb += 1;
-	msb = (n % 127);
-	n = (n - msb) / 127;
-	msb += 1;
-	xsb = (n + 1);
-	return Chr(lsb) + Chr(msb) + Chr(xsb);
-}
-
 var Screen = (function () {
 	var W = 0, H = 0; // dimensions
 	var inited = false;
@@ -1611,15 +1610,16 @@ var Screen = (function () {
 		bg: 0,
 		attrs: 0,
 		suppress: false, // do not turn on in blink interval (for safe moving)
-		forceOn: false,
-		hidden: false,    // do not show
-		hanging: false,   // xenl
+		forceOn: false,  // force on unless hanging: used to keep cursor visible during move
+		hidden: false,    // do not show (DEC opt)
+		hanging: false,   // cursor at column "W+1" - not visible
 	};
 
 	var screen = [];
 	var blinkIval;
 	var cursorFlashStartIval;
 
+	// Some non-bold Fraktur symbols are outside the contiguous block
 	var frakturExceptions = {
 		'C': '\u212d',
 		'H': '\u210c',
@@ -1633,7 +1633,7 @@ var Screen = (function () {
 	try {
 		audioCtx = new (window.AudioContext || window.audioContext || window.webkitAudioContext)();
 	} catch (er) {
-		console.error("Browser does not support AudioContext, can't beep.", er);
+		console.error("No AudioContext!", er);
 	}
 
 	/** Get cell under cursor */
@@ -1653,6 +1653,22 @@ var Screen = (function () {
 		_draw(_curCell());
 	}
 
+	function alpha2fraktur(t) {
+		// perform substitution
+		if (t >= 'a' && t <= 'z') {
+			t = String.fromCodePoint(0x1d51e - 97 + t.charCodeAt(0));
+		}
+		else if (t >= 'A' && t <= 'Z') {
+			// this set is incomplete, some exceptions are needed
+			if (frakturExceptions.hasOwnProperty(t)) {
+				t = frakturExceptions[t];
+			} else {
+				t = String.fromCodePoint(0x1d504 - 65 + t.charCodeAt(0));
+			}
+		}
+		return t;
+	}
+
 	/** Update cell on display. inv = invert (for cursor) */
 	function _draw(cell, inv) {
 		if (!cell) return;
@@ -1660,44 +1676,28 @@ var Screen = (function () {
 			inv = cursor.a && cursor.x == cell.x && cursor.y == cell.y;
 		}
 
-		var elem = cell.e, fg, bg, cn, t;
-		// Colors
+		var fg, bg, cn, t;
+
 		fg = inv ? cell.bg : cell.fg;
 		bg = inv ? cell.fg : cell.bg;
-		// Update
-		elem.textContent = t = (cell.t + ' ')[0];
+
+		t = cell.t;
+		if (!t.length) t = ' ';
 
 		cn = 'fg' + fg + ' bg' + bg;
 		if (cell.attrs & (1<<0)) cn += ' bold';
+		if (cell.attrs & (1<<1)) cn += ' faint';
 		if (cell.attrs & (1<<2)) cn += ' italic';
 		if (cell.attrs & (1<<3)) cn += ' under';
 		if (cell.attrs & (1<<4)) cn += ' blink';
 		if (cell.attrs & (1<<5)) {
 			cn += ' fraktur';
-			// perform substitution
-			if (t >= 'a' && t <= 'z') {
-				t = String.fromCodePoint(0x1d51e - 97 + t.charCodeAt(0));
-			}
-			else if (t >= 'A' && t <= 'Z') {
-				// this set is incomplete, some exceptions are needed
-				if (frakturExceptions.hasOwnProperty(t)) {
-					t = frakturExceptions[t];
-				} else {
-					t = String.fromCodePoint(0x1d504 - 65 + t.charCodeAt(0));
-				}
-			}
-			elem.textContent = t;
+			t = alpha2fraktur(t);
 		}
 		if (cell.attrs & (1<<6)) cn += ' strike';
 
-		if (cell.attrs & (1<<1)) {
-			cn += ' faint';
-			// faint requires special html - otherwise it would also dim the background.
-			// we use opacity on the text...
-			elem.innerHTML = '<span>' + e(elem.textContent) + '</span>';
-		}
-
-		elem.className = cn;
+		cell.slot.textContent = t;
+		cell.elem.className = cn;
 	}
 
 	/** Show entire screen */
@@ -1712,32 +1712,34 @@ var Screen = (function () {
 		H = rows;
 
 		/* Build screen & show */
-		var e, cell, scr = qs('#screen');
+		var cOuter, cInner, cell, screenDiv = qs('#screen');
 
 		// Empty the screen node
-		while (scr.firstChild) scr.removeChild(scr.firstChild);
+		while (screenDiv.firstChild) screenDiv.removeChild(screenDiv.firstChild);
 
 		screen = [];
 
 		for(var i = 0; i < W*H; i++) {
-			e = mk('span');
+			cOuter = mk('span');
+			cInner = mk('span');
 
+			/* Mouse tracking */
 			(function() {
 				var x = i % W;
 				var y = Math.floor(i / W);
-				e.addEventListener('mouseenter', function (evt) {
+				cOuter.addEventListener('mouseenter', function (evt) {
 					Input.onMouseMove(x, y);
 				});
-				e.addEventListener('mousedown', function (evt) {
+				cOuter.addEventListener('mousedown', function (evt) {
 					Input.onMouseDown(x, y, evt.button+1);
 				});
-				e.addEventListener('mouseup', function (evt) {
+				cOuter.addEventListener('mouseup', function (evt) {
 					Input.onMouseUp(x, y, evt.button+1);
 				});
-				e.addEventListener('contextmenu', function (evt) {
+				cOuter.addEventListener('contextmenu', function (evt) {
 					evt.preventDefault();
 				});
-				e.addEventListener('mousewheel', function (evt) {
+				cOuter.addEventListener('mousewheel', function (evt) {
 					Input.onMouseWheel(x, y, evt.deltaY>0?1:-1);
 					return false;
 				});
@@ -1745,17 +1747,19 @@ var Screen = (function () {
 
 			/* End of line */
 			if ((i > 0) && (i % W == 0)) {
-				scr.appendChild(mk('br'));
+				screenDiv.appendChild(mk('br'));
 			}
 			/* The cell */
-			scr.appendChild(e);
+			cOuter.appendChild(cInner);
+			screenDiv.appendChild(cOuter);
 
 			cell = {
 				t: ' ',
 				fg: 7,
 				bg: 0, // the colors will be replaced immediately as we receive data (user won't see this)
 				attrs: 0,
-				e: e,
+				elem: cOuter,
+				slot: cInner,
 				x: i % W,
 				y: Math.floor(i / W),
 			};
@@ -1770,7 +1774,6 @@ var Screen = (function () {
 		clearInterval(blinkIval);
 		blinkIval = setInterval(function () {
 			cursor.a = !cursor.a;
-			// TODO try to invent a new way to indicate "hanging" - this is copied from gtkterm
 			if (cursor.hidden || cursor.hanging) {
 				cursor.a = false;
 			}
@@ -1780,7 +1783,7 @@ var Screen = (function () {
 			}
 		}, 500);
 
-		// blink attribute
+		/* blink attribute animation */
 		setInterval(function () {
 			$('#screen').removeClass('blink-hide');
 			setTimeout(function () {
@@ -1791,11 +1794,13 @@ var Screen = (function () {
 		inited = true;
 	}
 
+	// constants for decoding the update blob
 	var SEQ_SET_COLOR_ATTR = 1;
 	var SEQ_REPEAT = 2;
 	var SEQ_SET_COLOR = 3;
 	var SEQ_SET_ATTR = 4;
 
+	/** Parse received screen update object (leading S removed already) */
 	function _load_content(str) {
 		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, attrs, cell;
 
@@ -1819,16 +1824,29 @@ var Screen = (function () {
 		// console.log("Cursor at ",num, num2);
 
 		// Attributes
-		num = parse2B(str, i); i += 2; // fg bg bold hidden
-		cursor.hidden = !(num & 0x0001);
-		cursor.hanging = !!(num & 0x0002);
+		num = parse2B(str, i); i += 2; // fg bg attribs
+		cursor.hidden = !(num & (1<<0)); // DEC opt "visible"
+		cursor.hanging = !!(num & (1<<1));
 		// console.log("Attributes word ",num.toString(16)+'h');
 
 		Input.setAlts(
-			!!(num & 0x0004), // cu
-			!!(num & 0x0008), // np
-			!!(num & 0x0010) // fn
+			!!(num & (1<<2)), // cursors alt
+			!!(num & (1<<3)), // numpad alt
+			!!(num & (1<<4)) // fn keys alt
 		);
+
+		var mt_click = !!(num & (1<<5));
+		var mt_move = !!(num & (1<<6));
+		Input.setMouseMode(
+			mt_click,
+			mt_move
+		);
+		$('#screen').toggleClass('noselect', mt_move);
+
+		var show_buttons = !!(num & (1<<7));
+		var show_config_links = !!(num & (1<<8));
+		$('.x-term-conf-btn').toggleClass('hidden', !show_config_links);
+		$('#action-buttons').toggleClass('hidden', !show_buttons);
 
 		fg = 7;
 		bg = 0;
@@ -1892,10 +1910,11 @@ var Screen = (function () {
 		}
 	}
 
+	/** Apply labels to buttons and screen title (leading T removed already) */
 	function _load_labels(str) {
 		var pieces = str.split('\x01');
 		qs('h1').textContent = pieces[0];
-		qsa('#buttons button').forEach(function(x, i) {
+		qsa('#action-buttons button').forEach(function(x, i) {
 			var s = pieces[i+1].trim();
 			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
 			x.innerHTML = s.length > 0 ? e(s) : "&nbsp;";
@@ -1903,8 +1922,8 @@ var Screen = (function () {
 		});
 	}
 
-	function _beep()
-	{
+	/** Audible beep for ASCII 7 */
+	function _beep() {
 		var osc, gain;
 		if (!audioCtx) return;
 
@@ -1946,6 +1965,7 @@ var Screen = (function () {
 				break;
 			default:
 				console.warn("Bad data message type, ignoring.");
+				console.log(str);
 		}
 	}
 
@@ -2071,24 +2091,31 @@ var Input = (function() {
 		np_alt: false,
 		cu_alt: false,
 		fn_alt: false,
+		mt_click: false,
+		mt_move: false,
 	};
 
+	/** Send a literal message */
 	function sendStrMsg(str) {
 		Conn.send("s"+str);
 	}
 
+	/** Send a button event */
 	function sendBtnMsg(n) {
 		Conn.send("b"+Chr(n));
 	}
 
+	/** Fn alt choice for key message */
 	function fa(alt, normal) {
 		return opts.fn_alt ? alt : normal;
 	}
 
+	/** Cursor alt choice for key message */
 	function ca(alt, normal) {
 		return opts.cu_alt ? alt : normal;
 	}
 
+	/** Numpad alt choice for key message */
 	function na(alt, normal) {
 		return opts.np_alt ? alt : normal;
 	}
@@ -2159,6 +2186,7 @@ var Input = (function() {
 		}
 	}
 
+	/** Bind a keystroke to message */
 	function bind(combo, str) {
 		// mac fix - allow also cmd
 		if (combo.indexOf('ctrl+') !== -1) {
@@ -2174,6 +2202,7 @@ var Input = (function() {
 		});
 	}
 
+	/** Bind/rebind key messages */
 	function _initKeys() {
 		// This takes care of text characters typed
 		window.addEventListener('keypress', function(evt) {
@@ -2199,10 +2228,12 @@ var Input = (function() {
 		_bindFnKeys();
 	}
 
+	// mouse button states
 	var mb1 = 0;
 	var mb2 = 0;
 	var mb3 = 0;
 
+	/** Init the Input module */
 	function init() {
 		_initKeys();
 
@@ -2213,6 +2244,7 @@ var Input = (function() {
 			});
 		});
 
+		// global mouse state tracking - for motion reporting
 		window.addEventListener('mousedown', function(evt) {
 			if (evt.button == 0) mb1 = 1;
 			if (evt.button == 1) mb2 = 1;
@@ -2226,6 +2258,7 @@ var Input = (function() {
 		});
 	}
 
+	/** Prepare modifiers byte for mouse message */
 	function packModifiersForMouse() {
 		return (key.isModifier('ctrl')?1:0) |
 			(key.isModifier('shift')?2:0) |
@@ -2234,9 +2267,13 @@ var Input = (function() {
 	}
 
 	return {
+		/** Init the Input module */
 		init: init,
-		// onTap: sendPosMsg,
+
+		/** Send a literal string message */
 		sendString: sendStrMsg,
+
+		/** Enable alternate key modes (cursors, numpad, fn) */
 		setAlts: function(cu, np, fn) {
 			if (opts.cu_alt != cu || opts.np_alt != np || opts.fn_alt != fn) {
 				opts.cu_alt = cu;
@@ -2247,34 +2284,46 @@ var Input = (function() {
 				_bindFnKeys();
 			}
 		},
+
+		setMouseMode: function(click, move) {
+			opts.mt_click = click;
+			opts.mt_move = move;
+		},
+
+		// Mouse events
 		onMouseMove: function (x, y) {
+			if (!opts.mt_move) return;
 			var b = mb1 ? 1 : mb2 ? 2 : mb3 ? 3 : 0;
 			var m = packModifiersForMouse();
 			Conn.send("m" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
 		},
 		onMouseDown: function (x, y, b) {
+			if (!opts.mt_click) return;
 			if (b > 3 || b < 1) return;
 			var m = packModifiersForMouse();
 			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
-			console.log("B ",b," M ",m);
+			// console.log("B ",b," M ",m);
 		},
 		onMouseUp: function (x, y, b) {
+			if (!opts.mt_click) return;
 			if (b > 3 || b < 1) return;
 			var m = packModifiersForMouse();
 			Conn.send("r" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
-			console.log("B ",b," M ",m);
+			// console.log("B ",b," M ",m);
 		},
 		onMouseWheel: function (x, y, dir) {
+			if (!opts.mt_click) return;
 			// -1 ... btn 4 (away from user)
 			// +1 ... btn 5 (towards user)
 			var m = packModifiersForMouse();
 			var b = (dir < 0 ? 4 : 5);
 			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
-			console.log("B ",b," M ",m);
+			// console.log("B ",b," M ",m);
 		},
 	};
 })();
 
+/** Init the terminal sub-module - called from HTML */
 window.termInit = function () {
 	Conn.init();
 	Input.init();

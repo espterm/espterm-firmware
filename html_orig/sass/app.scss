@@ -18,6 +18,8 @@ $c-form-field-fg: white;
 $c-form-highlight: #2972ba;
 $c-form-highlight-a: #2ea1f9;
 
+$screen-stack: "DejaVu Sans Mono", "Liberation Mono", "Inconsolata", monospace;
+
 @function dist($x) {
 	@return modular-scale($x, 1rem, $golden);
 }

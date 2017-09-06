@@ -570,10 +570,13 @@ ul {
   #loader.show {
     opacity: 1; }
 
+.botpad {
+  display: block;
+  height: 5em; }
+
 .Box {
   display: block;
   max-width: 900px;
-  line-height: 1.35em;
   margin-top: 1rem;
   padding: 0.61805rem 1rem;
   border-radius: 3px;
@@ -904,6 +907,7 @@ form {
   vertical-align: middle;
   margin: 12px auto;
   text-align: left;
+  line-height: 1.35em;
   display: flex;
   flex-direction: row;
   align-items: center; }
@@ -1147,50 +1151,58 @@ body.term #content {
     @media screen and (max-width: 544px) {
       body.term #content h1 {
         font-size: 1.42383em; } }
-body.term #screen {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  font-family: monospace;
-  font-size: 20px;
+
+#screen {
   white-space: nowrap;
   background: #111213;
   padding: 6px;
   display: inline-block;
-  border: 2px solid #3983CD; }
-  body.term #screen span {
-    white-space: pre;
-    cursor: pointer;
-    display: inline-block;
-    line-height: 1.15em;
-    width: 0.6em;
-    overflow: visible; }
-body.term #buttons {
+  border: 2px solid #3983CD;
+  font-size: 24px;
+  font-family: "DejaVu Sans Mono", "Liberation Mono", "Inconsolata", monospace; }
+  #screen span {
+    white-space: pre; }
+  #screen > span {
+    position: relative;
+    cursor: pointer; }
+    #screen > span::before {
+      content: " "; }
+    #screen > span > span {
+      position: absolute;
+      left: 0;
+      z-index: 1; }
+  #screen.noselect {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none; }
+
+#action-buttons {
   margin-top: 10px;
   white-space: nowrap; }
-  body.term #buttons button {
+  #action-buttons button {
     margin: 0 3px;
     padding: 8px 5px;
     min-width: 62px;
     cursor: pointer;
     font-weight: bold; }
-body.term #botnav {
+
+#term-nav {
   padding-top: 1.5em;
   text-align: center; }
-  body.term #botnav a {
+  #term-nav a {
     padding: 0 0.38198rem;
     text-decoration: underline; }
-    body.term #botnav a, body.term #botnav a:visited, body.term #botnav a:link {
+    #term-nav a, #term-nav a:visited, #term-nav a:link {
       color: #336085; }
-    body.term #botnav a:hover {
+    #term-nav a:hover {
       color: #5abfff; }
-  body.term #botnav .icn-keyboard {
+  #term-nav .icn-keyboard {
     text-decoration: none;
     font-size: 150%;
     vertical-align: middle; }
 
-#termwrap {
+#term-wrap {
   text-align: center; }
 
 #softkb-input {
@@ -1676,6 +1688,39 @@ body.term #botnav {
 
 .tscroll {
   overflow-x: auto; }
+
+.charset {
+  line-height: 1; }
+  .charset div {
+    display: inline-block;
+    width: 2.5em;
+    border: 1px solid #666;
+    height: 3em;
+    margin: 1px;
+    position: relative; }
+    .charset div span {
+      display: block;
+      position: absolute; }
+    .charset div span:nth-child(1) {
+      left: .2em;
+      top: .2em;
+      height: 1em;
+      font-size: 85%;
+      color: #999; }
+    .charset div span:nth-child(2) {
+      right: .2em;
+      top: .2em;
+      height: 1em;
+      font-size: 85%;
+      color: #999; }
+    .charset div span:nth-child(3) {
+      width: 100%;
+      font-size: 105%;
+      text-align: center;
+      bottom: .4em;
+      font-family: "DejaVu Sans Mono", "Liberation Mono", "Inconsolata", monospace; }
+    .charset div.none {
+      opacity: .4; }
 
 @media screen and (min-width: 545px) {
   .mq-phone {

@@ -8,6 +8,7 @@ $selected = [
 	'wifi.connected_ip_is',
 	'wifi.not_conn',
 	'wifi.enter_passwd',
+	'wifi.passwd_saved',
 ];
 
 $out = [];

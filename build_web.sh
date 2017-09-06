@@ -19,3 +19,8 @@ rm html/css/app.css.map
 
 cp html_orig/img/* html/img/
 cp html_orig/favicon.ico html/favicon.ico
+
+# cleanup
+find html/ -name "*.orig" -delete
+find html/ -name "*.xcf" -delete
+find html/ -name "*~" -delete

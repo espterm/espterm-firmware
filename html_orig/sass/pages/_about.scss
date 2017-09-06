@@ -80,3 +80,49 @@
 .tscroll {
 	overflow-x: auto;
 }
+
+.charset {
+	line-height: 1;
+
+	div {
+		display: inline-block;
+		width: 2.5em;
+		border: 1px solid #666;
+		height: 3em;
+		margin: 1px;
+		position: relative;
+
+		span {
+			display: block;
+			position: absolute;
+		}
+
+		span:nth-child(1) {
+			left: .2em;
+			top: .2em;
+			height: 1em;
+			font-size: 85%;
+			color: #999;
+		}
+
+		span:nth-child(2) {
+			right: .2em;
+			top: .2em;
+			height: 1em;
+			font-size: 85%;
+			color: #999;
+		}
+
+		span:nth-child(3) {
+			width: 100%;
+			font-size: 105%;
+			text-align: center;
+			bottom: .4em;
+			font-family: $screen-stack;
+		}
+
+		&.none {
+			opacity: .4;
+		}
+	}
+}

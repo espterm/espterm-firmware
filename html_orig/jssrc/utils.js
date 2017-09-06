@@ -121,3 +121,38 @@ function jsp() {
 		return null;
 	}
 }
+
+/** Decode two-byte number */
+function parse2B(s, i) {
+	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
+}
+
+/** Decode three-byte number */
+function parse3B(s, i) {
+	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
+}
+
+function Chr(n) {
+	return String.fromCharCode(n);
+}
+
+function encode2B(n) {
+	var lsb, msb;
+	lsb = (n % 127);
+	n = ((n - lsb) / 127);
+	lsb += 1;
+	msb = (n + 1);
+	return Chr(lsb) + Chr(msb);
+}
+
+function encode3B(n) {
+	var lsb, msb, xsb;
+	lsb = (n % 127);
+	n = (n - lsb) / 127;
+	lsb += 1;
+	msb = (n % 127);
+	n = (n - msb) / 127;
+	msb += 1;
+	xsb = (n + 1);
+	return Chr(lsb) + Chr(msb) + Chr(xsb);
+}

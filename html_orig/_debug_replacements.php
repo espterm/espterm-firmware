@@ -15,10 +15,9 @@ return [
 	'btn5' => '5',
 	'labels_seq' => 'TESPTerm local debug1235',
 
-	'screenData' => 'HELLOxNRE3',//'\u000b\u0001\u001b\u0001\u0001\u0001\u0001\u0001\f\u0005\u0001\u0010\u0003HELLOx\u0002\u000b\u0001\u0001N\u0001RE\u00023\u0001', //,
-
 	'parser_tout_ms' => 10,
-	'display_tout_ms' => 20,
+	'display_tout_ms' => 15,
+	'display_cooldown_ms' => 35,
 	'fn_alt_mode' => '1',
 
 	'opmode' => '2',
@@ -61,6 +60,8 @@ return [
 	'term_height' => '10',
 	'default_bg' => '0',
 	'default_fg' => '7',
+	'show_buttons' => '1',
+	'show_config_links' => '1',
 
 	'uart_baud' => 115200,
 	'uart_stopbits' => 1,

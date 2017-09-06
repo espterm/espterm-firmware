@@ -17,7 +17,6 @@
 
 		$('#sta-nw .essid').html(e(name));
 		var nopw = undef(password) || password.length == 0;
-		$('#sta-nw .x-passwd').html(e(password));
 		$('#sta-nw .passwd').toggleClass('hidden', nopw);
 		$('#sta-nw .nopasswd').toggleClass('hidden', !nopw);
 		$('#sta-nw .ip').html(ip.length>0 ? tr('wifi.connected_ip_is')+ip : tr('wifi.not_conn'));
