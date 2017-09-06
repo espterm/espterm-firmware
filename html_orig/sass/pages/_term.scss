@@ -71,8 +71,10 @@ body.term {
 	text-align: center;
 
 	a {
-		padding: 0 dist(-2);
-		text-decoration: underline;
+		text-decoration: none;
+		padding: 5px 5px;
+		border-radius: 2px;
+		position: relative;
 
 		&, &:visited, &:link {
 			color: #336085;
@@ -80,12 +82,34 @@ body.term {
 
 		&:hover {
 			color: #5abfff;
+			background: #1b273c;
+		}
+
+		&:active {
+			top: 1px;
+		}
+
+		i::before {
+			display: inline;
+		}
+
+		span {
+			margin-left: .2em;
+		}
+
+		@include media($phone) {
+			span {
+				display: none;
+			}
+
+			font-size: 130%;
+			padding: 6px;
 		}
 	}
 
 	.icn-keyboard {
 		text-decoration: none;
-		font-size: 150%;
+		font-size: 130%; // make it bigger - icon is too small to be recognizable
 		vertical-align: middle;
 	}
 }
@@ -98,6 +122,69 @@ body.term {
 #softkb-input {
 	position: absolute;
 	top: -9999px;
+}
+
+#fu_modal {
+	align-items: flex-start;
+}
+
+#fu_form {
+	//border: 1px solid #3983CD;
+	//border-radius: 2px;
+	//padding: 0 dist(0);
+	//background: #333e58;
+	padding: dist(0);
+	margin-top: 100px; // offset
+
+	z-index: 1000;
+
+	label {
+		width: 8em;
+		display: inline-block;
+	}
+
+	input[type="number"], select {
+		width: 10em;
+	}
+
+	textarea {
+		width: 100%;
+		min-height: 8em;
+		margin-top: dist(-1);
+		resize: vertical;
+	}
+
+	.fu-buttons {
+		text-align: center;
+		padding: dist(-2);
+		margin-top: dist(-2);
+		border-radius: 3px;
+	}
+
+	.fu-prog-box {
+		display: none;
+	}
+
+	&.busy {
+		background: rgba($c-modal-bg, .3);
+		border-left-color: rgba($c-form-highlight, .3);
+		border-right-color: rgba($c-form-highlight, .3);
+
+		.fu-content {
+			@include click-through;
+			opacity: .3;
+		}
+
+		.fu-buttons {
+			text-align: left;
+			background: $c-modal-bg;
+			border: 1px solid $c-form-highlight;
+		}
+
+		.fu-prog-box {
+			display: inline-block;
+		}
+	}
 }
 
 // Tango

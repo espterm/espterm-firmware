@@ -21,6 +21,8 @@ return [
 	'term_nav.help' => 'Help',
 	'term_nav.about' => 'About',
 	'term_nav.paste' => 'Paste',
+	'term_nav.upload' => 'Upload',
+	'term_nav.keybd' => 'Keyboard',
 	'term_nav.paste_prompt' => 'Paste text to send:',
 
 	'net.ap' => 'DHCP Server (AP)',

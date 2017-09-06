@@ -113,29 +113,31 @@ function undef(x) {
 }
 
 /** Safe json parse */
-function jsp() {
+function jsp(str) {
 	try {
-		return JSON.parse(e);
+		return JSON.parse(str);
 	} catch(e) {
 		console.error(e);
 		return null;
 	}
 }
 
-/** Decode two-byte number */
-function parse2B(s, i) {
-	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
-}
-
-/** Decode three-byte number */
-function parse3B(s, i) {
-	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
-}
-
+/** Create a character from ASCII code */
 function Chr(n) {
 	return String.fromCharCode(n);
 }
 
+/** Decode number from 2B encoding */
+function parse2B(s, i) {
+	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
+}
+
+/** Decode number from 3B encoding */
+function parse3B(s, i) {
+	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
+}
+
+/** Encode using 2B encoding, returns string. */
 function encode2B(n) {
 	var lsb, msb;
 	lsb = (n % 127);
@@ -145,6 +147,7 @@ function encode2B(n) {
 	return Chr(lsb) + Chr(msb);
 }
 
+/** Encode using 3B encoding, returns string. */
 function encode3B(n) {
 	var lsb, msb, xsb;
 	lsb = (n % 127);

@@ -1,13 +1,15 @@
 /** Module for toggling a modal overlay */
 (function () {
 	var modal = {};
+	var curCloseCb = null;
 
-	modal.show = function (sel) {
+	modal.show = function (sel, closeCb) {
 		var $m = $(sel);
 		$m.removeClass('hidden visible');
 		setTimeout(function () {
 			$m.addClass('visible');
 		}, 1);
+		curCloseCb = closeCb;
 	};
 
 	modal.hide = function (sel) {
@@ -15,6 +17,7 @@
 		$m.removeClass('visible');
 		setTimeout(function () {
 			$m.addClass('hidden');
+			if (curCloseCb) curCloseCb();
 		}, 500); // transition time
 	};
 

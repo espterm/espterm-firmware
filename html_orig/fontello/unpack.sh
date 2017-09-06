@@ -39,8 +39,11 @@ echo -e "@charset \"UTF-8\";\n\n/* Fontello data, processed by the unpack script
 #grep -Pazo "(?s)@font-face.*?normal;\n\}" "$OUTPUT_DIR/fontello.css" \
 #	| sed 's/\x0//g' >> "$SASSFILE"
 
-grep -Pazo "(?s)@font-face \{\n\s*font-family: 'fontello';\n\s*src: url\('data.*?truetype'\);\n\}" "$OUTPUT_DIR/fontello-embedded.css" \
+grep -Pazo "(?s)@font-face \{\n\s*font-family: 'fontello';\n\s*src: url\('data.*?woff'\)" "$OUTPUT_DIR/fontello-embedded.css" \
 	| sed 's/\x0//g' >> "$SASSFILE"
+
+echo -e ";\n}" >> "$SASSFILE"
+
 
 grep -Pazo "(?s)$ICON_PREFIX-\"\]:before .*?\}" "$OUTPUT_DIR/fontello.css" \
 	| sed 's/\x0//g' \

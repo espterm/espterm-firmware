@@ -410,17 +410,18 @@ var Conn = (function() {
 	}
 
 	function doSend(message) {
-		console.log("TX: ", message);
+		//console.log("TX: ", message);
 
-		if (!ws) return; // for dry testing
+		if (!ws) return false; // for dry testing
 		if (ws.readyState != 1) {
 			console.error("Socket not ready");
-			return;
+			return false;
 		}
 		if (typeof message != "string") {
 			message = JSON.stringify(message);
 		}
 		ws.send(message);
+		return true;
 	}
 
 	function init() {
@@ -495,11 +496,12 @@ var Input = (function() {
 		fn_alt: false,
 		mt_click: false,
 		mt_move: false,
+		no_keys: false,
 	};
 
 	/** Send a literal message */
 	function sendStrMsg(str) {
-		Conn.send("s"+str);
+		return Conn.send("s"+str);
 	}
 
 	/** Send a button event */
@@ -599,6 +601,7 @@ var Input = (function() {
 		key.unbind(combo);
 
 		key(combo, function (e) {
+			if (opts.no_keys) return;
 			e.preventDefault();
 			sendStrMsg(str)
 		});
@@ -608,6 +611,7 @@ var Input = (function() {
 	function _initKeys() {
 		// This takes care of text characters typed
 		window.addEventListener('keypress', function(evt) {
+			if (opts.no_keys) return;
 			var str = '';
 			if (evt.key) str = evt.key;
 			else if (evt.which) str = String.fromCodePoint(evt.which);
@@ -725,11 +729,112 @@ var Input = (function() {
 		mouseTracksClicks: function() {
 			return opts.mt_click;
 		},
+		blockKeys: function(yes) {
+			opts.no_keys = yes;
+		}
 	};
+})();
+
+
+/** File upload utility */
+var TermUpl = (function() {
+	var fuLines, fuPos, fuTout, fuDelay, fuNL;
+
+	function fuOpen() {
+		fuStatus("Ready...");
+		Modal.show('#fu_modal', onClose);
+		$('#fu_form').toggleClass('busy', false);
+		Input.blockKeys(true);
+	}
+
+	function onClose() {
+		console.log("Upload modal closed.");
+		clearTimeout(fuTout);
+		fuPos = 0;
+		Input.blockKeys(false);
+	}
+
+	function fuStatus(msg) {
+		qs('#fu_prog').textContent = msg;
+	}
+
+	function fuSend() {
+		var v = qs('#fu_text').value;
+		if (!v.length) {
+			fuClose();
+			return;
+		}
+
+		fuLines = v.split('\n');
+		fuPos = 0;
+		fuDelay = qs('#fu_delay').value;
+		fuNL = {
+			'CR': '\r',
+			'LF': '\n',
+			'CRLF': '\r\n',
+		}[qs('#fu_crlf').value];
+
+		$('#fu_form').toggleClass('busy', true);
+		fuStatus("Starting...");
+		fuSendLine();
+	}
+
+	function fuSendLine() {
+		if (!$('#fu_modal').hasClass('visible')) {
+			// Modal is closed, cancel
+			return;
+		}
+
+		if (!Input.sendString(fuLines[fuPos++] + fuNL)) {
+			fuStatus("FAILED!");
+			return;
+		}
+
+		var all = fuLines.length;
+
+		fuStatus(fuPos+" / "+all+ " ("+(Math.round((fuPos/all)*1000)/10)+"%)");
+
+		if (fuLines.length > fuPos) {
+			setTimeout(fuSendLine, fuDelay);
+		} else {
+			fuClose();
+		}
+	}
+
+	function fuClose() {
+		Modal.hide('#fu_modal');
+	}
+
+	return {
+		init: function() {
+			qs('#fu_file').addEventListener('change', function (evt) {
+				var reader = new FileReader();
+				var file = evt.target.files[0];
+				console.log("Selected file type: "+file.type);
+				if (!file.type.match(/text\/.*|application\/(json|x?html|csv|.*xml.*|.*script.*)|image\/(.*xml.*)/)) {
+					// Deny load of blobs like img - can crash browser and will get corrupted anyway
+					if (!confirm("This does not look like a text file: "+file.type+"\nReally load?")) {
+						qs('#fu_file').value = '';
+						return;
+					}
+				}
+				reader.onload = function(e) {
+					var txt = e.target.result.replace(/[\r\n]+/,'\n');
+					qs('#fu_text').value = txt;
+				};
+				console.log("Loading file...");
+				reader.readAsText(file);
+			}, false);
+		},
+		close: fuClose,
+		start: fuSend,
+		open: fuOpen,
+	}
 })();
 
 /** Init the terminal sub-module - called from HTML */
 window.termInit = function () {
 	Conn.init();
 	Input.init();
+	TermUpl.init();
 };
