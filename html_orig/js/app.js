@@ -2417,7 +2417,7 @@ var TermUpl = (function() {
 				var reader = new FileReader();
 				var file = evt.target.files[0];
 				console.log("Selected file type: "+file.type);
-				if (!file.type.match(/text\/.*|application\/(json|x?html|csv|.*xml.*|.*script.*)|image\/(.*xml.*)/)) {
+				if (!file.type.match(/text\/.*|application\/(json|csv|.*xml.*|.*script.*)/)) {
 					// Deny load of blobs like img - can crash browser and will get corrupted anyway
 					if (!confirm("This does not look like a text file: "+file.type+"\nReally load?")) {
 						qs('#fu_file').value = '';
