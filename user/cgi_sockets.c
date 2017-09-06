@@ -219,7 +219,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 			// action button press
 			btnNum = (u8) (data[1]);
 			if (btnNum > 0 && btnNum < 10) {
-				UART_SendAsync(termconf->btn_msg[btnNum], -1);
+				UART_SendAsync(termconf->btn_msg[btnNum-1], -1);
 			}
 			break;
 
