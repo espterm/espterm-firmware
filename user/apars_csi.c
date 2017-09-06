@@ -562,6 +562,14 @@ do_csi_set_option(CSI_Data *opts)
 		else if (n == 20) {
 			screen_set_newline_mode(yn);
 		}
+		else if (n == 33) {
+			ansi_noimpl("Steady cursor");
+			// reference https://ttssh2.osdn.jp/manual/en/about/ctrlseq.html
+		}
+		else if (n == 34) {
+			ansi_noimpl("Underline cursor");
+			// reference https://ttssh2.osdn.jp/manual/en/about/ctrlseq.html
+		}
 		else {
 			ansi_noimpl("OPTION %d", n);
 		}

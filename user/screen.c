@@ -919,6 +919,21 @@ screen_cursor_restore(bool withAttrs)
 
 	NOTIFY_DONE();
 }
+
+void ICACHE_FLASH_ATTR
+screen_back_index(int count)
+{
+	NOTIFY_LOCK();
+	int new_x = cursor.x - count;
+	if (new_x >= 0) {
+		cursor.x = new_x;
+	} else {
+		cursor.x = 0;
+		screen_insert_characters(-new_x);
+	}
+	NOTIFY_DONE();
+}
+
 //endregion
 
 //region --- Attribute setting ---

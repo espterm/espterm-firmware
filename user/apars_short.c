@@ -121,6 +121,10 @@ void ICACHE_FLASH_ATTR apars_handle_short_cmd(char c)
 			screen_reset();
 			break;
 
+		case '6': // back index
+			screen_back_index(1);
+			break;
+
 		case '7': // save cursor + attributes
 			screen_cursor_save(true);
 			break;

@@ -254,6 +254,8 @@ void screen_clear_tab(void);
 void screen_tab_forward(int count);
 /** Move backward one tab */
 void screen_tab_reverse(int count);
+/** Move left, shift right if at the boundary */
+void screen_back_index(int count);
 
 // --- Printing characters ---
 

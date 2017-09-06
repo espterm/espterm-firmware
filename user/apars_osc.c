@@ -22,7 +22,6 @@
 void ICACHE_FLASH_ATTR
 apars_handle_osc(const char *buffer)
 {
-	const char *orig_buff = buffer;
 	int n = 0;
 	char c = 0;
 	while ((c = *buffer++) != 0) {
@@ -50,7 +49,7 @@ apars_handle_osc(const char *buffer)
 		}
 	}
 	else {
-		ansi_warn("BAD OSC: %s", orig_buff);
+		ansi_warn("BAD OSC: %s", buffer);
 		apars_show_context();
 	}
 }
