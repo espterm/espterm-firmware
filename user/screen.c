@@ -50,11 +50,11 @@ static u32 tab_stops[TABSTOP_WORDS];
  * Screen state structure
  */
 static struct {
-	bool numpad_alt_mode;   //!< Application Mode - affects how user input of control keys is sent
-	bool cursors_alt_mode; //!< Application mode for cursor keys
+	bool numpad_alt_mode;  //!< DECNKM - Numpad Application Mode
+	bool cursors_alt_mode; //!< DECCKM - Cursors Application mode
 
-	bool newline_mode; // LNM - CR automatically sends LF
-	bool reverse;
+	bool newline_mode; //!< LNM - CR automatically sends LF
+	bool reverse;      //!< DECSCNM - Reverse video
 
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
@@ -66,27 +66,30 @@ static struct {
 #define RH (scr.vm1 - scr.vm0 + 1)
 
 typedef struct {
+	/* Cursor position */
 	int x;        //!< X coordinate
 	int y;        //!< Y coordinate
 	bool hanging; //!< xenl state - cursor half-wrapped
 
-	// SGR
+	/* SGR */
 	bool inverse; //!< not in attrs bc it's applied server-side (not sent to browser)
 	u8 attrs;
 	Color fg;     //!< Foreground color for writing
 	Color bg;     //!< Background color for writing
 
 	// Other attribs
+
+	/* Character set */
 	int charsetN;
 	char charset0;
 	char charset1;
-	bool wraparound;   //!< Wrapping when EOL
-	bool origin_mode; // DECOM - absolute positioning is relative to vertical margins
-	bool selective_erase; // TODO implement
 
-	// Not saved/restored FIXME those should not be saved, but are (a bug?)
-	bool insert_mode;    //!< Insert mode (move rest of the line to the right)
-	bool visible; //!< Visible (not attribute, DEC special)
+	/** DEC private modes */
+	bool wraparound;   //!< DECAWM - Wrapping when EOL
+	bool origin_mode;  //!< DECOM - absolute positioning is relative to vertical margins
+
+	bool insert_mode;  //!< IRM - Insert mode (move rest of the line to the right)
+	bool visible;      //!< DECTCEM - Cursor visible
 } CursorTypeDef;
 
 /**
@@ -245,7 +248,6 @@ cursor_reset(void)
 	cursor.hanging = false;
 	cursor.visible = true;
 	cursor.insert_mode = false;
-	cursor.selective_erase = false;
 	cursor.origin_mode = false;
 
 	cursor.charsetN = 0;
@@ -1292,8 +1294,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 					 (scr.cursors_alt_mode ? 1<<2 : 0) |
 					 (scr.numpad_alt_mode ? 1<<3 : 0) |
 					 (termconf->fn_alt_mode ? 1<<4 : 0) |
-					 (mouse_tracking.mode!=MTM_NONE ? 1<<5 : 0) |
-					 (mouse_tracking.mode>=MTM_BUTTON_MOTION ? 1<<6 : 0) |
+					 ((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
+					 ((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
 					 (termconf_scratch.show_buttons ? 1<<7 : 0) |
 					 (termconf_scratch.show_config_links ? 1<<8 : 0)
 				 )

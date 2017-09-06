@@ -265,6 +265,7 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 			else if (leadchar == '?') {
 				// Save private attributes (CSI ? Pm h/l)
 				ansi_noimpl("Save private attrs");
+				apars_show_context();
 			}
 			else {
 				// other:
@@ -281,6 +282,7 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 			else if (leadchar == '?') {
 				// Restore private attributes (CSI ? Pm h/l)
 				ansi_noimpl("Restore private attrs");
+				apars_show_context();
 			}
 			else {
 				// other:
@@ -460,7 +462,6 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 				// 1004 - Send FocusIn/FocusOut events
 				// 1005 - Enable UTF-8 Mouse Mode - we implement this as an alias to X10 mode
 				// 1006 - SGR mouse mode
-
 				if (n == 9) mouse_tracking.mode = yn ? MTM_X10 : MTM_NONE;
 				else if (n == 1000) mouse_tracking.mode = yn ? MTM_NORMAL : MTM_NONE;
 				else if (n == 1002) mouse_tracking.mode = yn ? MTM_BUTTON_MOTION : MTM_NONE;
@@ -469,6 +470,7 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 				else if (n == 1005) mouse_tracking.encoding = yn ? MTE_UTF8 : MTE_SIMPLE;
 				else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
 				else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
+				dbg("Mouse mode=%d, enc=%d, foctr=%d", mouse_tracking.mode, mouse_tracking.encoding, mouse_tracking.focus_tracking);
 			}
 			else if (n == 12) {
 				// TODO Cursor blink on/off
@@ -552,7 +554,7 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 			if (n == 4) {
 				screen_set_insert_mode(yn);
 			}
-			if (n == 12) {
+			else if (n == 12) {
 				// SRM is inverted, according to vt510 manual
 				termconf_scratch.loopback = !yn;
 			}

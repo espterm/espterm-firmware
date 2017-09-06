@@ -22,7 +22,7 @@ body.term {
 	display: inline-block;
 	border: 2px solid #3983CD;
 
-	font-size: 24px; // some font heights cause visual glitches with some font renderers. This should be configurable.
+	font-size: 20px; // some font heights cause visual glitches with some font renderers. This should be configurable.
 	font-family: $screen-stack;
 
 	span {

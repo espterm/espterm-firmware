@@ -167,7 +167,7 @@ ansi_parser(char newchar)
 			case BEL:
 				// bel is also used to terminate OSC
 				apars_handle_bel();
-				break;
+				return;
 
 			case ENQ:
 				apars_handle_enq();
