@@ -206,22 +206,23 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	char c = data[0];
 	switch (c) {
 		case 's':
-		// pass string verbatim
-#if LOOPBACK
-		for(int i=4;i<strlen(data); i++) {
-			ansi_parser(data[i]);
-		}
-#else
+			// pass string verbatim
+			if (termconf_scratch.loopback) {
+				for (int i = 1; i < strlen(data); i++) {
+					ansi_parser(data[i]);
+				}
+			}
 			UART_SendAsync(data+1, -1);
-#endif
 			break;
+
 		case 'b':
 			// action button press
 			btnNum = (u8) (data[1]);
 			if (btnNum > 0 && btnNum < 10) {
-				UART_SendAsync((const char *) &btnNum, 1); // TODO this is where we use user-configured codes
+				UART_SendAsync(termconf->btn_msg[btnNum], -1);
 			}
 			break;
+
 		case 'm':
 		case 'p':
 		case 'r':
@@ -235,6 +236,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 
 			sendMouseAction(c,y,x,b,m);
 			break;
+
 		default:
 			ws_warn("Bad command.");
 	}

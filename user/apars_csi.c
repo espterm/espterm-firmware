@@ -552,6 +552,10 @@ static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
 			if (n == 4) {
 				screen_set_insert_mode(yn);
 			}
+			if (n == 12) {
+				// SRM is inverted, according to vt510 manual
+				termconf_scratch.loopback = !yn;
+			}
 			else if (n == 20) {
 				screen_set_newline_mode(yn);
 			}

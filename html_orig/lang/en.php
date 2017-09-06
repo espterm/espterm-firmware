@@ -51,6 +51,7 @@ return [
 	'term.fn_alt_mode' => 'SS3 Fn keys',
 	'term.show_config_links' => 'Show nav links',
 	'term.show_buttons' => 'Show buttons',
+	'term.loopback' => 'Local Echo',
 
 	// terminal color labels
 	'color.0' => 'Black',

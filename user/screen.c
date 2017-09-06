@@ -135,8 +135,9 @@ terminal_restore_defaults(void)
 	termconf->default_bg = 0;
 	termconf->default_fg = 7;
 	sprintf(termconf->title, SCR_DEF_TITLE);
-	for(int i=1; i <= 5; i++) {
+	for(int i=1; i <= TERM_BTN_COUNT; i++) {
 		sprintf(termconf->btn[i-1], "%d", i);
+		sprintf(termconf->btn_msg[i-1], "%c", i);
 	}
 	termconf->theme = 0;
 	termconf->parser_tout_ms = SCR_DEF_PARSER_TOUT_MS;
@@ -178,6 +179,15 @@ terminal_apply_settings_noclear(void)
 		termconf->loopback = 0;
 		termconf->show_config_links = 1;
 		termconf->show_buttons = 1;
+		changed = 1;
+	}
+
+	// Migrate to v3
+	if (termconf->config_version < 3) {
+		dbg("termconf: Updating to version 3");
+		for(int i=1; i <= TERM_BTN_COUNT; i++) {
+			sprintf(termconf->btn_msg[i-1], "%c", i);
+		}
 		changed = 1;
 	}
 

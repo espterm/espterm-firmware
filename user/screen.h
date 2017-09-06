@@ -36,10 +36,12 @@
 
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
-#define TERMCONF_SIZE 200
+#define TERMCONF_SIZE 300
 
 #define TERM_BTN_LEN 10
+#define TERM_BTN_MSG_LEN 10
 #define TERM_TITLE_LEN 64
+#define TERM_BTN_COUNT 5
 
 #define SCR_DEF_DISPLAY_TOUT_MS 10
 #define SCR_DEF_DISPLAY_COOLDOWN_MS 30
@@ -52,7 +54,7 @@
 /** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*25)
 
-#define TERMCONF_VERSION 2
+#define TERMCONF_VERSION 3
 
 // --- Persistent Settings ---
 
@@ -62,7 +64,7 @@ typedef struct {
 	u8 default_bg; // should be the Color typedef, but this way the size is more explicit
 	u8 default_fg;
 	char title[TERM_TITLE_LEN];
-	char btn[5][TERM_BTN_LEN];
+	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
 	u8 theme;
 	u32 parser_tout_ms;
 	u32 display_tout_ms;
@@ -72,6 +74,7 @@ typedef struct {
 	bool loopback;
 	bool show_buttons;
 	bool show_config_links;
+	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
 } TerminalConfigBundle;
 
 // Live config

@@ -75,6 +75,18 @@
 				</td>
 			</tr>
 			<tr>
+				<td>
+					<code>
+						\e[12h \\
+						\e[12l
+					</code>
+				</td>
+				<td>
+					Enable (`h`) or disable (`l`) Send-Receive Mode (SRM).
+					SRM is the opposite of Local Echo, meaning `\e[12h` disables and `\e[12l` enables Local Echo.
+				</td>
+			</tr>
+			<tr>
 				<td>`\e[8;<i>r</i>;<i>c</i>t`</td>
 				<td>Set screen size (this is a command borrowed from xterm)</td>
 			</tr>

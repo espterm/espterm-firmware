@@ -152,6 +152,12 @@
 		<input type="hidden" id="show_config_links" name="show_config_links" value="%show_config_links%">
 	</div>
 
+	<div class="Row checkbox" >
+		<label><?= tr('term.loopback') ?></label><!--
+		--><span class="box" tabindex=0 role=checkbox></span>
+		<input type="hidden" id="loopback" name="loopback" value="%loopback%">
+	</div>
+
 	<div class="Row buttons">
 		<a class="button icn-ok" href="#" onclick="qs('#form-2').submit()"><?= tr('apply') ?></a>
 	</div>

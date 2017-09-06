@@ -132,6 +132,12 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		termconf->show_config_links = (bool)n;
 	}
 
+	if (GET_ARG("loopback")) {
+		dbg("Loopback: %s", buff);
+		n = atoi(buff);
+		termconf->loopback = (bool)n;
+	}
+
 	if (GET_ARG("default_fg")) {
 		dbg("Screen default FG: %s", buff);
 		n = atoi(buff);
@@ -162,7 +168,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
 	}
 
-	for (int i = 1; i <= 5; i++) {
+	for (int i = 1; i <= TERM_BTN_COUNT; i++) {
 		sprintf(buff, "btn%d", i);
 		if (GET_ARG(buff)) {
 			dbg("Button%d default text: \"%s\"", i, buff);
@@ -230,6 +236,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	else if (streq(token, "show_config_links")) {
 		sprintf(buff, "%d", (int)termconf->show_config_links);
 	}
+	else if (streq(token, "loopback")) {
+		sprintf(buff, "%d", (int)termconf->loopback);
+	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);
 	}
@@ -243,7 +252,7 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 		strncpy_safe(buff, termconf->title, BUFLEN);
 	}
 	else {
-		for (int i = 1; i <= 5; i++) {
+		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
 			sprintf(buff2, "btn%d", i);
 			if (streq(token, buff2)) {
 				strncpy_safe(buff, termconf->btn[i-1], BUFLEN);
