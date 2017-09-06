@@ -1679,7 +1679,7 @@ body.term #content {
 .ansiref.w100 {
   width: 100%; }
   .ansiref.w100 td:nth-child(1) {
-    width: 6em; }
+    width: 8em; }
 
 .nomen {
   width: 100%; }
@@ -1695,7 +1695,7 @@ body.term #content {
   line-height: 1; }
   .charset div {
     display: inline-block;
-    width: 2.5em;
+    width: 2.7em;
     border: 1px solid #666;
     height: 3em;
     margin: 1px;

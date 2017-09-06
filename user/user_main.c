@@ -94,13 +94,11 @@ void ICACHE_FLASH_ATTR user_init(void)
 	wifi_set_opmode(NULL_MODE); // saves to flash if changed - this might avoid the current spike on startup?
 
 	printf("\r\n");
-	banner("====== ESP8266 Remote Terminal ======");
+	banner("====== ESPTerm ======");
 	banner_info("Firmware (c) Ondrej Hruska, 2017");
-	banner_info("github.com/MightyPork/esp-vt100-firmware");
+	banner_info(TERMINAL_GITHUB_REPO);
 	banner_info("");
-	banner_info("Version " FIRMWARE_VERSION ", built " __DATE__ " at " __TIME__);
-	banner_info("");
-	banner_info("Department of Measurement, CTU Prague");
+	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__);
 	printf("\r\n");
 
 	ioInit();

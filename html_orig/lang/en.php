@@ -52,6 +52,7 @@ return [
 	'term.show_config_links' => 'Show nav links',
 	'term.show_buttons' => 'Show buttons',
 	'term.loopback' => 'Local Echo',
+	'term.button_msgs' => 'Button codes<br>(ASCII, dec, CSV)',
 
 	// terminal color labels
 	'color.0' => 'Black',

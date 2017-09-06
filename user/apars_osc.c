@@ -42,6 +42,9 @@ apars_handle_osc(const char *buffer)
 		else if (n >= 81 && n <= 85) { // ESPTerm: action button label
 			screen_set_button_text(n - 80, buffer);
 		}
+		else if (n >= 91 && n <= 95) { // ESPTerm: action button text
+			strncpy(termconf_scratch.btn_msg[n - 91], buffer, TERM_BTN_MSG_LEN);
+		}
 		else {
 			ansi_noimpl("OSC %d ; %s ST", n, buffer);
 		}

@@ -34,22 +34,29 @@
 				</td>
 			</tr>
 			<tr>
-				<td>`\e]0;<i>title</i>\a`</td>
-				<td>Set screen title (this is a standard OSC command)</td>
+				<td>`\e]0;<i>t</i>\a`</td>
+				<td>Set screen title to _t_ (this is a standard OSC command)</td>
 			</tr>
 			<tr>
 				<td>
 					<code>
-						\e]<i>81</i>;<i>btn1</i>\a \\
-						\e]<i>82</i>;<i>btn2</i>\a \\
-						\e]<i>83</i>;<i>btn3</i>\a \\
-						\e]<i>84</i>;<i>btn4</i>\a \\
-						\e]<i>85</i>;<i>btn5</i>\a \\
+						\e]<i>80+n</i>;<i>t</i>\a
 					</code>
 				</td>
 				<td>
-					Set button 1-5 label - eg.`\e]81;Yes\a`
+					Set label for button _n_ = 1-5 (code 81-85) to _t_ - e.g.`\e]81;Yes\a`
 					sets the first button text to "Yes".
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<code>
+						\e]<i>90+n</i>;<i>m</i>\a
+					</code>
+				</td>
+				<td>
+					Set message for button _n_ = 1-5 (code 81-85) to _m_ - e.g.`\e]94;iv\a`
+					sets the 3rd button to send string "iv" when pressed.
 				</td>
 			</tr>
 			<tr>
@@ -88,7 +95,7 @@
 			</tr>
 			<tr>
 				<td>`\e[8;<i>r</i>;<i>c</i>t`</td>
-				<td>Set screen size (this is a command borrowed from xterm)</td>
+				<td>Set screen size to _r_ rows and _c_ columns (this is a command borrowed from Xterm)</td>
 			</tr>
 			</tbody>
 		</table>

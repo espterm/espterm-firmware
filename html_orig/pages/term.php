@@ -5,7 +5,7 @@
 			console.error("Page load failed, refreshing…");
 			location.reload(true);
 		}
-	}, 2000);
+	}, 3000);
 </script>
 
 <h1><!-- Screen title gets loaded here by JS --></h1>
@@ -48,10 +48,10 @@
 		});
 	} catch(e) {
 		console.error(e);
-		console.error("Fail, reloading in 1s…");
+		console.error("Fail, reloading in 3s…");
 		setTimeout(function() {
 			location.reload(true);
-		}, 1000);
+		}, 3000);
 	}
 
 	function toggleSoftKb(yes) {

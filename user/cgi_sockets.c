@@ -3,16 +3,16 @@
 #include <cgiwebsocket.h>
 
 #include "cgi_sockets.h"
-#include "uart_driver.h"
 #include "screen.h"
 #include "uart_buffer.h"
 #include "ansi_parser.h"
 #include "jstring.h"
 
-#define LOOPBACK 0
-
+// Heartbeat interval in ms
 #define HB_TIME 1000
 
+// Buffer size (sent in one go)
+// Must be less than httpd sendbuf
 #define SOCK_BUF_LEN 2000
 
 volatile bool notify_available = true;
@@ -37,6 +37,10 @@ notifyCooldownTimCb(void *arg)
 	notify_cooldown = false;
 }
 
+/**
+ * Tell browser we have new content
+ * @param arg
+ */
 static void ICACHE_FLASH_ATTR
 notifyContentTimCb(void *arg)
 {
@@ -71,6 +75,10 @@ notifyContentTimCb(void *arg)
 	TIMER_START(&notifyCooldownTim, notifyCooldownTimCb, termconf->display_cooldown_ms, 0);
 }
 
+/**
+ * Tell browsers about the new text labels
+ * @param arg
+ */
 static void ICACHE_FLASH_ATTR
 notifyLabelsTimCb(void *arg)
 {
@@ -124,6 +132,14 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 	}
 }
 
+/**
+ * mouse event rx
+ * @param evt - event type: p, r, m
+ * @param y - coord 0-based
+ * @param x - coord 0-based
+ * @param button - which button, 1-based. 0=none
+ * @param mods - modifier keys bitmap: meta|alt|shift|ctrl
+ */
 void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mods)
 {
 	// one-based
@@ -219,7 +235,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 			// action button press
 			btnNum = (u8) (data[1]);
 			if (btnNum > 0 && btnNum < 10) {
-				UART_SendAsync(termconf->btn_msg[btnNum-1], -1);
+				UART_SendAsync(termconf_scratch.btn_msg[btnNum-1], -1);
 			}
 			break;
 
@@ -242,6 +258,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	}
 }
 
+/** Send a heartbeat msg */
 void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 {
 	if (notify_available) {

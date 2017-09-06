@@ -134,6 +134,15 @@
 		<span class="mq-no-phone">&nbsp;ms</span>
 	</div>
 
+	<div class="Row">
+		<label><?= tr("term.button_msgs") ?></label>
+		<input class="short" type="text" name="bm1" id="bm1" value="%h:bm1%">&nbsp;
+		<input class="short" type="text" name="bm2" id="bm2" value="%h:bm2%">&nbsp;
+		<input class="short" type="text" name="bm3" id="bm3" value="%h:bm3%">&nbsp;
+		<input class="short" type="text" name="bm4" id="bm4" value="%h:bm4%">&nbsp;
+		<input class="short" type="text" name="bm5" id="bm5" value="%h:bm5%">
+	</div>
+
 	<div class="Row checkbox" >
 		<label><?= tr('term.fn_alt_mode') ?></label><!--
 		--><span class="box" tabindex=0 role=checkbox></span>

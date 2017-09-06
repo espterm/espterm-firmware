@@ -168,11 +168,67 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
 	}
 
-	for (int i = 1; i <= TERM_BTN_COUNT; i++) {
-		sprintf(buff, "btn%d", i);
+	for (int btn_i = 1; btn_i <= TERM_BTN_COUNT; btn_i++) {
+		sprintf(buff, "btn%d", btn_i);
 		if (GET_ARG(buff)) {
-			dbg("Button%d default text: \"%s\"", i, buff);
-			strncpy_safe(termconf->btn[i-1], buff, TERM_BTN_LEN);
+			dbg("Button%d default text: \"%s\"", btn_i, buff);
+			strncpy_safe(termconf->btn[btn_i-1], buff, TERM_BTN_LEN);
+		}
+
+		sprintf(buff, "bm%d", btn_i);
+		if (GET_ARG(buff)) {
+			dbg("Button%d message (ASCII): \"%s\"", btn_i, buff);
+
+			// parse: comma,space or semicolon separated decimal values of ASCII codes
+			char c;
+			char *cp = buff;
+			int char_i = 0;
+			int acu = 0;
+			bool lastsp = 1;
+			char buff_bm[TERM_BTN_MSG_LEN];
+			while ((c = *cp++) != 0) {
+				if (c == ' ' || c == ',' || c == ';') {
+					if(lastsp) continue;
+
+					if (acu==0 || acu>255) {
+						warn("Bad value! %d", acu);
+						redir_url += sprintf(redir_url, "bm%d,", btn_i);
+						break;
+					}
+
+					if (char_i >= TERM_BTN_MSG_LEN-1) {
+						warn("Too long! %d", acu);
+						redir_url += sprintf(redir_url, "bm%d,", btn_i);
+						break;
+					}
+
+					dbg("acu %d", acu);
+					buff_bm[char_i++] = (char)acu;
+
+					// prepare for next char
+					acu = 0;
+					lastsp = 1;
+				} else if (c>='0'&&c<='9') {
+					lastsp = 0;
+					acu *= 10;
+					acu += c - '0';
+				} else {
+					warn("Bad syntax!");
+					redir_url += sprintf(redir_url, "bm%d,", btn_i);
+					break;
+				}
+			}
+			if (lastsp && char_i == 0) {
+				warn("Required!");
+				redir_url += sprintf(redir_url, "bm%d,", btn_i);
+			}
+			if (!lastsp) {
+				buff_bm[char_i++] = (char)acu;
+			}
+			buff_bm[char_i] = 0;
+			dbg("%s, chari = %d", buff_bm, char_i);
+
+			strncpy(termconf->btn_msg[btn_i-1], buff_bm, TERM_BTN_MSG_LEN);
 		}
 	}
 
@@ -252,10 +308,27 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 		strncpy_safe(buff, termconf->title, BUFLEN);
 	}
 	else {
-		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
-			sprintf(buff2, "btn%d", i);
+		for (int btn_i = 1; btn_i <= TERM_BTN_COUNT; btn_i++) {
+			sprintf(buff2, "btn%d", btn_i);
 			if (streq(token, buff2)) {
-				strncpy_safe(buff, termconf->btn[i-1], BUFLEN);
+				strncpy_safe(buff, termconf->btn[btn_i-1], BUFLEN);
+				break;
+			}
+
+			sprintf(buff2, "bm%d", btn_i);
+			if (streq(token, buff2)) {
+				char c;
+				char *bp = buff;
+				char *cp = termconf->btn_msg[btn_i-1];
+				int n = 0;
+				while((c = *cp++) != 0) {
+					if(n>0) {
+						*bp = ',';
+						bp++;
+					}
+					bp += sprintf(bp, "%d", (int)c);
+					n++;
+				}
 				break;
 			}
 		}

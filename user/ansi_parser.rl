@@ -102,14 +102,12 @@ ansi_parser(char newchar)
 	#endif
 
 	// Handle simple characters immediately (bypass parser)
-	if (newchar < ' ') {
+	if (newchar < ' ' && !inside_string) {
 		switch (newchar) {
 			case ESC:
-				if (!inside_string) {
-					// Reset state
-					cs = ansi_start;
-					// now the ESC will be processed by the parser
-				}
+				// Reset state
+				cs = ansi_start;
+				// now the ESC will be processed by the parser
 				break; // proceed to parser
 
 				// Literally passed
@@ -137,10 +135,7 @@ ansi_parser(char newchar)
 
 			case BEL:
 				// bel is also used to terminate OSC
-				if (!inside_string) {
-					apars_handle_bel();
-					return;
-				}
+				apars_handle_bel();
 				break;
 
 			case ENQ:
@@ -154,14 +149,12 @@ ansi_parser(char newchar)
 				return;
 
 			default:
-				// Discard all others
+				// Discard all other control codes
 				return;
 		}
 	} else {
-		// >= ' '
-
 		// bypass the parser for simple characters (speed-up)
-		if (cs == ansi_start) {
+		if (cs == ansi_start && newchar >= ' ') {
 			apars_handle_plainchar(newchar);
 			return;
 		}

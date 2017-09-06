@@ -1737,7 +1737,9 @@ var Screen = (function () {
 					Input.onMouseUp(x, y, evt.button+1);
 				});
 				cOuter.addEventListener('contextmenu', function (evt) {
-					evt.preventDefault();
+					if (Input.mouseTracksClicks()) {
+						evt.preventDefault();
+					}
 				});
 				cOuter.addEventListener('mousewheel', function (evt) {
 					Input.onMouseWheel(x, y, evt.deltaY>0?1:-1);
@@ -2319,6 +2321,9 @@ var Input = (function() {
 			var b = (dir < 0 ? 4 : 5);
 			Conn.send("p" + encode2B(y) + encode2B(x) + encode2B(b) + encode2B(m));
 			// console.log("B ",b," M ",m);
+		},
+		mouseTracksClicks: function() {
+			return opts.mt_click;
 		},
 	};
 })();
