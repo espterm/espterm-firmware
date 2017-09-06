@@ -11,6 +11,7 @@
 #include "cgi_sockets.h"
 #include "version.h"
 #include "uart_buffer.h"
+#include "screen.h"
 
 /**
  * Send a response to UART0
