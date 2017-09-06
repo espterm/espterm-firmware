@@ -3,18 +3,11 @@
 //
 // Handle CSI sequences
 // CSI <symbol?> Pm <symbol?> <char>
-// (CSI = ESC [)
 //
 // Example of those are cursor manipulation sequences and SGR.
 //
 // For details, see:
 // http://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Functions-using-CSI-_-ordered-by-the-final-character_s_
-//
-// Note:
-// not all sequences listed in the xterm manual are implemented, notably sequences with the trailing symbol,
-// graphic mode sequences, mouse reporting and complex multi-argument sequences that operate on regions.
-//
-// The screen size can be set using the xterm sequence: CSI Py ; Px t
 //
 
 #include <esp8266.h>
@@ -29,86 +22,196 @@
 #include "version.h"
 #include "syscfg.h"
 
-// TODO simplify file - split to subroutines
+/** Struct passed to subroutines */
+typedef struct {
+	char lead;
+	const int *n;
+	int count;
+	char inter;
+	char key;
+} CSI_Data;
 
-static void warn_bad_csi()
+// Disambiguations
+static inline void switch_csi_Plain(CSI_Data *opts);
+static inline void switch_csi_NoLeadInterBang(CSI_Data *opts);
+static inline void switch_csi_LeadGreater(CSI_Data *opts);
+static inline void switch_csi_LeadQuest(CSI_Data *opts);
+static inline void switch_csi_LeadEquals(CSI_Data *opts);
+
+// Subroutines
+static inline void do_csi_sgr(CSI_Data *opts);
+static inline void do_csi_decreqtparm(CSI_Data *opts);
+static inline void do_csi_set_option(CSI_Data *opts);
+static inline void do_csi_xterm_screen_cmd(CSI_Data *opts);
+static inline void do_csi_set_private_option(CSI_Data *opts);
+
+/**
+ * Show warning and dump context for invalid CSI
+ */
+static void warn_bad_csi(void)
 {
 	ansi_noimpl_r("Unknown CSI");
 	apars_show_context();
 }
 
-typedef struct {
-	char lead;
-	const int *n;
-	int count;
-	char aug; // augmenting
-	char key;
-} CSI_Data;
-
-static void do_csi_privattr(CSI_Data *opts);
-static void do_csi_sgr(CSI_Data *opts);
-static void do_csi_decreqtparm(CSI_Data *opts);
-
 /**
  * Handle fully received CSI ANSI sequence
- * @param leadchar - private range leading character, 0 if none
+ *
+ * @param leadchar - leading character
  * @param params - array of CSI_N_MAX ints holding the numeric arguments
- * @param keychar - the char terminating the sequence
+ * @param count - actual amount of received numeric arguments
+ * @param keychar - intermediate character
+ * @param keychar - final character
  */
 void ICACHE_FLASH_ATTR
-apars_handle_csi(char leadchar, const int *params, int count, char keychar)
+apars_handle_csi(char leadchar, const int *params, int count, char interchar, char keychar)
 {
-	CSI_Data opts = {leadchar, params, count, NUL, keychar};
-	char buf[32];
-	bool yn = false; // for ? l h
+	CSI_Data opts = {leadchar, params, count, interchar, keychar};
 
-	int n1 = params[0];
-	int n2 = params[1];
-	int n3 = params[2];
+	switch(leadchar) {
+		case '?':
+			switch_csi_LeadQuest(&opts);
+			break;
 
-	// defaults - FIXME this may inadvertently affect some variants that should be left unchanged
-	switch (keychar) {
-		case 'A': // move
-		case 'a':
-		case 'e':
-		case 'B':
-		case 'C':
-		case 'D':
-		case 'b':
-		case 'E':
-		case 'F':
+		case '>':
+			switch_csi_LeadGreater(&opts);
+			break;
+
+		case '=':
+			switch_csi_LeadEquals(&opts);
+			break;
+
+		case NUL:
+			// No leading character, switch by intermediate character
+			switch(interchar) {
+				case NUL:
+					switch_csi_Plain(&opts);
+					break;
+
+				case '!':
+					switch_csi_NoLeadInterBang(&opts);
+					break;
+
+//				case '\'':
+//					switch_csi_NoLeadInterApos(opts);
+//					break;
+
+//				case '*':
+//					switch_csi_NoLeadInterStar(opts);
+//					break;
+
+//				case '+':
+//					switch_csi_NoLeadInterPlus(opts);
+//					break;
+
+//				case '"':
+//					switch_csi_NoLeadInterQuote(opts);
+//					break;
+
+//				case '|':
+//					switch_csi_NoLeadInterDollar(opts);
+//					break;
+
+//				case ' ':
+//					switch_csi_NoLeadInterSpace(opts);
+//					break;
+
+//				case ',':
+//					switch_csi_NoLeadInterComma(opts);
+//					break;
+
+//				case ')':
+//					switch_csi_NoLeadInterRparen(opts);
+//					break;
+
+//				case '&':
+//					switch_csi_NoLeadInterAmpers(opts);
+//					break;
+
+//				case '-':
+//					switch_csi_NoLeadInterDash(opts);
+//					break;
+
+				default:
+					warn_bad_csi();
+			}
+			break;
+
+		default:
+			warn_bad_csi();
+	}
+}
+
+
+/**
+ * CSI none Pm none key
+ * @param opts
+ */
+static inline void ICACHE_FLASH_ATTR
+switch_csi_Plain(CSI_Data *opts)
+{
+	char resp_buf[20];
+	int n1 = opts->n[0];
+	int n2 = opts->n[1];
+
+	// fix arguments (default values etc)
+	switch (opts->key) {
+		// Single argument, 1-based
+		case 'A': // up
+		case 'e': // down (old)
+		case 'B': // down
+		case 'a': // right (old)
+		case 'C': // right
+		case 'D': // left
+		case 'E': // cursor next line
+		case 'F': // cursor prev line
+		case 'b': // repeat last char
 		case 'G': // set X
-		case '`':
-		case 'S': // scrolling
-		case 'T':
-		case 'X': // clear in line
+		case '`': // set X (alias)
 		case 'd': // set Y
-		case 'L':
-		case 'M':
-		case '@':
-		case 'P':
-		case 'I':
-		case 'Z':
+		case 'X': // clear in line
+		case 'S': // scroll up
+		case 'T': // scroll down
+		case 'L': // Insert lines
+		case 'M': // Delete lines
+		case '@': // Insert in line
+		case 'P': // Delete in line
+		case 'I': // Tab forward
+		case 'Z': // Tab backward
 			if (n1 == 0) n1 = 1;
 			break;
 
-		case 'H':
+			// Two arguments, 1-based
+		case 'H': // Absolute positioning
 		case 'f':
 			if (n1 == 0) n1 = 1;
 			if (n2 == 0) n2 = 1;
 			break;
 
-		case 'J':
-		case 'K':
+			// Erase modes 0,1,2
+		case 'J': // Erase in screen
+		case 'K': // Erase in line
 			if (n1 > 2) n1 = 0;
 			break;
 
+			// No defaults
+		case 't': // Xterm window commands & reports
+		case 's': // Cursor save no attr
+		case 'r': // Set scrolling region
+		case 'u': // Cursor restore no attr
+		case 'h': // Option ON
+		case 'l': // Option OFF
+		case 'm': // SGR
+		case 'g': // Clear tabs
+		case 'n': // Queries 1 - device status
+		case 'c': // Queries 2 - primary DA
+		case 'x': // Queries 3 - DECREQTPARM
 		default:
 			// leave as is
 			break;
 	}
 
-	switch (keychar) {
+	switch (opts->key) {
 		// CUU CUD CUF CUB
 		case 'A': // Up
 			screen_cursor_move(-n1, 0, false);
@@ -161,63 +264,15 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 
 			// SU, SD - scroll up/down
 		case 'S':
-			if (leadchar == NUL && count <= 1) {
-				screen_scroll_up(n1);
-			}
-			else {
-				// other:
-				// CSI ? Pi; Pa; Pv S (sixel)
-				warn_bad_csi();
-			}
+			screen_scroll_up(n1);
 			break;
 
 		case 'T':
-			if (leadchar == NUL && count <= 1) {
-				// CSI Ps T
-				screen_scroll_down(n1);
-			}
-			else {
-				// other:
-				// CSI Ps ; Ps ; Ps ; Ps ; Ps T
-				// CSI > Ps; Ps T
-				warn_bad_csi();
-			}
+			screen_scroll_down(n1);
 			break;
 
 		case 't': // xterm window commands
-			if (leadchar == NUL && count <= 2) {
-				// CSI Ps ; Ps ; Ps t
-				switch (n1) {
-					case 8: // set size
-						screen_resize(n2, n3);
-						break;
-
-					case 18: // report size
-						printf(buf, "\033[8;%d;%dt", termconf_scratch.height, termconf_scratch.width);
-						apars_respond(buf);
-						break;
-
-					case 21: // Report title
-						apars_respond("\033]L");
-						apars_respond(termconf_scratch.title);
-						apars_respond("\033\\");
-						break;
-
-					case 24: // Set Height only
-						screen_resize(n2, termconf_scratch.width);
-						break;
-
-					default:
-						ansi_noimpl("CSI %d t", n1);
-						break;
-				}
-			}
-			else {
-				// other:
-				// CSI > Ps; Ps t
-				// CSI Ps SP t,
-				warn_bad_csi();
-			}
+			do_csi_xterm_screen_cmd(opts);
 			break;
 
 			// CUP,HVP - set position
@@ -227,11 +282,6 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 			break; // 1-based
 
 		case 'J': // Erase screen
-			if (leadchar == '?') {
-				// TODO selective erase
-				ansi_noimpl("Selective erase");
-			}
-
 			if (n1 == 0) {
 				screen_clear(CLEAR_FROM_CURSOR);
 			} else if (n1 == 1) {
@@ -243,11 +293,6 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 			break;
 
 		case 'K': // Erase lines
-			if (leadchar == '?') {
-				// TODO selective erase
-				ansi_noimpl("Selective erase");
-			}
-
 			if (n1 == 0) {
 				screen_clear_line(CLEAR_FROM_CURSOR);
 			} else if (n1 == 1) {
@@ -259,55 +304,25 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 
 			// SCP, RCP - save/restore position
 		case 's':
-			if (leadchar == NUL && count == 0) {
-				screen_cursor_save(0);
-			}
-			else if (leadchar == '?') {
-				// Save private attributes (CSI ? Pm h/l)
-				ansi_noimpl("Save private attrs");
-				apars_show_context();
-			}
-			else {
-				// other:
-				// CSI ? Pm s
-				// CSI Pl; Pr s
-				warn_bad_csi();
-			}
+			screen_cursor_save(0);
 			break;
 
 		case 'r':
-			if (leadchar == NUL && (count == 2 || count == 0)) {
-				screen_set_scrolling_region(n1-1, n2-1);
-			}
-			else if (leadchar == '?') {
-				// Restore private attributes (CSI ? Pm h/l)
-				ansi_noimpl("Restore private attrs");
-				apars_show_context();
-			}
-			else {
-				// other:
-				// CSI ? Pm r
-				// CSI Pt; Pl; Pb; Pr; Ps$ r
-				warn_bad_csi();
-			}
+			screen_set_scrolling_region(n1-1, n2-1);
 			break;
 
 		case 'u':
-			if (leadchar == NUL && count == 0) {
-				screen_cursor_restore(0);
-			}
-			else {
-				warn_bad_csi();
-			}
+			screen_cursor_restore(0);
 			break;
 
 		case 'h': // DEC feature enable
 		case 'l': // DEC feature disable
-			do_csi_privattr(&opts);
+			// --- DEC standard attributes ---
+			do_csi_set_option(opts);
 			break;
 
 		case 'm': // SGR - set graphics rendition
-			do_csi_sgr(&opts);
+			do_csi_sgr(opts);
 			break;
 
 		case 'L': // Insert lines (shove down)
@@ -343,39 +358,17 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 			screen_tab_forward(n1);
 			break;
 
-		case 'p':
-			if (leadchar == '!') { // RIS
-				/* On real VT there are differences between soft and hard reset, we treat both equally */
-				screen_reset();
-			}
-			else {
-				warn_bad_csi();
-			}
-			break;
-
 		case 'n': // Queries
-			if (leadchar == '>') {
-				// some xterm garbage - discard
-				// CSI > Ps n
-				ansi_noimpl("CSI > %d n", n1);
-				break;
+			if (n1 == 6) {
+				// Query cursor position
+				int x, y;
+				screen_cursor_get(&y, &x);
+				sprintf(resp_buf, "\033[%d;%dR", y + 1, x + 1);
+				apars_respond(resp_buf);
 			}
-
-			if (leadchar == NUL) {
-				if (n1 == 6) {
-					// Query cursor position
-					int x, y;
-					screen_cursor_get(&y, &x);
-					sprintf(buf, "\033[%d;%dR", y + 1, x + 1);
-					apars_respond(buf);
-				}
-				else if (n1 == 5) {
-					// Query device status - reply "Device is OK"
-					apars_respond("\033[0n");
-				}
-				else {
-					warn_bad_csi();
-				}
+			else if (n1 == 5) {
+				// Query device status - reply "Device is OK"
+				apars_respond("\033[0n");
 			}
 			else {
 				warn_bad_csi();
@@ -383,21 +376,73 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 			break;
 
 		case 'c': // CSI-c - report capabilities
-			if (leadchar == NUL) {
-				apars_respond("\033[?64;9c"); // pretend we're vt400 with national character sets
-			}
-			else if (leadchar == '>') {
-				// 41 - we're "VT400", 0 - ROM cartridge number
-				sprintf(buf, "\033[>41;%d;0c", FIRMWARE_VERSION_NUM);
-				apars_respond(buf);
-			}
-			else {
-				warn_bad_csi();
-			}
+			// Primary device attributes
+			apars_respond("\033[?64;22;9c"); // pretend we're vt420 with national character sets and colors.
 			break;
 
 		case 'x': // DECREQTPARM -> DECREPTPARM
-			do_csi_decreqtparm(&opts);
+			do_csi_decreqtparm(opts);
+			break;
+
+		default:
+			warn_bad_csi();
+	}
+}
+
+
+/**
+ * CSI none Pm ! key
+ */
+static inline void  ICACHE_FLASH_ATTR
+switch_csi_NoLeadInterBang(CSI_Data *opts)
+{
+	switch(opts->key) {
+		case 'p':
+			// RIS - CSI ! p
+			// On real VT there are differences between soft and hard reset, we treat both equally
+			screen_reset();
+			break;
+
+		default:
+			warn_bad_csi();
+	}
+}
+
+
+/**
+ * CSI > Pm inter key
+ */
+static inline void ICACHE_FLASH_ATTR
+switch_csi_LeadGreater(CSI_Data *opts)
+{
+	char resp_buf[20];
+	switch(opts->key) {
+		case 'c': // CSI > c - secondary device attributes query
+			// 41 - we're "VT400", FV wers, 0 - ROM cartridge number
+			sprintf(resp_buf, "\033[>41;%d;0c", FIRMWARE_VERSION_NUM);
+			apars_respond(resp_buf);
+			break;
+
+		default:
+			warn_bad_csi();
+	}
+}
+
+
+/**
+ * CSI = Pm inter key
+ */
+static inline void ICACHE_FLASH_ATTR
+switch_csi_LeadEquals(CSI_Data *opts)
+{
+	char resp_buf[20];
+	u8 mac[6];
+	switch(opts->key) {
+		case 'c': // CSI = c - tertiary device attributes query
+			// report our unique ID number
+			wifi_get_macaddr(SOFTAP_IF, mac);
+			sprintf(resp_buf, "\033P!|%02X%02X%02X\033\\", mac[3], mac[4], mac[5]);
+			apars_respond(resp_buf);
 			break;
 
 		default:
@@ -406,184 +451,56 @@ apars_handle_csi(char leadchar, const int *params, int count, char keychar)
 }
 
 /**
- * CSI [?] Pm {h|l}
- * @param opts
+ * CSI ? Pm inter key
  */
-static void ICACHE_FLASH_ATTR do_csi_privattr(CSI_Data *opts)
+static inline void  ICACHE_FLASH_ATTR
+switch_csi_LeadQuest(CSI_Data *opts)
 {
-	bool yn = (opts->key == 'h');
+	switch(opts->key) {
+		case 's':
+			// Save private attributes
+			ansi_noimpl("Save private attrs");
+			apars_show_context(); // TODO priv attr s/r
+			break;
 
-	if (opts->lead == '?') {
-		// --- DEC private attributes ---
-		for (int i = 0; i < opts->count; i++) {
-			int n = opts->n[i];
-			if (n == 1) {
-				screen_set_cursors_alt_mode(yn);
-			}
-			else if (n == 2) {
-				// should reset all Gx to USASCII and reset to VT100 (which we use always)
-				screen_set_charset(0, 'B');
-				screen_set_charset(1, 'B');
-			}
-			else if (n == 3) {
-				// DECCOLM 132 column mode - not implemented due to RAM demands
-				ansi_noimpl("132col");
+		case 'r':
+			// Restore private attributes
+			ansi_noimpl("Restore private attrs");
+			apars_show_context(); // TODO priv attr s/r
+			break;
 
-				// DECCOLM side effects as per
-				// https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/deccolm-cls.html
-				screen_clear(CLEAR_ALL);
-				screen_set_scrolling_region(0, 0);
-				screen_cursor_set(0, 0);
-			}
-			else if (n == 4) {
-				// Smooth scroll - not implemented
-			}
-			else if (n == 5) {
-				screen_set_reverse_video(yn);
-			}
-			else if (n == 6) {
-				screen_set_origin_mode(yn);
-			}
-			else if (n == 7) {
-				screen_wrap_enable(yn);
-			}
-			else if (n == 8) {
-				// Key auto-repeat
-				// We don't implement this currently, but it could be added
-				// - discard repeated keypress events between keydown and keyup.
-				ansi_noimpl("Auto-repeat toggle");
-			}
-			else if (n == 9 || (n >= 1000 && n <= 1006) || n == 1015) {
-				// 9 - X10 tracking
-				// 1000 - X11 mouse - Send Mouse X & Y on button press and release.
-				// 1001 - Hilite mouse tracking - not impl
-				// 1002 - Cell Motion Mouse Tracking
-				// 1003 - All Motion Mouse Tracking
-				// 1004 - Send FocusIn/FocusOut events
-				// 1005 - Enable UTF-8 Mouse Mode - we implement this as an alias to X10 mode
-				// 1006 - SGR mouse mode
-				if (n == 9) mouse_tracking.mode = yn ? MTM_X10 : MTM_NONE;
-				else if (n == 1000) mouse_tracking.mode = yn ? MTM_NORMAL : MTM_NONE;
-				else if (n == 1002) mouse_tracking.mode = yn ? MTM_BUTTON_MOTION : MTM_NONE;
-				else if (n == 1003) mouse_tracking.mode = yn ? MTM_ANY_MOTION : MTM_NONE;
-				else if (n == 1004) mouse_tracking.focus_tracking = yn;
-				else if (n == 1005) mouse_tracking.encoding = yn ? MTE_UTF8 : MTE_SIMPLE;
-				else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
-				else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
-				dbg("Mouse mode=%d, enc=%d, foctr=%d", mouse_tracking.mode, mouse_tracking.encoding, mouse_tracking.focus_tracking);
-			}
-			else if (n == 12) {
-				// TODO Cursor blink on/off
-				ansi_noimpl("Cursor blink toggle");
-			}
-			else if (n == 40) {
-				// allow/disallow 80->132 mode
-				// not implemented because of RAM demands
-				ansi_noimpl("132col enable");
-			}
-			else if (n == 45) {
-				// reverse wrap-around
-				ansi_noimpl("Reverse Wraparound");
-			}
-			else if (n == 69) {
-				// horizontal margins
-				ansi_noimpl("Left/right margin");
-			}
-			else if (n == 47 || n == 1047) {
-				// Switch to/from alternate screen
-				//  - not implemented fully due to RAM demands
-				screen_swap_state(yn);
-			}
-			else if (n == 1048) {
-				// same as DECSC - save/restore cursor with attributes
-				if (yn) {
-					screen_cursor_save(true);
-				}
-				else {
-					screen_cursor_restore(true);
-				}
-			}
-			else if (n == 1049) {
-				// save/restore cursor and screen and clear it
-				if (yn) {
-					screen_cursor_save(true);
-					screen_swap_state(true); // this should save the screen - can't because of RAM size
-					screen_clear(CLEAR_ALL);
-				}
-				else {
-					screen_clear(CLEAR_ALL);
-					screen_swap_state(false); // this should restore the screen - can't because of RAM size
-					screen_cursor_restore(true);
-				}
-			}
-			else if (n >= 1050 && n <= 1053) {
-				// TODO Different kinds of function key emulation ?
-				// (In practice this seems hardly ever used)
+		case 'J': // Erase screen selectively
+			// TODO selective erase
+			ansi_noimpl("Selective screen erase");
+			break;
 
-				// Ps = 1 0 5 0  -> Set terminfo/termcap function-key mode.
-				// Ps = 1 0 5 1  -> Set Sun function-key mode.
-				// Ps = 1 0 5 2  -> Set HP function-key mode.
-				// Ps = 1 0 5 3  -> Set SCO function-key mode.
-				ansi_noimpl("FN key emul type");
-			}
-			else if (n == 2004) {
-				// Bracketed paste mode
-				// Discard, we don't implement this
-			}
-			else if (n == 25) {
-				screen_set_cursor_visible(yn);
-			}
-			else if (n == 800) { // ESPTerm: Toggle display of buttons
-				termconf_scratch.show_buttons = yn;
-				screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
-			}
-			else if (n == 801) { // ESPTerm: Toggle display of config links
-				termconf_scratch.show_config_links = yn;
-				screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
-			}
-			else {
-				ansi_noimpl("CSI ? %d %c", n, opts->key);
-			}
-		}
-	}
-	else {
-		// --- DEC standard attributes ---
-		for (int i = 0; i < opts->count; i++) {
-			int n = opts->n[i];
+		case 'K': // Erase line selectively
+			// TODO selective erase
+			ansi_noimpl("Selective line erase");
+			break;
 
-			if (n == 4) {
-				screen_set_insert_mode(yn);
-			}
-			else if (n == 12) {
-				// SRM is inverted, according to vt510 manual
-				termconf_scratch.loopback = !yn;
-			}
-			else if (n == 20) {
-				screen_set_newline_mode(yn);
-			}
-			else {
-				ansi_noimpl("CSI %d %c", n, opts->key);
-			}
-		}
+		case 'l':
+		case 'h':
+			do_csi_set_private_option(opts);
+			break;
+
+		default:
+			warn_bad_csi();
 	}
 }
 
+
 /**
- * CSI [ Pm m
+ * CSI Pm m
  * @param opts
  */
-static void ICACHE_FLASH_ATTR do_csi_sgr(CSI_Data *opts)
+static inline void ICACHE_FLASH_ATTR
+do_csi_sgr(CSI_Data *opts)
 {
 	int count = opts->count;
 
 	if (count == 0) {
 		count = 1; // this makes it work as 0 (reset)
-	}
-
-	if (opts->lead != NUL) {
-		// some xterm garbage - discard
-		// CSI > Ps; Ps m
-		return;
 	}
 
 	// iterate arguments
@@ -623,8 +540,217 @@ static void ICACHE_FLASH_ATTR do_csi_sgr(CSI_Data *opts)
 }
 
 
-// data tables for the DECREPTPARM command response
+/**
+ * CSI Pm h or l
+ * @param opts
+ */
+static inline void ICACHE_FLASH_ATTR
+do_csi_set_option(CSI_Data *opts)
+{
+	bool yn = (opts->key == 'h');
 
+	for (int i = 0; i < opts->count; i++) {
+		int n = opts->n[i];
+
+		if (n == 4) {
+			screen_set_insert_mode(yn);
+		}
+		else if (n == 12) {
+			// SRM is inverted, according to vt510 manual
+			termconf_scratch.loopback = !yn;
+		}
+		else if (n == 20) {
+			screen_set_newline_mode(yn);
+		}
+		else {
+			ansi_noimpl("OPTION %d", n);
+		}
+	}
+}
+
+
+/**
+ * CSI ? Pm h or l
+ * @param opts
+ */
+static inline void ICACHE_FLASH_ATTR
+do_csi_set_private_option(CSI_Data *opts)
+{
+	bool yn = (opts->key == 'h');
+
+	// --- DEC private attributes ---
+	for (int i = 0; i < opts->count; i++) {
+		int n = opts->n[i];
+		if (n == 1) {
+			screen_set_cursors_alt_mode(yn);
+		}
+		else if (n == 2) {
+			// should reset all Gx to USASCII and reset to VT100 (which we use always)
+			screen_set_charset(0, 'B');
+			screen_set_charset(1, 'B');
+		}
+		else if (n == 3) {
+			// DECCOLM 132 column mode - not implemented due to RAM demands
+			ansi_noimpl("132col");
+
+			// DECCOLM side effects as per
+			// https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/deccolm-cls.html
+			screen_clear(CLEAR_ALL);
+			screen_set_scrolling_region(0, 0);
+			screen_cursor_set(0, 0);
+		}
+		else if (n == 4) {
+			// Smooth scroll - not implemented
+		}
+		else if (n == 5) {
+			screen_set_reverse_video(yn);
+		}
+		else if (n == 6) {
+			screen_set_origin_mode(yn);
+		}
+		else if (n == 7) {
+			screen_wrap_enable(yn);
+		}
+		else if (n == 8) {
+			// Key auto-repeat
+			// We don't implement this currently, but it could be added
+			// - discard repeated keypress events between keydown and keyup.
+			ansi_noimpl("Auto-repeat toggle");
+		}
+		else if (n == 9 || (n >= 1000 && n <= 1006) || n == 1015) {
+			// 9 - X10 tracking
+			// 1000 - X11 mouse - Send Mouse X & Y on button press and release.
+			// 1001 - Hilite mouse tracking - not impl
+			// 1002 - Cell Motion Mouse Tracking
+			// 1003 - All Motion Mouse Tracking
+			// 1004 - Send FocusIn/FocusOut events
+			// 1005 - Enable UTF-8 Mouse Mode - we implement this as an alias to X10 mode
+			// 1006 - SGR mouse mode
+			if (n == 9) mouse_tracking.mode = yn ? MTM_X10 : MTM_NONE;
+			else if (n == 1000) mouse_tracking.mode = yn ? MTM_NORMAL : MTM_NONE;
+			else if (n == 1002) mouse_tracking.mode = yn ? MTM_BUTTON_MOTION : MTM_NONE;
+			else if (n == 1003) mouse_tracking.mode = yn ? MTM_ANY_MOTION : MTM_NONE;
+			else if (n == 1004) mouse_tracking.focus_tracking = yn;
+			else if (n == 1005) mouse_tracking.encoding = yn ? MTE_UTF8 : MTE_SIMPLE;
+			else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
+			else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
+
+			dbg("Mouse mode=%d, enc=%d, foctr=%d",
+				mouse_tracking.mode,
+				mouse_tracking.encoding,
+				mouse_tracking.focus_tracking);
+		}
+		else if (n == 12) {
+			// TODO Cursor blink on/off
+			ansi_noimpl("Cursor blink toggle");
+		}
+		else if (n == 40) {
+			// allow/disallow 80->132 mode
+			// not implemented because of RAM demands
+			ansi_noimpl("132col enable");
+		}
+		else if (n == 45) {
+			// reverse wrap-around
+			ansi_noimpl("Reverse Wraparound");
+		}
+		else if (n == 69) {
+			// horizontal margins
+			ansi_noimpl("Left/right margin");
+		}
+		else if (n == 47 || n == 1047) {
+			// Switch to/from alternate screen
+			//  - not implemented fully due to RAM demands
+			screen_swap_state(yn);
+		}
+		else if (n == 1048) {
+			// same as DECSC - save/restore cursor with attributes
+			if (yn) {
+				screen_cursor_save(true);
+			}
+			else {
+				screen_cursor_restore(true);
+			}
+		}
+		else if (n == 1049) {
+			// save/restore cursor and screen and clear it
+			if (yn) {
+				screen_cursor_save(true);
+				screen_swap_state(true); // this should save the screen - can't because of RAM size
+				screen_clear(CLEAR_ALL);
+			}
+			else {
+				screen_clear(CLEAR_ALL);
+				screen_swap_state(false); // this should restore the screen - can't because of RAM size
+				screen_cursor_restore(true);
+			}
+		}
+		else if (n == 2004) {
+			// Bracketed paste mode
+			ansi_noimpl("Bracketed paste");
+		}
+		else if (n == 25) {
+			screen_set_cursor_visible(yn);
+		}
+		else if (n == 800) { // ESPTerm: Toggle display of buttons
+			termconf_scratch.show_buttons = yn;
+			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
+		}
+		else if (n == 801) { // ESPTerm: Toggle display of config links
+			termconf_scratch.show_config_links = yn;
+			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
+		}
+		else {
+			ansi_noimpl("?OPTION %d", n);
+		}
+	}
+}
+
+
+/**
+ * CSI Ps ; Ps ; Ps t
+ * @param opts
+ */
+static inline void ICACHE_FLASH_ATTR
+do_csi_xterm_screen_cmd(CSI_Data *opts)
+{
+	char resp_buf[20];
+	switch (opts->n[0]) {
+		case 8: // set size
+			screen_resize(opts->n[1], opts->n[2]);
+			break;
+
+		case 18: // Report the size of the text area in characters.
+		case 19: // Report the size of the screen in characters.
+			sprintf(resp_buf, "\033[8;%d;%dt", termconf_scratch.height, termconf_scratch.width);
+			apars_respond(resp_buf);
+			break;
+
+		case 20: // Report icon
+		case 21: // Report title
+			apars_respond("\033]l");
+			apars_respond(termconf_scratch.title);
+			apars_respond("\033\\");
+			break;
+
+		case 22:
+			ansi_noimpl("Push title");
+			break;
+		case 23:
+			ansi_noimpl("Pop title");
+			break;
+
+		case 24: // Set Height only
+			screen_resize(opts->n[1], termconf_scratch.width);
+			break;
+
+		default:
+			ansi_noimpl("Xterm win report %d", opts->n[0]);
+			break;
+	}
+}
+
+
+// data tables for the DECREPTPARM command response
 struct DECREPTPARM_parity { int parity; const char * msg; };
 static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] = {
 	{PARITY_NONE, "1"},
@@ -655,10 +781,11 @@ static const struct DECREPTPARM_baud DECREPTPARM_baud_arr[] = {
 };
 
 /**
- * CSI [ Ps x
+ * CSI Ps x
  * @param opts
  */
-static void ICACHE_FLASH_ATTR do_csi_decreqtparm(CSI_Data *opts)
+static inline void ICACHE_FLASH_ATTR
+do_csi_decreqtparm(CSI_Data *opts)
 {
 	const int n1 = opts->n[0];
 

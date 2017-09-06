@@ -56,6 +56,9 @@ static struct {
 	bool newline_mode; //!< LNM - CR automatically sends LF
 	bool reverse;      //!< DECSCNM - Reverse video
 
+	bool insert_mode;    //!< IRM - Insert mode (move rest of the line to the right)
+	bool cursor_visible; //!< DECTCEM - Cursor visible
+
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
 	int vm1;
@@ -64,6 +67,9 @@ static struct {
 #define R0 scr.vm0
 #define R1 scr.vm1
 #define RH (scr.vm1 - scr.vm0 + 1)
+// horizontal edges - will be useful if horizontal margin is implemented
+#define C0 0
+#define C1 (W-1)
 
 typedef struct {
 	/* Cursor position */
@@ -84,12 +90,9 @@ typedef struct {
 	char charset0;
 	char charset1;
 
-	/** DEC private modes */
-	bool wraparound;   //!< DECAWM - Wrapping when EOL
-	bool origin_mode;  //!< DECOM - absolute positioning is relative to vertical margins
-
-	bool insert_mode;  //!< IRM - Insert mode (move rest of the line to the right)
-	bool visible;      //!< DECTCEM - Cursor visible
+	/** Options saved with cursor */
+	bool auto_wrap;      //!< DECAWM - Wrapping when EOL
+	bool origin_mode;    //!< DECOM - absolute positioning is relative to vertical margins
 } CursorTypeDef;
 
 /**
@@ -246,16 +249,24 @@ cursor_reset(void)
 	cursor.x = 0;
 	cursor.y = 0;
 	cursor.hanging = false;
-	cursor.visible = true;
-	cursor.insert_mode = false;
-	cursor.origin_mode = false;
 
 	cursor.charsetN = 0;
 	cursor.charset0 = CS_B_USASCII;
 	cursor.charset1 = CS_0_DEC_SUPPLEMENTAL;
-	cursor.wraparound = true;
 
 	screen_reset_sgr();
+}
+
+/**
+ * Reset the cursor position & colors
+ */
+static void ICACHE_FLASH_ATTR
+decopt_reset(void)
+{
+	scr.cursor_visible = true;
+	scr.insert_mode = false;
+	cursor.origin_mode = false;
+	cursor.auto_wrap = true;
 }
 
 /**
@@ -279,6 +290,7 @@ screen_reset(void)
 	NOTIFY_LOCK();
 
 	cursor_reset();
+	decopt_reset();
 
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
@@ -774,6 +786,10 @@ screen_cursor_get(int *y, int *x)
 {
 	*x = cursor.x;
 	*y = cursor.y;
+
+	if (cursor.origin_mode) {
+		*y -= R0;
+	}
 }
 
 /**
@@ -914,7 +930,7 @@ void ICACHE_FLASH_ATTR
 screen_set_cursor_visible(bool visible)
 {
 	NOTIFY_LOCK();
-	cursor.visible = visible;
+	scr.cursor_visible = visible;
 	NOTIFY_DONE();
 }
 
@@ -924,7 +940,7 @@ screen_set_cursor_visible(bool visible)
 void ICACHE_FLASH_ATTR
 screen_wrap_enable(bool enable)
 {
-	cursor.wraparound = enable;
+	cursor.auto_wrap = enable;
 }
 
 /**
@@ -964,19 +980,6 @@ screen_set_sgr_inverse(bool ena)
 	cursor.inverse = ena;
 }
 
-/**
- * Check if coords are in range - used for verifying mouse clicks
- *
- * @param y
- * @param x
- * @return OK
- */
-bool ICACHE_FLASH_ATTR
-screen_isCoordValid(int y, int x)
-{
-	return x >= 0 && y >= 0 && x < W && y < H;
-}
-
 void ICACHE_FLASH_ATTR
 screen_set_charset_n(int Gx)
 {
@@ -994,7 +997,7 @@ screen_set_charset(int Gx, char charset)
 void ICACHE_FLASH_ATTR
 screen_set_insert_mode(bool insert)
 {
-	cursor.insert_mode = insert;
+	scr.insert_mode = insert;
 }
 
 void ICACHE_FLASH_ATTR
@@ -1099,7 +1102,7 @@ screen_putchar(const char *ch)
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
 		// if auto-wrap = off, it overwrites the last char
-		if (cursor.wraparound) {
+		if (cursor.auto_wrap) {
 			cursor.x = 0;
 			cursor.y++;
 			// Y wrap
@@ -1116,7 +1119,7 @@ screen_putchar(const char *ch)
 	Cell *c = &screen[cursor.x + cursor.y * W];
 
 	// move the rest of the line if we're in Insert Mode
-	if (cursor.x < W-1 && cursor.insert_mode) screen_insert_characters(1);
+	if (cursor.x < W-1 && scr.insert_mode) screen_insert_characters(1);
 
 	if (ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII
@@ -1289,7 +1292,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		encode2B((u16) cursor.y, &w3);
 		encode2B((u16) cursor.x, &w4);
 		encode2B((u16) (
-					 (cursor.visible ? 1<<0 : 0) |
+					 (scr.cursor_visible ? 1<<0 : 0) |
 					 (cursor.hanging ? 1<<1 : 0) |
 					 (scr.cursors_alt_mode ? 1<<2 : 0) |
 					 (scr.numpad_alt_mode ? 1<<3 : 0) |

@@ -76,6 +76,7 @@ ansi_parser(char newchar)
 {
 	// The CSI code is built here
 	static char leadchar;
+	static char interchar; // intermediate CSI char
 	static int  arg_ni;
 	static int  arg_cnt;
 	static int  arg[CSI_N_MAX];
@@ -195,6 +196,7 @@ ansi_parser(char newchar)
 		action CSI_start {
 			// Reset the CSI builder
 			leadchar = NUL;
+			interchar = NUL;
 			arg_ni = 0;
 			arg_cnt = 0;
 
@@ -224,14 +226,19 @@ ansi_parser(char newchar)
 			arg_ni++;
 		}
 
+		action CSI_intermed {
+			interchar = fc;
+		}
+
 		action CSI_end {
-			apars_handle_csi(leadchar, arg, arg_cnt, fc);
+			apars_handle_csi(leadchar, arg, arg_cnt, interchar, fc);
 			fgoto main;
 		}
 
-		CSI_body := ((32..47|60..64) @CSI_leading)?
+		#(32..47|60..64)
+		CSI_body := ([?>=] @CSI_leading)?
 			((digit @CSI_digit)* ';' @CSI_semi)*
-			(digit @CSI_digit)* (alpha|'`'|'@') @CSI_end $!errBadSeq;
+			(digit @CSI_digit)* ([ $*"+,)'&!\-] @CSI_intermed)? (alpha|[`@{}~|]) @CSI_end $!errBadSeq;
 
 		# --- String commands ---
 

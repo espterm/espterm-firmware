@@ -271,8 +271,6 @@ void screen_fill_with_E(void);
 
 // --- Queries ---
 
-/** Check if coord is valid */
-bool screen_isCoordValid(int y, int x);
 /** Report current SGR as num;num;... for DAC query */
 void screen_report_sgr(char *buffer);
 
