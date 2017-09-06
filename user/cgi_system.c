@@ -7,6 +7,7 @@
 #include "persist.h"
 #include "syscfg.h"
 #include "uart_driver.h"
+#include "ansi_parser.h"
 
 #define SET_REDIR_SUC "/cfg/system"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
@@ -16,6 +17,22 @@ static ETSTimer tmr;
 static void ICACHE_FLASH_ATTR tmrCb(void *arg)
 {
 	system_restart();
+}
+
+httpd_cgi_state ICACHE_FLASH_ATTR cgiResetScreen(HttpdConnData *connData)
+{
+	if (connData->conn==NULL) {
+		//Connection aborted. Clean up.
+		return HTTPD_CGI_DONE;
+	}
+
+	info("--- User request to reset screen! ---");
+	// this copies termconf to scratch and also resets the screen
+	terminal_apply_settings();
+	ansi_parser_reset();
+
+	httpdRedirect(connData, "/");
+	return HTTPD_CGI_DONE;
 }
 
 httpd_cgi_state ICACHE_FLASH_ATTR cgiResetDevice(HttpdConnData *connData)

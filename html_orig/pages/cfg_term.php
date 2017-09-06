@@ -1,3 +1,7 @@
+<div class="Box">
+	<a href="<?= e(url('reset_screen')) ?>"><?= tr('term.reset_screen') ?></a>
+</div>
+
 <form class="Box mobopen str" action="<?= e(url('term_set')) ?>" method="GET" id='form-1'>
 	<h2><?= tr('term.defaults') ?></h2>
 

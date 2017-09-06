@@ -38,6 +38,7 @@ HttpdBuiltInUrl routes[] = {
 	// --- System control ---
 	ROUTE_CGI("/system/reset/?", cgiResetDevice),
 	ROUTE_CGI("/system/ping/?", cgiPing),
+	ROUTE_CGI("/system/cls/?", cgiResetScreen),
 
 	// --- WiFi config --- (TODO make this conditional and configurable)
 #if WIFI_PROTECT

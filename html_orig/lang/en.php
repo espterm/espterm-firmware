@@ -40,6 +40,7 @@ return [
 
 	'term.example' => 'Default colors preview',
 
+	'term.reset_screen' => 'Reset screen & parser',
 	'term.term_title' => 'Header text',
 	'term.term_width' => 'Width / height',
 	'term.default_fg_bg' => 'Text / background',

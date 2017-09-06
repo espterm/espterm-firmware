@@ -26,7 +26,7 @@ ansi_parser_reset(void) {
 		cs = ansi_start;
 		inside_string = false;
 		apars_reset_utf8buffer();
-		ansi_warn("Parser timeout, state reset");
+		ansi_warn("Parser state reset (timeout?)");
 	}
 }
 
