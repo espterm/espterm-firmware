@@ -1186,6 +1186,8 @@ body.term #content {
     min-width: 62px;
     cursor: pointer;
     font-weight: bold; }
+    #action-buttons button:focus {
+      outline: 0 none !important; }
 
 #term-nav {
   padding-top: 1.5em;

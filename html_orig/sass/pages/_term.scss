@@ -59,6 +59,10 @@ body.term {
 		min-width: 62px;
 		cursor: pointer;
 		font-weight: bold;
+
+		&:focus {
+			outline: 0 none !important;
+		}
 	}
 }
 
