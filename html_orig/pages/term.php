@@ -59,7 +59,8 @@
 	--><a href="#" onclick="TermUpl.open();return false"><i class="icn-download"></i><span><?= tr('term_nav.upload') ?></a><!--
 	--><a href="<?= url('cfg_term') ?>" class="x-term-conf-btn"><i class="icn-configure"></i><span><?= tr('term_nav.config') ?></span></a><!--
 	--><a href="<?= url('cfg_wifi') ?>" class="x-term-conf-btn"><i class="icn-wifi"></i><span><?= tr('term_nav.wifi') ?></span></a><!--
-	--><a href="<?= url('help') ?>" class="x-term-conf-btn"><i class="icn-help"></i><span><?= tr('term_nav.help') ?></span></a>
+	--><a href="<?= url('help') ?>" class="x-term-conf-btn"><i class="icn-help"></i><span><?= tr('term_nav.help') ?></span></a><!--
+	--><a href="<?= url('about') ?>" class="x-term-conf-btn"><i class="icn-about"></i><span><?= tr('term_nav.about') ?></span></a>
 </nav>
 
 <script>
