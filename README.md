@@ -2,19 +2,17 @@
 
 **ESPTerm is a VT100-like terminal emulator running on the ESP8266 WiFi chip.**
 
-![Photo][photo-hw]
+![Photo][photo-hw]<br>
 *Fig 1: Breadboard adapter developed for ESPTerm*
 
-ESPTerm's implementation is guided by the XTerm manual pages, 
-skipping some more obscure features, like the graphic modes and VT52 compatibility.
-
-Version 1.0.0 **passes most of VTTest test cases** (from the main menu), making it functionally
-comparable to eg. gnome-terminal, konsole, GtkTerm, TeraTerm, Terminology or PuTTY. 
-E.g. ESPTerm is **capable of running Midnight Commander** through agetty, **including full
-mouse support**, provided agetty is made to believe it's Xterm.
+Version 1.0.0 **passes most of VTTEST test cases** (from the main menu and some Xterm specific), making it 
+functionally comparable to eg. gnome-terminal, terminator, konsole, GtkTerm or PuTTY. 
+ESPTerm is **capable of running Midnight Commander** through agetty, **including full
+mouse support**, provided agetty is made to believe it's Xterm, which shows ESPTerm is sufficiently well
+implemented to work with ncurses.
 
 To see what escape sequences are supported, check out this [annotated Xterm manual page][xterm-compare]
-or the built-in help page ([online demo][demo-help])
+which was used for reference, or the built-in help page ([online demo][demo-help])
 
 The terminal screen can be accessed using any web browser, even on a phone or tablet. 
 It works with ESP-01, ESP-01S, ESP-12 and likely many other modules (I use an ESP-12
@@ -95,7 +93,12 @@ on the System Settings page. Those are the initial values in the config files.
 
 ## Research resources
 
-Developing ESPTerm wasn't an easy task, the information is scattered across many resources.
+Developing ESPTerm wasn't an easy task, because the information is scattered across many places and the existing 
+terminal emulators I originally used for reference (terminator, Konsole) are not implemented correctly in some details.
+
+A great tool for checking my implementation has proven to be [VTTTEST][vttest] and Xterm as a reference
+implementation that is probably the most complete emulator available, although it's cumbersome to use and its age
+really shows in the looks.
 
 I've comnpiled a list of those I found most helpful here: [VT100 emulation resources][resources]
 
@@ -160,3 +163,4 @@ To flash, just run `make flash`.
 [xterm-compare]: https://espterm.github.io/docs/espterm-xterm.html
 [photo-hw]: https://espterm.github.io/docs/espterm-hw-small.jpg
 [resources]: https://espterm.github.io/docs/index.html
+[vttest]: http://invisible-island.net/vttest/
