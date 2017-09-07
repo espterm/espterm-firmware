@@ -1567,7 +1567,11 @@ function tr(key) { return _tr[key] || '?'+key+'?'; }
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('http://'+_root+'/cfg/wifi/scan', onScan);
+		if (_demo) {
+			onScan(_demo_aps, 200);
+		} else {
+			$.get('http://' + _root + '/cfg/wifi/scan', onScan);
+		}
 	}
 
 	function rescan(time) {
@@ -1658,7 +1662,10 @@ var Conn = (function() {
 	}
 
 	function doSend(message) {
-		//console.log("TX: ", message);
+		if (_demo) {
+			console.log("TX: ", message);
+			return true; // Simulate success
+		}
 		if (xoff) {
 			// TODO queue
 			console.log("Can't send, flood control.");
@@ -1678,6 +1685,12 @@ var Conn = (function() {
 	}
 
 	function init() {
+		if (_demo) {
+			console.log("Demo mode!");
+			Screen.load(_demo_screen);
+			showPage();
+			return;
+		}
 		heartbeat();
 
 		ws = new WebSocket("ws://"+_root+"/term/update.ws");
@@ -2344,6 +2357,7 @@ var Screen = (function () {
 
 	/** Load screen content from a binary sequence (new) */
 	function load(str) {
+		//console.log(JSON.stringify(str));
 		var content = str.substr(1);
 		switch(str.charAt(0)) {
 			case 'S':

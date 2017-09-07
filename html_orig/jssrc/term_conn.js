@@ -52,7 +52,10 @@ var Conn = (function() {
 	}
 
 	function doSend(message) {
-		//console.log("TX: ", message);
+		if (_demo) {
+			console.log("TX: ", message);
+			return true; // Simulate success
+		}
 		if (xoff) {
 			// TODO queue
 			console.log("Can't send, flood control.");
@@ -72,6 +75,12 @@ var Conn = (function() {
 	}
 
 	function init() {
+		if (_demo) {
+			console.log("Demo mode!");
+			Screen.load(_demo_screen);
+			showPage();
+			return;
+		}
 		heartbeat();
 
 		ws = new WebSocket("ws://"+_root+"/term/update.ws");

@@ -1,5 +1,5 @@
 <nav id="menu">
-	<div id="brand" tabindex=0><?= tr('appname') ?></div>
+	<div id="brand" tabindex=0><?= tr('appname'.(ESP_DEMO?'_demo':'')) ?></div>
 	<a href="<?= e(url('term')) ?>" class="icn-back"><?= tr('menu.term') ?></a>
 	<?php
 	// generate the menu

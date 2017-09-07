@@ -5,15 +5,30 @@
  * without esphttpd. This is needed mainly for places where the replacements
  * are given to JavaScript, to avoid syntax errors with
  */
-return [
-	'term_title' => 'ESPTerm local debug',
 
-	'btn1' => '1',
-	'btn2' => '2',
-	'btn3' => '3',
+$vers = '???';
+$f = file_get_contents(__DIR__ . '/../user/version.h');
+preg_match_all('/#define FW_V_.*? (\d+)/', $f, $vm);
+#define FW_V_MAJOR 1
+#define FW_V_MINOR 0
+#define FW_V_PATCH 0
+
+$vers = $vm[1][0].'.'.$vm[1][1].'.'.$vm[1][2];
+
+return [
+	'term_title' => ESP_DEMO ? 'ESPTerm Web UI Demo' : 'ESPTerm local debug',
+
+	'btn1' => 'OK',
+	'btn2' => 'Cancel',
+	'btn3' => '',
 	'btn4' => '',
-	'btn5' => '5',
-	'labels_seq' => 'TESPTerm local debug1235',
+	'btn5' => 'Help',
+	'bm1' => '01,'.ord('y'),
+	'bm2' => '01,'.ord('n'),
+	'bm3' => '',
+	'bm4' => '',
+	'bm5' => '05',
+	'labels_seq' => ESP_DEMO ? 'ESPTerm Web UI DemoOKCancelHelp' : 'TESPTerm local debugOKCancelHelp',
 
 	'parser_tout_ms' => 10,
 	'display_tout_ms' => 15,
@@ -21,25 +36,25 @@ return [
 	'fn_alt_mode' => '1',
 
 	'opmode' => '2',
-	'sta_enable' => '0',
+	'sta_enable' => '1',
 	'ap_enable' => '1',
 
 	'tpw' => '60',
 	'ap_channel' => '7',
-	'ap_ssid' => 'ESP-123456',
-	'ap_password' => 'Passw0rd!',
+	'ap_ssid' => 'TERM-027451',
+	'ap_password' => '',
 	'ap_hidden' => '0',
 
-	'sta_ssid' => 'Chlivek',
-	'sta_password' => 'windows XP is The Best',
-	'sta_active_ip' => '1.2.3.4',
-	'sta_active_ssid' => 'Chlivek',
+	'sta_ssid' => 'Cisco',
+	'sta_password' => 'Passw0rd!',
+	'sta_active_ip' => ESP_DEMO ? '192.168.82.66' : '192.168.0.19',
+	'sta_active_ssid' => 'Cisco',
 
-	'vers_fw' => '1.2.3',
+	'vers_fw' => $vers,
 	'date' => date('Y-m-d'),
 	'time' => date('G:i'),
-	'vers_httpd' => '4.5.6',
-	'vers_sdk' => '1.52',
+	'vers_httpd' => '0.4',
+	'vers_sdk' => '010502',
 	'githubrepo' => 'https://github.com/MightyPork/esp-vt100-firmware',
 
 	'ap_dhcp_time' => '120',
@@ -53,11 +68,11 @@ return [
 	'sta_addr_mask' => '255.255.255.0',
 	'sta_addr_gw' => '192.168.0.1',
 
-	'sta_mac' => 'ab:cd:ef:01:23:45',
-	'ap_mac' => '01:23:45:ab:cd:ef',
+	'sta_mac' => '5c:cf:7f:02:74:51',
+	'ap_mac' => '5e:cf:7f:02:74:51',
 
-	'term_width' => '26',
-	'term_height' => '10',
+	'term_width' => '80',
+	'term_height' => '25',
 	'default_bg' => '0',
 	'default_fg' => '7',
 	'show_buttons' => '1',
@@ -67,5 +82,5 @@ return [
 	'uart_stopbits' => 1,
 	'uart_parity' => 2,
 
-	'theme' => 5,
+	'theme' => 0,
 ];

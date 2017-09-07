@@ -354,6 +354,7 @@ var Screen = (function () {
 
 	/** Load screen content from a binary sequence (new) */
 	function load(str) {
+		//console.log(JSON.stringify(str));
 		var content = str.substr(1);
 		switch(str.charAt(0)) {
 			case 'S':

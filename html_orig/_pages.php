@@ -43,6 +43,8 @@ pg('term',  'term',           '', '/', 'title.term');
 
 pg('reset_screen',  'api',     '', '/system/cls', 'title.term');
 
+pg('index',  'api',           '', '/', '');
+
 // ajax API
 
 return $pages;

@@ -120,7 +120,11 @@
 
 	/** Ask the CGI what APs are visible (async) */
 	function scanAPs() {
-		$.get('http://'+_root+'/cfg/wifi/scan', onScan);
+		if (_demo) {
+			onScan(_demo_aps, 200);
+		} else {
+			$.get('http://' + _root + '/cfg/wifi/scan', onScan);
+		}
 	}
 
 	function rescan(time) {

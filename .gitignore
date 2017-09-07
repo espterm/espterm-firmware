@@ -1,4 +1,5 @@
 html/
+html_demo/
 build/
 firmware/
 espfs/mkespfsimage/*.o

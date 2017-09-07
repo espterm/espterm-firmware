@@ -7,8 +7,14 @@ if (!isset($_GET['page'])) $_GET['page'] = 'term';
 $_GET['PAGE_TITLE'] = $_pages[$_GET['page']]->title . ' :: ' . APP_NAME;
 $_GET['BODYCLASS'] = $_pages[$_GET['page']]->bodyclass;
 
-require __DIR__ . '/pages/_head.php';
 $_pf = __DIR__ . '/pages/'.$_GET['page'].'.php';
+
+if (!file_exists($_pf)) {
+	header("Location: /", true, 302);
+	die();
+}
+
+require __DIR__ . '/pages/_head.php';
 
 $include_re = '/<\?php\s*(require|include)\s*\(?\s*?(?:__DIR__\s*\.)?\s*(["\'])(.*?)\2\s*\)?;\s*\?>/';
 
@@ -25,7 +31,7 @@ if (file_exists($_pf)) {
 		}
 	}, $f);
 
-	if (DEBUG)
+	if (DEBUG || ESP_DEMO)
 		$str = tplSubs($f,  require(__DIR__ . '/_debug_replacements.php'));
 	else $str = $f;
 
@@ -39,8 +45,6 @@ if (file_exists($_pf)) {
 
 	$str = preg_replace("/\s*(\\\\\\\\)[\n \t]+/", '<br>', $str);
 	include_str($str);
-} else {
-	echo "404";
 }
 
 require __DIR__ . '/pages/_tail.php';

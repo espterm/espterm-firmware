@@ -2,6 +2,7 @@
 
 return [
 	'appname' => 'ESPTerm',
+	'appname_demo' => 'ESPTerm<sup> DEMO</sup>',
 
 	'menu.cfg_wifi' => 'WiFi Settings',
 	'menu.cfg_network' => 'Network Settings',
