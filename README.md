@@ -1,92 +1,117 @@
 # ESPTerm
 
-ESPTerm is a terminal emulator running on the ESP8266 WiFi chip.
-The firmware emulates VT102 with some additional features based on `xterm` and later VT models, and the terminal screen can be accessed using any web browser, even on a phone or tablet. It works with ESP-01, ESP-01S, ESP-12 and likely many other modules (I use ESP-12 on a NodeMCU board for development).
+**ESPTerm is a VT100-like terminal emulator running on the ESP8266 WiFi chip.**
 
-ESPTerm can add remote access via WiFi to any embeded project, all you need is a serial port.
+![Photo][photo-hw]
+*Fig 1: Breadboard adapter developed for ESPTerm*
 
-## Screenshots, photos
+ESPTerm's implementation is guided by the XTerm manual pages, 
+skipping some more obscure features, like the graphic modes and VT52 compatibility.
 
-- Look at the [GitHub releases page][releases], there are some pics.
+Version 1.0.0 **passes most of VTTest test cases** (from the main menu), making it functionally
+comparable to eg. gnome-terminal, konsole, GtkTerm, TeraTerm, Terminology or PuTTY. 
+E.g. ESPTerm is **capable of running Midnight Commander** through agetty, **including full
+mouse support**, provided agetty is made to believe it's Xterm.
 
-## ESPTerm features
+To see what escape sequences are supported, check out this [annotated Xterm manual page][xterm-compare]
+or the built-in help page ([online demo][demo-help])
 
-- **Robust WiFi configuration interface**
-  - static IP
-  - DHCP
-  - AP channel and strength setting
-  - AP password
-  - SSID search for finding your existing network
-- **Almost complete VT102 emulation** with some extras
-  - *Sufficient to run most Linux console applications, including ncurses-based ones\**
-  - All standard SGR (text style attributes) supported
-  - Full UTF-8 support
-  - Alternate character sets support
-  - 16 colors
-  - Scrolling Region, Origin Mode
-  - Tab Stops
-  - Cursor save/restore
-  - Character/Line insert, delete, clear operations
-  - Audible BEL (ASCII 7 beep)
-  - Most standard queries (get cursor position, get SGR, get screen size...)
-  - All DEC private options either implemented or safely consumed by the parser
-- **Other features:**
+The terminal screen can be accessed using any web browser, even on a phone or tablet. 
+It works with ESP-01, ESP-01S, ESP-12 and likely many other modules (I use an ESP-12
+on a LoLin NodeMCU board from eBay for development).
+
+With ESPTerm, you can add remote access via WiFi to any embeded project, all you need is 
+a serial port and some imagination!
+
+## Try it online
+
+You can try the web user interface here: [espterm.github.io][demo-term]
+
+The demo is almost identical to the real thing, except, of course, it doesn't do much without the
+emulator backend that runs on the ESP8266. The web version will be updated to match this repository
+ after each minor release.
+
+## Main features
+
+- **Almost complete VT102 emulation** with some extras from Xterm, eg.
   - Screen size up to 80x25
+  - All standard text styles and 16 colors supported
+  - Full UTF-8 support, alternate character sets
+  - Standard mouse tracking modes
+  - You can dynamically set screen title, button labels...
+- **Web Interface**
   - Real-time screen update via WebSocket
-  - Button to open Android software keyboard
+  - Button to open keyboard on Android
   - 5 buttons under the screen for quick commands
-  - Button labels can be changed (by OSC commands or via settings)
-  - Screen title can be changed (by OSC commands or via settings)
-  - Built-in help page with basic troubleshooting and command reference
-
-\*) Linux console applications run via agetty at ttyUSB0 were used for testing, obviously you'll be better off using SSH for remote shell
-
-ESPTerm firmware is written in C and is based on SpriteTM's `libesphttpd` http server library, forked by MightyPork to
-[MightyPork/libesphttpd](https://github.com/MightyPork/libesphttpd) respectively. This fork includes various improvements and changes required by the project.
+  - Text file upload tool with configurable delays and line endings
+  - *Built-in help page* ([demo][demo-help]) with basic troubleshooting and command reference
+- **Robust WiFi configuration interface** (Demo: [WiFi][demo-wifi], [network][demo-network] config)
+  - Static IP, DHCP, channel selection, power
+  - SSID search utility for finding your existing network
 
 ## Running ESPTerm
 
-To run ESPTerm on your ESP8266, either build it yourself from source using `xtensa-lx106-elf-gcc` (and the included Makefile), or download pre-built binaries from the [GitHub releases section][releases]. Flash the binaries using [esptool](https://github.com/espressif/esptool).
+To run ESPTerm on your ESP8266, either build it yourself from source using `xtensa-lx106-elf-gcc` 
+(and the included Makefile), or download pre-built binaries from the [GitHub releases section][releases]. 
+Flash the binaries using [esptool][esptool].
 
 ### Pins
 
 - Pin GPIO2 is used for debug messages at 115200 baud, 8 bit, no parity.
-- Pins Rx and Tx are used for the main communication UART. Connect your USB-serial dongle or application microcontroller here.
-
-### Console commands - escape sequences
-
-- A list of most supported commands can be found here: http://bits.ondrovo.com/espterm-xterm.html
-- To set the screen title, use `OSC 0 ; title ST` (`OSC` = `ESC ]`, `ST` = `ESC \` or ASCII 7)
-- To set buttons text, use `OSC 8 1 ; text ST` with 81 through 85.
-- Mouse clicks (as of v0.6.9) generate `CSI row ; col M` at the Tx pin (`CSI` = `ESC [`)
-- For more info, look eg. on Wikipedia or here: http://ascii-table.com/ansi-escape-sequences-vt-100.php
+- Pins Rx and Tx are used for the main communication UART, parameters of which can be set on the system config page.
+  Connect your USB-serial dongle or application microcontroller here.
 
 ### Setup
 
-- When flashed for the first time, ESPTerm wipes any possible previous WiFi configuration, because it implements its own WiFi config manager with many additional features. 
-- It should start in AP mode, the default SSID being `TERM-MACADR` with `MACADR` being three unique bytes from the MAC address / Device ID.
-- Connect to it via a smartphone or laptop and configure WiFi as desired.
-- To re-enable the built-in AP, hold the BOOT (GPIO0) button for about 1 s, until the blue LED starts slowly flashing. Then release the button!
-- To reset all settings to defaults, hold the BOOT (GPIO0) button until the blue LED flashes rapidly, then release the button.
-- When you accidentally make the blue LED flash, you can cancel the operation by pressing Reset or disconnecting its power supply. The wipe is done on the button's release.
+- When flashed for the first time, ESPTerm wipes any possible previous WiFi configuration, because it implements its own WiFi 
+  config manager with many additional features. 
+- It should start in AP mode, the default SSID being `TERM-MACADR` with `MACADR` being three unique bytes from the MAC 
+  address / Device ID as ASCII hex.
+- Connect to the AP via a smartphone or laptop and configure WiFi as desired. If a captive portal page does not open, 
+  try 192.168.4.1 in your web browser.
+
+### Rescue from messed up config
+
+It can happen that some changes to the WiFi or network config make the module inaccessible.
+  
+- To re-enable the built-in AP, hold the BOOT (GPIO0 -> GND) button for about 1 s, until the blue LED starts flashing. 
+  Then quickly release the button.
+- To reset all settings to defaults, hold the button a couple seconds until the LED flashes rapidly, then release it.
+- You can cancel this wipe/reset operation (when triggered by accident) by pressing Reset or disconnecting the power supply.
 
 ### Config files
 
-ESPTerm has two config "files", one for defaults and one for the currently used settings. In the case of the terminal config, there is also a third, temporary file for changes done via ESC commands.
+ESPTerm has two config "files", one for defaults and one for the currently used settings. In the case of the terminal 
+config, there is also a third, temporary file for changes done via ESC commands.
 
-When you get your settings *just right*, you can store them as defaults, which can then be at any time restored by holding the BOOT (GPIO0) button. You can do this on the System Settings page. This asks for an "admin password", which you can define when building the firmware in the `esphttpdconfig.mk` file. The default password is `19738426`. This password can't presently be changed without re-flashing the firmware.
+When you get your settings *just right*, you can store them as defaults, which can then be at any time restored 
+by holding the BOOT (GPIO0) button. You can do this on the System Settings page. This asks for an "admin password", 
+which you can define when building the firmware in the `esphttpdconfig.mk` file. 
 
-You can also restore everything (except the saved defaults) to "factory defaults", there is a button for this on the System Settings page. Those are the initial values in the config files.
+The default password is `19738426`. This password can't presently be changed without re-flashing the firmware.
+
+You can also restore everything (except the saved defaults) to "factory defaults", there is a button for this 
+on the System Settings page. Those are the initial values in the config files.
+
+## Research resources
+
+Developing ESPTerm wasn't an easy task, the information is scattered across many resources.
+
+I've comnpiled a list of those I found most helpful here: [VT100 emulation resources][resources]
 
 ## Development
+
+ESPTerm's firmware is written in C and is based on SpriteTM's `libesphttpd` http server library forked to
+[MightyPork/libesphttpd][httpdlib]. This fork includes various improvements
+and changes required by the project.
 
 ### Installation for development
 
 - Clone this project with `--recursive`, or afterwards run `git submodule init` and `git submodule update`.
-- Install [esp-open-sdk](https://github.com/pfalcon/esp-open-sdk/) and build it with 
+- Install [esp-open-sdk][opensdk] and build it with 
   `make toolchain esptool libhal STANDALONE=n`.
   Make sure the `xtensa-lx106-elf/bin` folder is on $PATH.
-- Install [esptool](https://github.com/espressif/esptool) (it's in the Arch community repo and on AUR, too)
+- Install [esptool][esptool] (it's in the Arch community repo and on AUR, too)
 - Set up udev rules so you have access to ttyUSB0 without root, eg:
   ```
   KERNEL=="tty[A-Z]*[0-9]*", GROUP="uucp", MODE="0666"
@@ -123,3 +148,15 @@ build scripts manually, too.
 To flash, just run `make flash`. 
 
 [releases]: https://github.com/MightyPork/esp-vt100-firmware/releases
+[httpdlib]: https://github.com/MightyPork/libesphttpd
+[esptool]: https://github.com/espressif/esptool
+[opensdk]: https://github.com/pfalcon/esp-open-sdk/
+
+[demo-help]: https://espterm.github.io/help.html
+[demo-wifi]: https://espterm.github.io/cfg_wifi.html
+[demo-network]: https://espterm.github.io/cfg_network.html
+[demo-term]: https://espterm.github.io/term.html
+
+[xterm-compare]: https://espterm.github.io/docs/espterm-xterm.html
+[photo-hw]: https://espterm.github.io/docs/espterm-hw-small.jpg
+[resources]: https://espterm.github.io/docs/index.html
