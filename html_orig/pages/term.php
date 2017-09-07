@@ -27,7 +27,7 @@
 			</p>
 			<p>
 				<label for="fu_delay">Line Delay (ms):</label>
-				<input id="fu_delay" type="number" value=0 min=0 max=500>
+				<input id="fu_delay" type="number" value=1 min=1 max=500>
 			</p>
 		</div>
 		<div class="fu-buttons">

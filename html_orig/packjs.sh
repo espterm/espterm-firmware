@@ -10,4 +10,5 @@ cat jssrc/chibi.js \
 	jssrc/appcommon.js \
 	jssrc/lang.js \
 	jssrc/wifi.js \
+	jssrc/term_* \
 	jssrc/term.js > js/app.js

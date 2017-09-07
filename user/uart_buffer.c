@@ -8,8 +8,8 @@
 #include <esp8266.h>
 #include <uart_register.h>
 
-#define UART_TX_BUFFER_SIZE 256  //Ring buffer length of tx buffer
-#define UART_RX_BUFFER_SIZE 512 //Ring buffer length of rx buffer
+#define UART_TX_BUFFER_SIZE 1024  //Ring buffer length of tx buffer
+#define UART_RX_BUFFER_SIZE 1024 //Ring buffer length of rx buffer
 
 struct UartBuffer {
 	uint32 UartBuffSize;
@@ -177,6 +177,11 @@ void UART_RxFifoCollect(void)
 	}
 }
 
+u16 ICACHE_FLASH_ATTR UART_AsyncTxGetEmptySpace(void)
+{
+	return pTxBuffer->Space;
+}
+
 /**
  * Schedule data to be sent
  * @param pdata
@@ -227,7 +232,7 @@ static void UART_TxFifoEnq(struct UartBuffer *pTxBuff, uint8 data_len, uint8 uar
 	pTxBuff->Space += data_len;
 }
 
-
+volatile bool next_empty_it_only_for_notify = false;
 /******************************************************************************
  * FunctionName : TxFromBuffer
  * Description  : get data from the tx buffer and fill the uart tx fifo, co-work with the uart fifo empty interrupt
@@ -242,16 +247,28 @@ void UART_DispatchFromTxBuffer(uint8 uart_no)
 	uint16 data_len;
 
 //	if (pTxBuffer) {
-		data_len = (uint8) (pTxBuffer->UartBuffSize - pTxBuffer->Space);
-		if (data_len > fifo_remain) {
-			len_tmp = fifo_remain;
-			UART_TxFifoEnq(pTxBuffer, len_tmp, uart_no);
+	data_len = (uint8) (pTxBuffer->UartBuffSize - pTxBuffer->Space);
+	if (data_len > fifo_remain) {
+		len_tmp = fifo_remain;
+		UART_TxFifoEnq(pTxBuffer, len_tmp, uart_no);
+		SET_PERI_REG_MASK(UART_INT_ENA(UART0), UART_TXFIFO_EMPTY_INT_ENA);
+	}
+	else {
+		len_tmp = (uint8) data_len;
+		UART_TxFifoEnq(pTxBuffer, len_tmp, uart_no);
+
+		// we get one more IT after fifo ends even if we have 0 more bytes
+		// for notify
+		if (next_empty_it_only_for_notify) {
+			notify_empty_txbuf();
+			next_empty_it_only_for_notify = 0;
+		} else {
+			// Done sending
+			next_empty_it_only_for_notify = 1;
 			SET_PERI_REG_MASK(UART_INT_ENA(UART0), UART_TXFIFO_EMPTY_INT_ENA);
 		}
-		else {
-			len_tmp = (uint8) data_len;
-			UART_TxFifoEnq(pTxBuffer, len_tmp, uart_no);
-		}
+	}
+
 //	}
 //	else {
 //		error("pTxBuff null \n\r");

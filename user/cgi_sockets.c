@@ -7,6 +7,7 @@
 #include "uart_buffer.h"
 #include "ansi_parser.h"
 #include "jstring.h"
+#include "uart_driver.h"
 
 // Heartbeat interval in ms
 #define HB_TIME 1000
@@ -17,6 +18,8 @@
 
 volatile bool notify_available = true;
 volatile bool notify_cooldown = false;
+
+volatile bool browser_wants_xon = false;
 
 static ETSTimer notifyContentTim;
 static ETSTimer notifyLabelsTim;
@@ -224,11 +227,20 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 		case 's':
 			// pass string verbatim
 			if (termconf_scratch.loopback) {
-				for (int i = 1; i < strlen(data); i++) {
+				for (int i = 1; i < len; i++) {
 					ansi_parser(data[i]);
 				}
 			}
 			UART_SendAsync(data+1, -1);
+
+			// TODO base this on the actual buffer empty space, not rx chunk size
+			if ((UART_AsyncTxGetEmptySpace() < 256) && !browser_wants_xon) {
+				UART_WriteChar(UART1, '-', 100);
+				cgiWebsockBroadcast(URL_WS_UPDATE, "-", 1, 0);
+				browser_wants_xon = true;
+
+				system_soft_wdt_feed();
+			}
 			break;
 
 		case 'b':
@@ -275,4 +287,21 @@ void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 	ws->recvCb = updateSockRx;
 
 	TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 1);
+}
+
+ETSTimer xonTim;
+
+void ICACHE_FLASH_ATTR notify_empty_txbuf_cb(void *unused)
+{
+	UART_WriteChar(UART1, '+', 100);
+	cgiWebsockBroadcast(URL_WS_UPDATE, "+", 1, 0);
+	browser_wants_xon = false;
+}
+
+
+void notify_empty_txbuf(void)
+{
+	if (browser_wants_xon) {
+		TIMER_START(&xonTim, notify_empty_txbuf_cb, 1, 0);
+	}
 }

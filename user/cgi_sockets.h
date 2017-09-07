@@ -8,6 +8,8 @@
 /** Update websocket connect callback */
 void updateSockConnect(Websock *ws);
 
+void notify_empty_txbuf(void);
+
 void send_beep(void);
 
 // defined in the makefile

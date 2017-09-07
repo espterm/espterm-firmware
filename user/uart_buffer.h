@@ -23,4 +23,8 @@ void UART_DispatchFromTxBuffer(uint8 uart_no);
 
 u16 UART_AsyncRxCount(void);
 
+u16 UART_AsyncTxGetEmptySpace(void);
+
+extern void __attribute__((weak)) notify_empty_txbuf(void);
+
 #endif //ESP_VT100_FIRMWARE_UART_BUFFER_H
