@@ -169,7 +169,7 @@ var Input = (function() {
 		_initKeys();
 
 		// Button presses
-		qsa('#action-buttons button').forEach(function(s) {
+		$('#action-buttons button').forEach(function(s) {
 			s.addEventListener('click', function() {
 				sendBtnMsg(+this.dataset['n']);
 			});

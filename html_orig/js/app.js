@@ -1275,7 +1275,7 @@ $.ready(function () {
 		$(h).on('click', hdl).on('keypress', cr(hdl));
 	});
 
-	qsa('form').forEach(function(x) {
+	$('form').forEach(function(x) {
 		$(x).on('keypress', function(e) {
 			if ((e.keyCode == 10 || e.keyCode == 13) && e.ctrlKey) {
 				x.submit();
@@ -1346,7 +1346,7 @@ $.ready(function () {
 
 	// remove tabindixes from h2 if wide
 	if (window.innerWidth > 550) {
-		qsa('.Box h2').forEach(function (x) {
+		$('.Box h2').forEach(function (x) {
 			x.removeAttribute('tabindex');
 		});
 
@@ -1910,7 +1910,7 @@ var Input = (function() {
 		_initKeys();
 
 		// Button presses
-		qsa('#action-buttons button').forEach(function(s) {
+		$('#action-buttons button').forEach(function(s) {
 			s.addEventListener('click', function() {
 				sendBtnMsg(+this.dataset['n']);
 			});
@@ -2319,12 +2319,12 @@ var Screen = (function () {
 	function _load_labels(str) {
 		var pieces = str.split('\x01');
 		qs('h1').textContent = pieces[0];
-		qsa('#action-buttons button').forEach(function(x, i) {
+		$('#action-buttons button').forEach(function(x, i) {
 			var s = pieces[i+1].trim();
 			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
 			x.innerHTML = s.length > 0 ? e(s) : "&nbsp;";
 			x.style.opacity = s.length > 0 ? 1 : 0.2;
-		});
+		})
 	}
 
 	/** Audible beep for ASCII 7 */

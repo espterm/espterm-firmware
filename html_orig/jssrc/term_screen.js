@@ -316,12 +316,12 @@ var Screen = (function () {
 	function _load_labels(str) {
 		var pieces = str.split('\x01');
 		qs('h1').textContent = pieces[0];
-		qsa('#action-buttons button').forEach(function(x, i) {
+		$('#action-buttons button').forEach(function(x, i) {
 			var s = pieces[i+1].trim();
 			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
 			x.innerHTML = s.length > 0 ? e(s) : "&nbsp;";
 			x.style.opacity = s.length > 0 ? 1 : 0.2;
-		});
+		})
 	}
 
 	/** Audible beep for ASCII 7 */

@@ -25,7 +25,7 @@ $.ready(function () {
 		$(h).on('click', hdl).on('keypress', cr(hdl));
 	});
 
-	qsa('form').forEach(function(x) {
+	$('form').forEach(function(x) {
 		$(x).on('keypress', function(e) {
 			if ((e.keyCode == 10 || e.keyCode == 13) && e.ctrlKey) {
 				x.submit();
@@ -96,7 +96,7 @@ $.ready(function () {
 
 	// remove tabindixes from h2 if wide
 	if (window.innerWidth > 550) {
-		qsa('.Box h2').forEach(function (x) {
+		$('.Box h2').forEach(function (x) {
 			x.removeAttribute('tabindex');
 		});
 
