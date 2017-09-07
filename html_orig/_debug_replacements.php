@@ -28,7 +28,7 @@ return [
 	'bm3' => '',
 	'bm4' => '',
 	'bm5' => '05',
-	'labels_seq' => ESP_DEMO ? 'ESPTerm Web UI DemoOKCancelHelp' : 'TESPTerm local debugOKCancelHelp',
+	'labels_seq' => ESP_DEMO ? 'TESPTerm Web UI DemoOKCancelHelp' : 'TESPTerm local debugOKCancelHelp',
 
 	'parser_tout_ms' => 10,
 	'display_tout_ms' => 15,
