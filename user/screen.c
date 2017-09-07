@@ -1187,7 +1187,7 @@ utf8_remap(char *out, char g, char charset)
 
 		case CS_1_DOS_437: /* ESPTerm Character Rom 1 */
 			if ((g >= CODEPAGE_1_BEGIN) && (g <= CODEPAGE_1_END)) {
-				n = codepage_1[g - CODEPAGE_1_END];
+				n = codepage_1[g - CODEPAGE_1_BEGIN];
 				if (n) utf = n;
 			}
 			break;
