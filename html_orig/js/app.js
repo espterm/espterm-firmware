@@ -2410,9 +2410,9 @@ var TermUpl = (function() {
 		send_delay_ms = qs('#fu_delay').value;
 
 		// sanitize - 0 causes overflows
-		if (send_delay_ms <= 0) {
-			send_delay_ms = 1;
-			qs('#fu_delay').value = 1;
+		if (send_delay_ms < 0) {
+			send_delay_ms = 0;
+			qs('#fu_delay').value = send_delay_ms;
 		}
 
 		nl_str = {
@@ -2451,7 +2451,6 @@ var TermUpl = (function() {
 			inline_pos += MAX_LINE_LEN;
 		}
 
-		console.log("-> " + chunk);
 		if (!Input.sendString(chunk)) {
 			fuStatus("FAILED!");
 			return;
@@ -2470,14 +2469,15 @@ var TermUpl = (function() {
 
 	function closeWhenReady() {
 		if (!Conn.canSend()) {
+			// stuck in XOFF still, wait to process...
 			fuStatus("Waiting for Tx buffer...");
-			setTimeout(closeWhenReady, 250);
+			setTimeout(closeWhenReady, 100);
 		} else {
 			fuStatus("Done.");
 			// delay to show it
 			setTimeout(function() {
 				fuClose();
-			}, 250);
+			}, 100);
 		}
 	}
 

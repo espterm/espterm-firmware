@@ -8,8 +8,8 @@
 #include <esp8266.h>
 #include <uart_register.h>
 
-#define UART_TX_BUFFER_SIZE 1024  //Ring buffer length of tx buffer
-#define UART_RX_BUFFER_SIZE 1024 //Ring buffer length of rx buffer
+#define UART_TX_BUFFER_SIZE 512  //Ring buffer length of tx buffer
+#define UART_RX_BUFFER_SIZE 512 //Ring buffer length of rx buffer
 
 struct UartBuffer {
 	uint32 UartBuffSize;
