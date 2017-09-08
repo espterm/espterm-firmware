@@ -25,27 +25,8 @@ body.term {
 	font-size: 20px; // some font heights cause visual glitches with some font renderers. This should be configurable.
 	font-family: $screen-stack;
 
-	span {
-		white-space: pre;
-	}
-
-	> span {
-		position: relative;
-		cursor: pointer;
-
-		&::before {
-			content: " ";
-		}
-
-		> span {
-			position:absolute;
-			left: 0;
-			z-index: 1;
-		}
-	}
-
-	&.noselect {
-		@include noselect();
+	canvas.selectable {
+		cursor: text;
 	}
 }
 

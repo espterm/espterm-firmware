@@ -97,6 +97,9 @@ class TermScreen {
 
     this.mouseMode = { clicks: false, movement: false };
 
+    // event listeners
+    this._listeners = {};
+
     const self = this;
     this.window = new Proxy(this._window, {
       set (target, key, value, receiver) {
@@ -159,21 +162,68 @@ class TermScreen {
           e.deltaY > 0 ? 1 : -1);
 
         // prevent page scrolling
-        e.preventDefault()
+        e.preventDefault();
       }
     });
+    this.canvas.addEventListener('contextmenu', e => {
+      // prevent mouse keys getting stuck
+      e.preventDefault();
+    })
 
     // bind ctrl+shift+c to copy
     key('⌃+⇧+c', e => {
       e.preventDefault();
       this.copySelectionToClipboard()
-    })
+    });
+  }
+
+  on (event, listener) {
+    if (!this._listeners[event]) this._listeners[event] = [];
+    this._listeners[event].push({ listener });
+  }
+
+  once (event, listener) {
+    if (!this._listeners[event]) this._listeners[event] = [];
+    this._listeners[event].push({ listener, once: true });
+  }
+
+  off (event, listener) {
+    let listeners = this._listeners[event];
+    if (listeners) {
+      for (let i in listeners) {
+        if (listeners[i].listener === listener) {
+          listeners.splice(i, 1);
+          break;
+        }
+      }
+    }
+  }
+
+  emit (event, ...args) {
+    let listeners = this._listeners[event];
+    if (listeners) {
+      let remove = [];
+      for (let listener of listeners) {
+        try {
+          listener.listener(...args);
+          if (listener.once) remove.push(listener);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      // this needs to be done in this roundabout way because for loops
+      // do not like arrays with changing lengths
+      for (let listener of remove) {
+        listeners.splice(listeners.indexOf(listener), 1);
+      }
+    }
   }
 
   get colors () { return this._colors }
   set colors (theme) {
     this._colors = theme;
-    this.scheduleDraw()
+    this.scheduleDraw();
   }
 
   // schedule a draw in the next tick
@@ -197,6 +247,15 @@ class TermScreen {
     }
   }
 
+  getCellSize () {
+    let charSize = this.getCharSize();
+
+    return {
+      width: Math.ceil(charSize.width * this.window.gridScaleX),
+      height: Math.ceil(charSize.height * this.window.gridScaleY)
+    }
+  }
+
   updateSize () {
     this._window.devicePixelRatio = window.devicePixelRatio || 1;
 
@@ -212,15 +271,12 @@ class TermScreen {
       const {
         width, height, devicePixelRatio, gridScaleX, gridScaleY
       } = this.window;
-      const charSize = this.getCharSize();
+      const cellSize = this.getCellSize();
 
-      this.canvas.width = width * devicePixelRatio * charSize.width * gridScaleX;
-      this.canvas.style.width = `${Math.ceil(width * charSize.width *
-        gridScaleX)}px`;
-      this.canvas.height = height * devicePixelRatio * charSize.height *
-        gridScaleY;
-      this.canvas.style.height = `${Math.ceil(height * charSize.height *
-        gridScaleY)}px`
+      this.canvas.width = width * devicePixelRatio * cellSize.width;
+      this.canvas.style.width = `${width * cellSize.width}px`;
+      this.canvas.height = height * devicePixelRatio * cellSize.height;
+      this.canvas.style.height = `${height * cellSize.height}px`
     }
   }
 
@@ -311,14 +367,18 @@ class TermScreen {
   }
 
   screenToGrid (x, y) {
-    let charSize = this.getCharSize();
-    let cellWidth = charSize.width * this.window.gridScaleX;
-    let cellHeight = charSize.height * this.window.gridScaleY;
+    let cellSize = this.getCellSize();
 
     return [
-      Math.floor((x + cellWidth / 2) / cellWidth),
-      Math.floor(y / cellHeight)
+      Math.floor((x + cellSize.width / 2) / cellSize.width),
+      Math.floor(y / cellSize.height)
     ];
+  }
+
+  gridToScreen (x, y) {
+    let cellSize = this.getCellSize();
+
+    return [ x * cellSize.width, y * cellSize.height ];
   }
 
   drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs },
@@ -377,8 +437,7 @@ class TermScreen {
     } = this.window;
 
     const charSize = this.getCharSize();
-    const cellWidth = charSize.width * gridScaleX;
-    const cellHeight = charSize.height * gridScaleY;
+    const { width: cellWidth, height: cellHeight } = this.getCellSize();
     const screenWidth = width * cellWidth;
     const screenHeight = height * cellHeight;
     const screenLength = width * height;
@@ -456,7 +515,10 @@ class TermScreen {
     this.cursor.x = cursorX;
     this.cursor.y = cursorY;
 
-    if (cursorMoved) this.resetCursorBlink();
+    if (cursorMoved) {
+      this.resetCursorBlink();
+      this.emit('cursor-moved');
+    }
 
     // attributes
     let attributes = parse2B(str, i);
@@ -476,6 +538,7 @@ class TermScreen {
 
     Input.setMouseMode(trackMouseClicks, trackMouseMovement);
     this.selection.selectable = !trackMouseMovement;
+    $(this.canvas).toggleClass('selectable', !trackMouseMovement);
     this.mouseMode = {
       clicks: trackMouseClicks,
       movement: trackMouseMovement
@@ -545,7 +608,7 @@ class TermScreen {
     }
 
     this.scheduleDraw();
-    if (this.onload) this.onload()
+    this.emit('load');
   }
 
   /** Apply labels to buttons and screen title (leading T removed already) */
@@ -622,7 +685,7 @@ class TermScreen {
 const Screen = new TermScreen();
 
 let didAddScreen = false;
-Screen.onload = function () {
+Screen.on('load', () => {
   if (didAddScreen) return;
   didAddScreen = true;
   qs('#screen').appendChild(Screen.canvas);
@@ -631,4 +694,4 @@ Screen.onload = function () {
       Screen.colors = themes[item.substr(6)]
     }
   }
-};
+});
