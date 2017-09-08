@@ -142,6 +142,8 @@ var Input = (function() {
 			else if (evt.which) str = String.fromCodePoint(evt.which);
 			if (str.length>0 && str.charCodeAt(0) >= 32) {
 //				console.log("Typed ", str);
+				// prevent space from scrolling
+				if (e.which === 32) e.preventDefault();
 				sendStrMsg(str);
 			}
 		});
