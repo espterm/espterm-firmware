@@ -7,6 +7,7 @@
 #include "apars_logging.h"
 #include "jstring.h"
 #include "character_sets.h"
+#include "uart_driver.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
@@ -1282,16 +1283,44 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	}
 
 	Cell *cell, *cell0;
-	WordB2 w1, w2, w3, w4, w5;
+	WordB2 w1;
 	WordB3 lw1;
 
-	size_t remain = buf_len; int used = 0;
+	size_t remain = buf_len;
 	char *bb = buffer;
 
 	// Ideally we'd use snprintf here!
 #define bufprint(fmt, ...) do { \
 			used = sprintf(bb, fmt, ##__VA_ARGS__); \
 			if(used>0) { bb += used; remain -= used; } \
+		} while(0)
+
+#define bufput_c(c) do { \
+			*bb = (char)c; bb++; \
+			remain--; \
+		} while(0)
+
+#define bufput_2B(n) do { \
+			encode2B((u16) n, &w1); \
+			bufput_c(w1.lsb); \
+			bufput_c(w1.msb); \
+		} while(0)
+
+#define bufput_3B(n) do { \
+			encode3B((u16) n, &lw1); \
+			bufput_c(lw1.lsb); \
+			bufput_c(lw1.msb); \
+			bufput_c(lw1.xsb); \
+		} while(0)
+
+#define bufput_t2B(t, n) do { \
+			bufput_c(t); \
+			bufput_2B(n); \
+		} while(0)
+
+#define bufput_t3B(t, n) do { \
+			bufput_c(t); \
+			bufput_3B(n); \
 		} while(0)
 
 	if (ss == NULL) {
@@ -1302,25 +1331,23 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastAttrs = 0;
 		memset(ss->lastChar, 0, 4); // this ensures the first char is never "repeat"
 
-		encode2B((u16) H, &w1);
-		encode2B((u16) W, &w2);
-		encode2B((u16) cursor.y, &w3);
-		encode2B((u16) cursor.x, &w4);
-		encode2B((u16) (
-					 (scr.cursor_visible ? 1<<0 : 0) |
-					 (cursor.hanging ? 1<<1 : 0) |
-					 (scr.cursors_alt_mode ? 1<<2 : 0) |
-					 (scr.numpad_alt_mode ? 1<<3 : 0) |
-					 (termconf->fn_alt_mode ? 1<<4 : 0) |
-					 ((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
-					 ((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
-					 (termconf_scratch.show_buttons ? 1<<7 : 0) |
-					 (termconf_scratch.show_config_links ? 1<<8 : 0)
-				 )
-			, &w5);
-
+		bufput_c('S');
 		// H W X Y Attribs
-		bufprint("S%c%c%c%c%c%c%c%c%c%c", w1.lsb, w1.msb, w2.lsb, w2.msb, w3.lsb, w3.msb, w4.lsb, w4.msb, w5.lsb, w5.msb);
+		bufput_2B(H);
+		bufput_2B(W);
+		bufput_2B(cursor.y);
+		bufput_2B(cursor.x);
+		bufput_2B((
+			 (scr.cursor_visible ? 1<<0 : 0) |
+			 (cursor.hanging ? 1<<1 : 0) |
+			 (scr.cursors_alt_mode ? 1<<2 : 0) |
+			 (scr.numpad_alt_mode ? 1<<3 : 0) |
+			 (termconf->fn_alt_mode ? 1<<4 : 0) |
+			 ((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
+			 ((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
+			 (termconf_scratch.show_buttons ? 1<<7 : 0) |
+			 (termconf_scratch.show_config_links ? 1<<8 : 0)
+		));
 	}
 
 	int i = ss->index;
@@ -1356,25 +1383,23 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			}
 
 			if (!changeAttrs && changeColors) {
-				encode2B(fg | (bg<<4), &w1);
-				bufprint("\x03%c%c", w1.lsb, w1.msb);
+				bufput_t2B('\x03', fg | (bg<<4));
 			}
 			else if (changeAttrs && !changeColors) {
 				// attrs only
-				encode2B(cell0->attrs, &w1);
-				bufprint("\x04%c%c", w1.lsb, w1.msb);
+				bufput_t2B('\x04', cell0->attrs);
 			}
 			else if (changeAttrs && changeColors) {
 				// colors and attrs
-				encode3B((u32) (fg | (bg<<4) | (cell0->attrs<<8)), &lw1);
-				bufprint("\x01%c%c%c", lw1.lsb, lw1.msb, lw1.xsb);
+				bufput_t3B('\x01', (u32) (fg | (bg<<4) | (cell0->attrs<<8)));
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
 			char c;
 			int j = 0;
-			while ((c = cell->c[j++]) != 0 && j < 4) {
-				bufprint("%c", c);
+			while ((c = cell->c[j]) != 0 && j < 4) {
+				bufput_c(c);
+				j++;
 			}
 
 			ss->lastFg = cell0->fg;
@@ -1385,12 +1410,12 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			i++;
 		} else {
 			// Repeat count
-			encode2B((u16) repCnt, &w1);
-			bufprint("\x02%c%c", w1.lsb, w1.msb);
+			bufput_t2B('\x02', repCnt);
 		}
 	}
 
 	ss->index = i;
+	bufput_c('\0'); // terminate the string
 
 	if (i < W*H-1) {
 		return HTTPD_CGI_MORE;
