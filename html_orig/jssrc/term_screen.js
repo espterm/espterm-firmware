@@ -13,24 +13,45 @@ const SEQ_REPEAT = 2
 const SEQ_SET_COLOR = 3
 const SEQ_SET_ATTR = 4
 
+const SELECTION_BG = '#b2d7fe'
+const SELECTION_FG = '#333'
+
 const themes = [
   [
-    '#111213',
-    '#CC0000',
-    '#4E9A06',
-    '#C4A000',
-    '#3465A4',
-    '#75507B',
-    '#06989A',
+    '#111213', '#CC0000', '#4E9A06', '#C4A000', '#3465A4', '#75507B', '#06989A',
     '#D3D7CF',
-    '#555753',
-    '#EF2929',
-    '#8AE234',
-    '#FCE94F',
-    '#729FCF',
-    '#AD7FA8',
-    '#34E2E2',
+    '#555753', '#EF2929', '#8AE234', '#FCE94F', '#729FCF', '#AD7FA8', '#34E2E2',
     '#EEEEEC'
+  ],
+  [
+    '#000000', '#aa0000', '#00aa00', '#aa5500', '#0000aa', '#aa00aa', '#00aaaa',
+    '#aaaaaa',
+    '#555555', '#ff5555', '#55ff55', '#ffff55', '#5555ff', '#ff55ff', '#55ffff',
+    '#ffffff'
+  ],
+  [
+    '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000ee', '#cd00cd', '#00cdcd',
+    '#e5e5e5',
+    '#7f7f7f', '#ff0000', '#00ff00', '#ffff00', '#5c5cff', '#ff00ff', '#00ffff',
+    '#ffffff'
+  ],
+  [
+    '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000cd', '#cd00cd', '#00cdcd',
+    '#faebd7',
+    '#404040', '#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff',
+    '#ffffff'
+  ],
+  [
+    '#2e3436', '#cc0000', '#4e9a06', '#c4a000', '#3465a4', '#75507b', '#06989a',
+    '#d3d7cf',
+    '#555753', '#ef2929', '#8ae234', '#fce94f', '#729fcf', '#ad7fa8', '#34e2e2',
+    '#eeeeec'
+  ],
+  [
+    '#073642', '#dc322f', '#859900', '#b58900', '#268bd2', '#d33682', '#2aa198',
+    '#eee8d5',
+    '#002b36', '#cb4b16', '#586e75', '#657b83', '#839496', '#6c71c4', '#93a1a1',
+    '#fdf6e3'
   ]
 ]
 
@@ -54,6 +75,7 @@ class TermScreen {
       blinkOn: false,
       visible: true,
       hanging: false,
+      style: 'block',
       blinkInterval: null
     }
 
@@ -80,6 +102,11 @@ class TermScreen {
       fontFamily: '',
       fontSize: 0
     }
+    this.selection = {
+      selectable: true,
+      start: [0, 0],
+      end: [0, 0]
+    }
 
     const self = this
     this.window = new Proxy(this._window, {
@@ -98,6 +125,31 @@ class TermScreen {
 
     this.resetBlink()
     this.resetCursorBlink()
+
+    let selecting = false
+    this.canvas.addEventListener('mousedown', e => {
+      if (this.selection.selectable) {
+        let x = e.offsetX
+        let y = e.offsetY
+        selecting = true
+        this.selection.start = this.selection.end = this.screenToGrid(x, y)
+        this.scheduleDraw()
+      }
+    })
+    window.addEventListener('mousemove', e => {
+      if (selecting) {
+        this.selection.end = this.screenToGrid(e.offsetX, e.offsetY)
+        this.scheduleDraw()
+      }
+    })
+    window.addEventListener('mouseup', e => {
+      if (selecting) {
+        selecting = false
+        this.selection.end = this.screenToGrid(e.offsetX, e.offsetY)
+        this.scheduleDraw()
+        Object.assign(this.selection, this.getNormalizedSelection())
+      }
+    })
   }
 
   get colors () { return this._colors }
@@ -146,14 +198,17 @@ class TermScreen {
       const charSize = this.getCharSize()
 
       this.canvas.width = width * devicePixelRatio * charSize.width * gridScaleX
-      this.canvas.style.width = `${width * charSize.width * gridScaleX}px`
+      this.canvas.style.width = `${Math.ceil(width * charSize.width *
+        gridScaleX)}px`
       this.canvas.height = height * devicePixelRatio * charSize.height *
         gridScaleY
-      this.canvas.style.height = `${height * charSize.height * gridScaleY}px`
+      this.canvas.style.height = `${Math.ceil(height * charSize.height *
+        gridScaleY)}px`
     }
   }
 
   resetCursorBlink () {
+    this.cursor.blinkOn = true
     clearInterval(this.cursor.blinkInterval)
     this.cursor.blinkInterval = setInterval(() => {
       this.cursor.blinkOn = !this.cursor.blinkOn
@@ -162,6 +217,7 @@ class TermScreen {
   }
 
   resetBlink () {
+    this.window.blinkStyleOn = true
     clearInterval(this.window.blinkInterval)
     let intervals = 0
     this.window.blinkInterval = setInterval(() => {
@@ -169,17 +225,54 @@ class TermScreen {
       if (intervals >= 4 && this.window.blinkStyleOn) {
         this.window.blinkStyleOn = false
         intervals = 0
-      } else {
+      } else if (intervals >= 1 && !this.window.blinkStyleOn) {
         this.window.blinkStyleOn = true
         intervals = 0
       }
     }, 200)
   }
 
-  drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs }) {
+  getNormalizedSelection () {
+    let { start, end } = this.selection
+    // if the start line is after the end line, or if they're both on the same
+    // line but the start column comes after the end column, swap
+    if (start[1] > end[1] || (start[1] === end[1] && start[0] > end[0])) {
+      [start, end] = [end, start]
+    }
+    return { start, end }
+  }
+
+  isInSelection (col, line) {
+    if (!this.selection.selectable) return false
+    let { start, end } = this.getNormalizedSelection()
+    let colAfterStart = start[0] <= col
+    let colBeforeEnd = col < end[0]
+    let onStartLine = line === start[1]
+    let onEndLine = line === end[1]
+
+    if (onStartLine && onEndLine) return colAfterStart && colBeforeEnd
+    else if (onStartLine) return colAfterStart
+    else if (onEndLine) return colBeforeEnd
+    else return start[1] < line && line < end[1]
+  }
+
+  screenToGrid (x, y) {
+    let charSize = this.getCharSize()
+    let cellWidth = charSize.width * this.window.gridScaleX
+    let cellHeight = charSize.height * this.window.gridScaleY
+
+    return [
+      Math.floor((x + cellWidth / 2) / cellWidth),
+      Math.floor(y / cellHeight)
+    ]
+  }
+
+  drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs },
+      compositeAbove = false) {
     const ctx = this.ctx
-    ctx.fillStyle = this.colors[bg]
-    ctx.globalCompositeOperation = 'destination-over'
+    const inSelection = this.isInSelection(x, y)
+    ctx.fillStyle = inSelection ? SELECTION_BG : this.colors[bg]
+    if (!compositeAbove) ctx.globalCompositeOperation = 'destination-over'
     ctx.fillRect(x * cellWidth, y * cellHeight,
       Math.ceil(cellWidth), Math.ceil(cellHeight))
     ctx.globalCompositeOperation = 'source-over'
@@ -198,16 +291,18 @@ class TermScreen {
 
     if (!blink || this.window.blinkStyleOn) {
       ctx.font = this.getFont(fontModifiers)
-      ctx.fillStyle = this.colors[fg]
+      ctx.fillStyle = inSelection ? SELECTION_FG : this.colors[fg]
       ctx.fillText(text, (x + 0.5) * cellWidth, (y + 0.5) * cellHeight)
 
       if (underline || strike) {
         let lineY = underline
-          ? y * cellHeight * charSize.height
+          ? y * cellHeight + charSize.height
           : (y + 0.5) * cellHeight
 
-        ctx.strokeStyle = this.colors[fg]
-        ctx.lineWidth = 1
+        ctx.strokeStyle = inSelection ? SELECTION_FG : this.colors[fg]
+        ctx.lineWidth = this.window.fontSize / 10
+        ctx.lineCap = 'round'
+        ctx.beginPath()
         ctx.moveTo(x * cellWidth, lineY)
         ctx.lineTo((x + 1) * cellWidth, lineY)
         ctx.stroke()
@@ -248,17 +343,45 @@ class TermScreen {
       let x = cell % width
       let y = Math.floor(cell / width)
       let isCursor = this.cursor.x === x && this.cursor.y === y
+      let invertForCursor = isCursor && this.cursor.blinkOn &&
+        this.cursor.style === 'block'
 
       let text = this.screen[cell]
-      let fg = isCursor ? this.screenBG[cell] : this.screenFG[cell]
-      let bg = isCursor ? this.screenFG[cell] : this.screenBG[cell]
+      let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell]
+      let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell]
       let attrs = this.screenAttrs[cell]
 
-      if (isCursor && fg === bg) bg = fg === 0 ? 7 : 0
+      if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0
 
       this.drawCell({
         x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
       })
+
+      if (isCursor && this.cursor.blinkOn && this.cursor.style !== 'block') {
+        ctx.save()
+        ctx.beginPath()
+        if (this.cursor.style === 'bar') {
+          // vertical bar
+          let barWidth = 2
+          ctx.rect(x * cellWidth, y * cellHeight, barWidth, cellHeight)
+        } else if (this.cursor.style === 'line') {
+          // underline
+          let lineHeight = 2
+          ctx.rect(x * cellWidth, y * cellHeight + charSize.height,
+            cellWidth, lineHeight)
+        }
+        ctx.clip()
+
+        // swap foreground/background
+        fg = this.screenBG[cell]
+        bg = this.screenFG[cell]
+        if (fg === bg) bg = fg === 0 ? 7 : 0
+
+        this.drawCell({
+          x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
+        }, true)
+        ctx.restore()
+      }
     }
   }
 
@@ -440,4 +563,7 @@ Screen.onload = function () {
   if (didAddScreen) return
   didAddScreen = true
   qs('#screen').appendChild(Screen.canvas)
+  for (let item of qs('#screen').classList) {
+    if (item.startsWith('theme-')) Screen.colors = themes[item.substr(6)]
+  }
 }
