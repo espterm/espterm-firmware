@@ -4,9 +4,11 @@
   "description": "ESPTerm HTML",
   "license": "UNLICENSED",
   "devDependencies": {
-    "babel-minify": "^0.2.0"
+    "babel-minify": "^0.2.0",
+    "node-sass": "^4.5.3"
   },
   "scripts": {
-    "minify": "babel-minify $@"
+    "minify": "babel-minify $@",
+    "sass": "node-sass $@"
   }
 }

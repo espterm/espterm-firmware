@@ -2,4 +2,4 @@
 
 echo "Building css..."
 
-sass --style compressed sass/app.scss css/app.css
+npm run sass -- --output-style compressed sass/app.scss > css/app.css
