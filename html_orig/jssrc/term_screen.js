@@ -242,7 +242,7 @@ class TermScreen {
     this.ctx.font = this.getFont();
 
     return {
-      width: this.ctx.measureText(' ').width,
+      width: Math.floor(this.ctx.measureText(' ').width),
       height: this.window.fontSize
     }
   }
