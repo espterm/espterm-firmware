@@ -17,37 +17,37 @@ const SELECTION_BG = '#b2d7fe'
 const SELECTION_FG = '#333'
 
 const themes = [
-  [
+  [ // Tango
     '#111213', '#CC0000', '#4E9A06', '#C4A000', '#3465A4', '#75507B', '#06989A',
     '#D3D7CF',
     '#555753', '#EF2929', '#8AE234', '#FCE94F', '#729FCF', '#AD7FA8', '#34E2E2',
     '#EEEEEC'
   ],
-  [
+  [ // Linux
     '#000000', '#aa0000', '#00aa00', '#aa5500', '#0000aa', '#aa00aa', '#00aaaa',
     '#aaaaaa',
     '#555555', '#ff5555', '#55ff55', '#ffff55', '#5555ff', '#ff55ff', '#55ffff',
     '#ffffff'
   ],
-  [
+  [ // xterm
     '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000ee', '#cd00cd', '#00cdcd',
     '#e5e5e5',
     '#7f7f7f', '#ff0000', '#00ff00', '#ffff00', '#5c5cff', '#ff00ff', '#00ffff',
     '#ffffff'
   ],
-  [
+  [ // rxvt
     '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000cd', '#cd00cd', '#00cdcd',
     '#faebd7',
     '#404040', '#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff',
     '#ffffff'
   ],
-  [
+  [ // Ambience
     '#2e3436', '#cc0000', '#4e9a06', '#c4a000', '#3465a4', '#75507b', '#06989a',
     '#d3d7cf',
     '#555753', '#ef2929', '#8ae234', '#fce94f', '#729fcf', '#ad7fa8', '#34e2e2',
     '#eeeeec'
   ],
-  [
+  [ // Solarized
     '#073642', '#dc322f', '#859900', '#b58900', '#268bd2', '#d33682', '#2aa198',
     '#eee8d5',
     '#002b36', '#cb4b16', '#586e75', '#657b83', '#839496', '#6c71c4', '#93a1a1',
@@ -411,6 +411,7 @@ class TermScreen {
       let x = cell % width
       let y = Math.floor(cell / width)
       let isCursor = this.cursor.x === x && this.cursor.y === y
+      if (this.cursor.hanging) isCursor = false
       let invertForCursor = isCursor && this.cursor.blinkOn &&
         this.cursor.style === 'block'
 
@@ -419,6 +420,7 @@ class TermScreen {
       let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell]
       let attrs = this.screenAttrs[cell]
 
+      // HACK: ensure cursor is visible
       if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0
 
       this.drawCell({
@@ -443,6 +445,7 @@ class TermScreen {
         // swap foreground/background
         fg = this.screenBG[cell]
         bg = this.screenFG[cell]
+        // HACK: ensure cursor is visible
         if (fg === bg) bg = fg === 0 ? 7 : 0
 
         this.drawCell({
@@ -477,7 +480,7 @@ class TermScreen {
     i += 2
 
     this.cursor.visible = !!(attributes & 1)
-    this.cursor.hanging = !!(attributes & 1 << 0)
+    this.cursor.hanging = !!(attributes & 1 << 1)
 
     Input.setAlts(
       !!(attributes & 1 << 2), // cursors alt
