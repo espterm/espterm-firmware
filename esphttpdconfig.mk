@@ -18,7 +18,7 @@ GZIP_COMPRESSION = yes
 # This option works only when GZIP_COMPRESSION is set to "yes"
 # http://yui.github.io/yuicompressor/
 #Disabled by default.
-COMPRESS_W_YUI = yes
+COMPRESS_W_YUI = no
 
 YUI-COMPRESSOR = /usr/bin/yui-compressor
 

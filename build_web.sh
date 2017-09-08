@@ -9,13 +9,12 @@ mkdir -p html/css
 
 cd html_orig
 sh ./packjs.sh
+sh ./packcss.sh
 php ./build_html.php
 cd ..
 
 cp html_orig/js/app.js html/js/
-
-sass html_orig/sass/app.scss html/css/app.css
-rm html/css/app.css.map
+cp html_orig/css/app.css html/css/
 
 cp html_orig/img/* html/img/
 cp html_orig/favicon.ico html/favicon.ico
