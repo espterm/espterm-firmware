@@ -1,378 +1,443 @@
-var Screen = (function () {
-	var W = 0, H = 0; // dimensions
-	var inited = false;
+// Some non-bold Fraktur symbols are outside the contiguous block
+const frakturExceptions = {
+  'C': '\u212d',
+  'H': '\u210c',
+  'I': '\u2111',
+  'R': '\u211c',
+  'Z': '\u2128'
+}
 
-	var cursor = {
-		a: false,        // active (blink state)
-		x: 0,            // 0-based coordinates
-		y: 0,
-		fg: 7,           // colors 0-15
-		bg: 0,
-		attrs: 0,
-		suppress: false, // do not turn on in blink interval (for safe moving)
-		forceOn: false,  // force on unless hanging: used to keep cursor visible during move
-		hidden: false,    // do not show (DEC opt)
-		hanging: false,   // cursor at column "W+1" - not visible
-	};
+// constants for decoding the update blob
+const SEQ_SET_COLOR_ATTR = 1
+const SEQ_REPEAT = 2
+const SEQ_SET_COLOR = 3
+const SEQ_SET_ATTR = 4
 
-	var screen = [];
-	var blinkIval;
-	var cursorFlashStartIval;
+const themes = [
+  [
+    '#111213',
+    '#CC0000',
+    '#4E9A06',
+    '#C4A000',
+    '#3465A4',
+    '#75507B',
+    '#06989A',
+    '#D3D7CF',
+    '#555753',
+    '#EF2929',
+    '#8AE234',
+    '#FCE94F',
+    '#729FCF',
+    '#AD7FA8',
+    '#34E2E2',
+    '#EEEEEC'
+  ]
+]
 
-	// Some non-bold Fraktur symbols are outside the contiguous block
-	var frakturExceptions = {
-		'C': '\u212d',
-		'H': '\u210c',
-		'I': '\u2111',
-		'R': '\u211c',
-		'Z': '\u2128',
-	};
+class TermScreen {
+  constructor () {
+    this.canvas = document.createElement('canvas')
+    this.ctx = this.canvas.getContext('2d')
 
-	// for BEL
-	var audioCtx = null;
-	try {
-		audioCtx = new (window.AudioContext || window.audioContext || window.webkitAudioContext)();
-	} catch (er) {
-		console.error("No AudioContext!", er);
-	}
+    if ('AudioContext' in window || 'webkitAudioContext' in window) {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    } else {
+      console.warn('No AudioContext!')
+    }
 
-	/** Get cell under cursor */
-	function _curCell() {
-		return screen[cursor.y*W + cursor.x];
-	}
+    this.cursor = {
+      x: 0,
+      y: 0,
+      fg: 7,
+      bg: 0,
+      attrs: 0,
+      blinkOn: false,
+      visible: true,
+      hanging: false,
+      blinkInterval: null
+    }
 
-	/** Safely move cursor */
-	function cursorSet(y, x) {
-		// Hide and prevent from showing up during the move
-		cursor.suppress = true;
-		_draw(_curCell(), false);
-		cursor.x = x;
-		cursor.y = y;
-		// Show again
-		cursor.suppress = false;
-		_draw(_curCell());
-	}
+    this._colors = themes[0]
 
-	function alpha2fraktur(t) {
-		// perform substitution
-		if (t >= 'a' && t <= 'z') {
-			t = String.fromCodePoint(0x1d51e - 97 + t.charCodeAt(0));
-		}
-		else if (t >= 'A' && t <= 'Z') {
-			// this set is incomplete, some exceptions are needed
-			if (frakturExceptions.hasOwnProperty(t)) {
-				t = frakturExceptions[t];
-			} else {
-				t = String.fromCodePoint(0x1d504 - 65 + t.charCodeAt(0));
-			}
-		}
-		return t;
-	}
+    this._window = {
+      width: 0,
+      height: 0,
+      devicePixelRatio: 1,
+      fontFamily: '"DejaVu Sans Mono", "Liberation Mono", "Inconsolata", ' +
+        'monospace',
+      fontSize: 20,
+      gridScaleX: 1.0,
+      gridScaleY: 1.2,
+      blinkStyleOn: true,
+      blinkInterval: null
+    }
+    this.windowState = {
+      width: 0,
+      height: 0,
+      devicePixelRatio: 0,
+      gridScaleX: 0,
+      gridScaleY: 0,
+      fontFamily: '',
+      fontSize: 0
+    }
 
-	/** Update cell on display. inv = invert (for cursor) */
-	function _draw(cell, inv) {
-		if (!cell) return;
-		if (typeof inv == 'undefined') {
-			inv = cursor.a && cursor.x == cell.x && cursor.y == cell.y;
-		}
+    const self = this
+    this.window = new Proxy(this._window, {
+      set (target, key, value, receiver) {
+        target[key] = value
+        self.updateSize()
+        self.scheduleDraw()
+        return true
+      }
+    })
 
-		var fg, bg, cn, t;
+    this.screen = []
+    this.screenFG = []
+    this.screenBG = []
+    this.screenAttrs = []
 
-		fg = inv ? cell.bg : cell.fg;
-		bg = inv ? cell.fg : cell.bg;
+    this.resetBlink()
+    this.resetCursorBlink()
+  }
 
-		t = cell.t;
-		if (!t.length) t = ' ';
+  get colors () { return this._colors }
+  set colors (theme) {
+    this._colors = theme
+    this.scheduleDraw()
+  }
 
-		cn = 'fg' + fg + ' bg' + bg;
-		if (cell.attrs & (1<<0)) cn += ' bold';
-		if (cell.attrs & (1<<1)) cn += ' faint';
-		if (cell.attrs & (1<<2)) cn += ' italic';
-		if (cell.attrs & (1<<3)) cn += ' under';
-		if (cell.attrs & (1<<4)) cn += ' blink';
-		if (cell.attrs & (1<<5)) {
-			cn += ' fraktur';
-			t = alpha2fraktur(t);
-		}
-		if (cell.attrs & (1<<6)) cn += ' strike';
+  // schedule a draw in the next tick
+  scheduleDraw () {
+    clearTimeout(this._scheduledDraw)
+    this._scheduledDraw = setTimeout(() => this.draw(), 1)
+  }
 
-		cell.slot.textContent = t;
-		cell.elem.className = cn;
-	}
+  getFont (modifiers = {}) {
+    let fontStyle = modifiers.style || 'normal'
+    let fontWeight = modifiers.weight || 'normal'
+    return `${fontStyle} normal ${fontWeight} ${
+      this.window.fontSize}px ${this.window.fontFamily}`
+  }
 
-	/** Show entire screen */
-	function _drawAll() {
-		for (var i = W*H-1; i>=0; i--) {
-			_draw(screen[i]);
-		}
-	}
+  getCharSize () {
+    this.ctx.font = this.getFont()
 
-	function _rebuild(rows, cols) {
-		W = cols;
-		H = rows;
+    return {
+      width: this.ctx.measureText(' ').width,
+      height: this.window.fontSize
+    }
+  }
 
-		/* Build screen & show */
-		var cOuter, cInner, cell, screenDiv = qs('#screen');
+  updateSize () {
+    this._window.devicePixelRatio = window.devicePixelRatio || 1
 
-		// Empty the screen node
-		while (screenDiv.firstChild) screenDiv.removeChild(screenDiv.firstChild);
+    let didChange = false
+    for (let key in this.windowState) {
+      if (this.windowState[key] !== this.window[key]) {
+        didChange = true
+        this.windowState[key] = this.window[key]
+      }
+    }
 
-		screen = [];
+    if (didChange) {
+      const {
+        width, height, devicePixelRatio, gridScaleX, gridScaleY, fontSize
+      } = this.window
+      const charSize = this.getCharSize()
 
-		for(var i = 0; i < W*H; i++) {
-			cOuter = mk('span');
-			cInner = mk('span');
+      this.canvas.width = width * devicePixelRatio * charSize.width * gridScaleX
+      this.canvas.style.width = `${width * charSize.width * gridScaleX}px`
+      this.canvas.height = height * devicePixelRatio * charSize.height *
+        gridScaleY
+      this.canvas.style.height = `${height * charSize.height * gridScaleY}px`
+    }
+  }
 
-			/* Mouse tracking */
-			(function() {
-				var x = i % W;
-				var y = Math.floor(i / W);
-				cOuter.addEventListener('mouseenter', function (evt) {
-					Input.onMouseMove(x, y);
-				});
-				cOuter.addEventListener('mousedown', function (evt) {
-					Input.onMouseDown(x, y, evt.button+1);
-				});
-				cOuter.addEventListener('mouseup', function (evt) {
-					Input.onMouseUp(x, y, evt.button+1);
-				});
-				cOuter.addEventListener('contextmenu', function (evt) {
-					if (Input.mouseTracksClicks()) {
-						evt.preventDefault();
-					}
-				});
-				cOuter.addEventListener('mousewheel', function (evt) {
-					Input.onMouseWheel(x, y, evt.deltaY>0?1:-1);
-					return false;
-				});
-			})();
+  resetCursorBlink () {
+    clearInterval(this.cursor.blinkInterval)
+    this.cursor.blinkInterval = setInterval(() => {
+      this.cursor.blinkOn = !this.cursor.blinkOn
+      this.scheduleDraw()
+    }, 500)
+  }
 
-			/* End of line */
-			if ((i > 0) && (i % W == 0)) {
-				screenDiv.appendChild(mk('br'));
-			}
-			/* The cell */
-			cOuter.appendChild(cInner);
-			screenDiv.appendChild(cOuter);
+  resetBlink () {
+    clearInterval(this.window.blinkInterval)
+    let intervals = 0
+    this.window.blinkInterval = setInterval(() => {
+      intervals++
+      if (intervals >= 4 && this.window.blinkStyleOn) {
+        this.window.blinkStyleOn = false
+        intervals = 0
+      } else {
+        this.window.blinkStyleOn = true
+        intervals = 0
+      }
+    }, 200)
+  }
 
-			cell = {
-				t: ' ',
-				fg: 7,
-				bg: 0, // the colors will be replaced immediately as we receive data (user won't see this)
-				attrs: 0,
-				elem: cOuter,
-				slot: cInner,
-				x: i % W,
-				y: Math.floor(i / W),
-			};
-			screen.push(cell);
-			_draw(cell);
-		}
-	}
+  drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs }) {
+    const ctx = this.ctx
+    ctx.fillStyle = this.colors[bg]
+    ctx.globalCompositeOperation = 'destination-over'
+    ctx.fillRect(x * cellWidth, y * cellHeight,
+      Math.ceil(cellWidth), Math.ceil(cellHeight))
+    ctx.globalCompositeOperation = 'source-over'
 
-	/** Init the terminal */
-	function _init() {
-		/* Cursor blinking */
-		clearInterval(blinkIval);
-		blinkIval = setInterval(function () {
-			cursor.a = !cursor.a;
-			if (cursor.hidden || cursor.hanging) {
-				cursor.a = false;
-			}
+    let fontModifiers = {}
+    let underline = false
+    let blink = false
+    let strike = false
+    if (attrs & 1) fontModifiers.weight = 'bold'
+    if (attrs & 1 << 1) ctx.globalAlpha = 0.5
+    if (attrs & 1 << 2) fontModifiers.style = 'italic'
+    if (attrs & 1 << 3) underline = true
+    if (attrs & 1 << 4) blink = true
+    if (attrs & 1 << 5) text = TermScreen.alphaToFraktur(text)
+    if (attrs & 1 << 6) strike = true
 
-			if (!cursor.suppress) {
-				_draw(_curCell(), cursor.forceOn || cursor.a);
-			}
-		}, 500);
+    if (!blink || this.window.blinkStyleOn) {
+      ctx.font = this.getFont(fontModifiers)
+      ctx.fillStyle = this.colors[fg]
+      ctx.fillText(text, (x + 0.5) * cellWidth, (y + 0.5) * cellHeight)
 
-		/* blink attribute animation */
-		setInterval(function () {
-			$('#screen').removeClass('blink-hide');
-			setTimeout(function () {
-				$('#screen').addClass('blink-hide');
-			}, 800); // 200 ms ON
-		}, 1000);
+      if (underline || strike) {
+        let lineY = underline
+          ? y * cellHeight * charSize.height
+          : (y + 0.5) * cellHeight
 
-		inited = true;
-	}
+        ctx.strokeStyle = this.colors[fg]
+        ctx.lineWidth = 1
+        ctx.moveTo(x * cellWidth, lineY)
+        ctx.lineTo((x + 1) * cellWidth, lineY)
+        ctx.stroke()
+      }
+    }
 
-	// constants for decoding the update blob
-	var SEQ_SET_COLOR_ATTR = 1;
-	var SEQ_REPEAT = 2;
-	var SEQ_SET_COLOR = 3;
-	var SEQ_SET_ATTR = 4;
+    ctx.globalAlpha = 1
+  }
 
-	/** Parse received screen update object (leading S removed already) */
-	function _load_content(str) {
-		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, attrs, cell;
+  draw () {
+    const ctx = this.ctx
+    const {
+      width,
+      height,
+      devicePixelRatio,
+      fontFamily,
+      fontSize,
+      gridScaleX,
+      gridScaleY
+    } = this.window
 
-		if (!inited) _init();
+    const charSize = this.getCharSize()
+    const cellWidth = charSize.width * gridScaleX
+    const cellHeight = charSize.height * gridScaleY
+    const screenWidth = width * cellWidth
+    const screenHeight = height * cellHeight
+    const screenLength = width * height
 
-		var cursorMoved;
+    ctx.setTransform(this.window.devicePixelRatio, 0, 0,
+      this.window.devicePixelRatio, 0, 0)
+    ctx.clearRect(0, 0, screenWidth, screenHeight)
 
-		// Set size
-		num = parse2B(str, i); i += 2;  // height
-		num2 = parse2B(str, i); i += 2; // width
-		if (num != H || num2 != W) {
-			_rebuild(num, num2);
-		}
-		// console.log("Size ",num, num2);
+    ctx.font = this.getFont()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
 
-		// Cursor position
-		num = parse2B(str, i); i += 2; // row
-		num2 = parse2B(str, i); i += 2; // col
-		cursorMoved = (cursor.x != num2 || cursor.y != num);
-		cursorSet(num, num2);
-		// console.log("Cursor at ",num, num2);
+    for (let cell = 0; cell < screenLength; cell++) {
+      let x = cell % width
+      let y = Math.floor(cell / width)
+      let isCursor = this.cursor.x === x && this.cursor.y === y
 
-		// Attributes
-		num = parse2B(str, i); i += 2; // fg bg attribs
-		cursor.hidden = !(num & (1<<0)); // DEC opt "visible"
-		cursor.hanging = !!(num & (1<<1));
-		// console.log("Attributes word ",num.toString(16)+'h');
+      let text = this.screen[cell]
+      let fg = isCursor ? this.screenBG[cell] : this.screenFG[cell]
+      let bg = isCursor ? this.screenFG[cell] : this.screenBG[cell]
+      let attrs = this.screenAttrs[cell]
 
-		Input.setAlts(
-			!!(num & (1<<2)), // cursors alt
-			!!(num & (1<<3)), // numpad alt
-			!!(num & (1<<4)) // fn keys alt
-		);
+      if (isCursor && fg === bg) bg = fg === 0 ? 7 : 0
 
-		var mt_click = !!(num & (1<<5));
-		var mt_move = !!(num & (1<<6));
-		Input.setMouseMode(
-			mt_click,
-			mt_move
-		);
-		$('#screen').toggleClass('noselect', mt_move);
+      this.drawCell({
+        x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
+      })
+    }
+  }
 
-		var show_buttons = !!(num & (1<<7));
-		var show_config_links = !!(num & (1<<8));
-		$('.x-term-conf-btn').toggleClass('hidden', !show_config_links);
-		$('#action-buttons').toggleClass('hidden', !show_buttons);
+  loadContent (str) {
+    // current index
+    let i = 0
 
-		fg = 7;
-		bg = 0;
-		attrs = 0;
+    // window size
+    this.window.height = parse2B(str, i)
+    this.window.width = parse2B(str, i + 2)
+    this.updateSize()
+    i += 4
 
-		// Here come the content
-		while(i < str.length && ci<W*H) {
+    // cursor position
+    let [cursorY, cursorX] = [parse2B(str, i), parse2B(str, i + 2)]
+    i += 4
+    let cursorMoved = (cursorX !== this.cursor.x || cursorY !== this.cursor.y)
+    this.cursor.x = cursorX
+    this.cursor.y = cursorY
 
-			j = str[i++];
-			jc = j.charCodeAt(0);
-			if (jc == SEQ_SET_COLOR_ATTR) {
-				num = parse3B(str, i); i += 3;
-				fg = num & 0x0F;
-				bg = (num & 0xF0) >> 4;
-				attrs = (num & 0xFF00)>>8;
-			}
-			else if (jc == SEQ_SET_COLOR) {
-				num = parse2B(str, i); i += 2;
-				fg = num & 0x0F;
-				bg = (num & 0xF0) >> 4;
-			}
-			else if (jc == SEQ_SET_ATTR) {
-				num = parse2B(str, i); i += 2;
-				attrs = num & 0xFF;
-			}
-			else if (jc == SEQ_REPEAT) {
-				num = parse2B(str, i); i += 2;
-				// console.log("Repeat x ",num);
-				for (; num>0 && ci<W*H; num--) {
-					cell = screen[ci++];
-					cell.fg = fg;
-					cell.bg = bg;
-					cell.t = t;
-					cell.attrs = attrs;
-				}
-			}
-			else {
-				cell = screen[ci++];
-				// Unique cell character
-				t = cell.t = j;
-				cell.fg = fg;
-				cell.bg = bg;
-				cell.attrs = attrs;
-				// console.log("Symbol ", j);
-			}
-		}
+    if (cursorMoved) this.resetCursorBlink()
 
-		_drawAll();
+    // attributes
+    let attributes = parse2B(str, i)
+    i += 2
 
-		// if (!cursor.hidden || cursor.hanging || !cursor.suppress) {
-		// 	// hide cursor asap
-		// 	_draw(_curCell(), false);
-		// }
+    this.cursor.visible = !!(attributes & 1)
+    this.cursor.hanging = !!(attributes & 1 << 0)
 
-		if (cursorMoved) {
-			cursor.forceOn = true;
-			cursorFlashStartIval = setTimeout(function() {
-				cursor.forceOn = false;
-			}, 1200);
-			_draw(_curCell(), true);
-		}
-	}
+    Input.setAlts(
+      !!(attributes & 1 << 2), // cursors alt
+      !!(attributes & 1 << 3), // numpad alt
+      !!(attributes & 1 << 4)  // fn keys alt
+    )
 
-	/** Apply labels to buttons and screen title (leading T removed already) */
-	function _load_labels(str) {
-		var pieces = str.split('\x01');
-		qs('h1').textContent = pieces[0];
-		$('#action-buttons button').forEach(function(x, i) {
-			var s = pieces[i+1].trim();
-			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
-			x.innerHTML = s.length > 0 ? e(s) : "&nbsp;";
-			x.style.opacity = s.length > 0 ? 1 : 0.2;
-		})
-	}
+    let trackMouseClicks = !!(attributes & 1 << 5)
+    let trackMouseMovement = !!(attributes & 1 << 6)
 
-	/** Audible beep for ASCII 7 */
-	function _beep() {
-		var osc, gain;
-		if (!audioCtx) return;
+    Input.setMouseMode(trackMouseClicks, trackMouseMovement)
 
-		// Main beep
-		osc = audioCtx.createOscillator();
-		gain = audioCtx.createGain();
-		osc.connect(gain);
-		gain.connect(audioCtx.destination);
-		gain.gain.value = 0.5;
-		osc.frequency.value = 750;
-		osc.type = 'sine';
-		osc.start();
-		osc.stop(audioCtx.currentTime+0.05);
+    let showButtons = !!(attributes & 1 << 7)
+    let showConfigLinks = !!(attributes & 1 << 8)
 
-		// Surrogate beep (making it sound like 'oops')
-		osc = audioCtx.createOscillator();
-		gain = audioCtx.createGain();
-		osc.connect(gain);
-		gain.connect(audioCtx.destination);
-		gain.gain.value = 0.2;
-		osc.frequency.value = 400;
-		osc.type = 'sine';
-		osc.start(audioCtx.currentTime+0.05);
-		osc.stop(audioCtx.currentTime+0.08);
-	}
+    $('.x-term-conf-btn').toggleClass('hidden', !showConfigLinks)
+    $('#action-buttons').toggleClass('hidden', !showButtons)
 
-	/** Load screen content from a binary sequence (new) */
-	function load(str) {
-		//console.log(JSON.stringify(str));
-		var content = str.substr(1);
-		switch(str.charAt(0)) {
-			case 'S':
-				_load_content(content);
-				break;
-			case 'T':
-				_load_labels(content);
-				break;
-			case 'B':
-				_beep();
-				break;
-			default:
-				console.warn("Bad data message type, ignoring.");
-				console.log(str);
-		}
-	}
+    // content
+    let fg = 7
+    let bg = 0
+    let attrs = 0
+    let cell = 0 // cell index
+    let text = ' '
+    let screenLength = this.window.width * this.window.height
 
-	return  {
-		load: load, // full load (string)
-	};
-})();
+    this.screen = new Array(screenLength).fill(' ')
+    this.screenFG = new Array(screenLength).fill(' ')
+    this.screenBG = new Array(screenLength).fill(' ')
+    this.screenAttrs = new Array(screenLength).fill(' ')
+
+    while (i < str.length && cell < screenLength) {
+      let character = str[i++]
+      let charCode = character.charCodeAt(0)
+
+      if (charCode === SEQ_SET_COLOR_ATTR) {
+        let data = parse3B(str, i)
+        i += 3
+        fg = data & 0xF
+        bg = data >> 4 & 0xF
+        attrs = data >> 8 & 0xFF
+      } else if (charCode == SEQ_SET_COLOR) {
+        let data = parse2B(str, i)
+        i += 2
+        fg = data & 0xF
+        bg = data >> 4 & 0xF
+      } else if (charCode === SEQ_SET_ATTR) {
+        let data = parse2B(str, i)
+        i += 2
+        attrs = data & 0xFF
+      } else if (charCode === SEQ_REPEAT) {
+        let count = parse2B(str, i)
+        i += 2
+        for (let j = 0; j < count; j++) {
+          this.screen[cell] = text
+          this.screenFG[cell] = fg
+          this.screenBG[cell] = bg
+          this.screenAttrs[cell] = attrs
+
+          if (++cell > screenLength) break
+        }
+      } else {
+        // unique cell character
+        this.screen[cell] = text = character
+        this.screenFG[cell] = fg
+        this.screenBG[cell] = bg
+        this.screenAttrs[cell] = attrs
+        cell++
+      }
+    }
+
+    this.scheduleDraw()
+    if (this.onload) this.onload()
+  }
+
+  /** Apply labels to buttons and screen title (leading T removed already) */
+  loadLabels (str) {
+    let pieces = str.split('\x01')
+    qs('h1').textContent = pieces[0]
+    $('#action-buttons button').forEach((button, i) => {
+      var label = pieces[i + 1].trim()
+      // if empty string, use the "dim" effect and put nbsp instead to
+      // stretch the button vertically
+      button.innerHTML = label ? e(label) : '&nbsp;';
+      button.style.opacity = label ? 1 : 0.2;
+    })
+  }
+
+  load (str) {
+    const content = str.substr(1)
+
+    switch (str[0]) {
+      case 'S':
+        this.loadContent(content)
+        break
+      case 'T':
+        this.loadLabels(content)
+        break
+      case 'B':
+        this.beep()
+        break
+      default:
+        console.warn(`Bad data message type; ignoring.\n${
+          JSON.stringify(content)}`)
+    }
+  }
+
+  beep () {
+    const audioCtx = this.audioCtx
+    if (!audioCtx) return
+
+    let osc, gain
+
+    // main beep
+    osc = audioCtx.createOscillator()
+    gain = audioCtx.createGain()
+    osc.connect(gain)
+    gain.connect(audioCtx.destination);
+    gain.gain.value = 0.5;
+    osc.frequency.value = 750;
+    osc.type = 'sine';
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+
+    // surrogate beep (making it sound like 'oops')
+    osc = audioCtx.createOscillator();
+    gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.value = 0.2;
+    osc.frequency.value = 400;
+    osc.type = 'sine';
+    osc.start(audioCtx.currentTime + 0.05);
+    osc.stop(audioCtx.currentTime + 0.08);
+  }
+
+  static alphaToFraktur (character) {
+    if ('a' <= character && character <= 'z') {
+      character = String.fromCodePoint(0x1d51e - 0x61 + character.charCodeAt(0))
+    } else if ('A' <= character && character <= 'Z') {
+      character = frakturExceptions[character] || String.fromCodePoint(
+        0x1d504 - 0x41 + character.charCodeAt(0))
+    }
+    return character
+  }
+}
+
+const Screen = new TermScreen()
+let didAddScreen = false
+Screen.onload = function () {
+  if (didAddScreen) return
+  didAddScreen = true
+  qs('#screen').appendChild(Screen.canvas)
+}
