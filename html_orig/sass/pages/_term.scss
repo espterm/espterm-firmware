@@ -21,12 +21,27 @@ body.term {
 	padding: 6px;
 	display: inline-block;
 	border: 2px solid #3983CD;
+	position: relative;
 
 	font-size: 20px; // some font heights cause visual glitches with some font renderers. This should be configurable.
 	font-family: $screen-stack;
 
 	canvas.selectable {
 		cursor: text;
+	}
+
+	// Dummy input field used to open soft keyboard
+	#softkb-input {
+		position: absolute;
+		// compensate for padding
+		top: 6px;
+		left: 6px;
+		width: 1em;
+		height: 1em;
+		background: none;
+		border: none;
+		resize: none;
+		// visible for debugging. do opacity 0 later on
 	}
 }
 
@@ -97,12 +112,6 @@ body.term {
 
 #term-wrap {
 	text-align: center;
-}
-
-// Dummy input field used to open android keyboard
-#softkb-input {
-	position: absolute;
-	top: -9999px;
 }
 
 #fu_modal {

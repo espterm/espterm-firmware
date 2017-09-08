@@ -41,7 +41,9 @@
 <h1><!-- Screen title gets loaded here by JS --></h1>
 
 <div id="term-wrap">
-	<div id="screen" class="theme-%theme%"></div>
+	<div id="screen" class="theme-%theme%">
+		<textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+	</div>
 
 	<div id="action-buttons">
 		<button data-n="1"></button><!--
@@ -51,8 +53,6 @@
 		--><button data-n="5"></button>
 	</div>
 </div>
-
-<textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
 <nav id="term-nav">
 	<a href="#" onclick="kbOpen(true);return false" class="mq-tablet-max"><i class="icn-keyboard"></i><span><?= tr('term_nav.keybd') ?></span></a><!--
