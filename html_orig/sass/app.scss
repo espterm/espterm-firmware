@@ -20,7 +20,7 @@ $c-form-highlight-a: #2ea1f9;
 
 $c-modal-bg: #242426;
 
-$screen-stack: "DejaVu Sans Mono", "Liberation Mono", "Inconsolata", monospace;
+$screen-stack: "DejaVu Sans Mono", "Liberation Mono", "Inconsolata", "Menlo", monospace;
 
 @function dist($x) {
 	@return modular-scale($x, 1rem, $golden);

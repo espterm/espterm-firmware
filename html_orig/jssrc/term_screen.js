@@ -73,7 +73,7 @@ class TermScreen {
       width: 0,
       height: 0,
       devicePixelRatio: 1,
-      fontFamily: '"DejaVu Sans Mono", "Liberation Mono", "Inconsolata", monospace',
+      fontFamily: '"DejaVu Sans Mono", "Liberation Mono", "Inconsolata", "Menlo", monospace',
       fontSize: 20,
       gridScaleX: 1.0,
       gridScaleY: 1.2,
