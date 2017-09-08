@@ -1,4 +1,4 @@
-pages/_test_env.php
-js/*
+node_modules
+css/*
 css/*
 !.gitkeep

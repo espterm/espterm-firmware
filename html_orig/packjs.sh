@@ -11,4 +11,4 @@ cat jssrc/chibi.js \
 	jssrc/lang.js \
 	jssrc/wifi.js \
 	jssrc/term_* \
-	jssrc/term.js > js/app.js
+	jssrc/term.js | npm run --silent minify > js/app.js
