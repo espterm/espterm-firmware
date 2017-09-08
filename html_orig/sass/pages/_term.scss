@@ -30,6 +30,8 @@ body.term {
 		cursor: text;
 	}
 
+	@include noselect();
+
 	// Dummy input field used to open soft keyboard
 	#softkb-input {
 		position: absolute;
@@ -42,6 +44,18 @@ body.term {
 		border: none;
 		resize: none;
 		// visible for debugging. do opacity 0 later on
+	}
+
+	#touch-select-menu {
+		display: none;
+		position: absolute;
+		// compensate for padding
+		top: 6px;
+		left: 6px;
+
+		&.open {
+			display: block;
+		}
 	}
 }
 

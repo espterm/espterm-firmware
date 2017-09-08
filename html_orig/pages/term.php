@@ -43,6 +43,9 @@
 <div id="term-wrap">
 	<div id="screen" class="theme-%theme%">
 		<textarea id="softkb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+		<div id="touch-select-menu">
+			<button id="touch-select-copy-btn">Copy</button>
+		</div>
 	</div>
 
 	<div id="action-buttons">

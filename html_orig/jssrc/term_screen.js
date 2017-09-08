@@ -119,32 +119,121 @@ class TermScreen {
     this.resetCursorBlink();
 
     let selecting = false;
+    let selectStart = (x, y) => {
+      if (selecting) return;
+      selecting = true;
+      this.selection.start = this.selection.end = this.screenToGrid(x, y);
+      this.scheduleDraw();
+    };
+    let selectMove = (x, y) => {
+      if (!selecting) return;
+      this.selection.end = this.screenToGrid(x, y);
+      this.scheduleDraw();
+    };
+    let selectEnd = (x, y) => {
+      if (!selecting) return;
+      selecting = false;
+      this.selection.end = this.screenToGrid(x, y);
+      this.scheduleDraw();
+      Object.assign(this.selection, this.getNormalizedSelection());
+    };
+
     this.canvas.addEventListener('mousedown', e => {
       if (this.selection.selectable || e.altKey) {
-        let x = e.offsetX;
-        let y = e.offsetY;
-        selecting = true;
-        this.selection.start = this.selection.end = this.screenToGrid(x, y);
-        this.scheduleDraw()
+        selectStart(e.offsetX, e.offsetY)
       } else {
         Input.onMouseDown(...this.screenToGrid(e.offsetX, e.offsetY),
           e.button + 1)
       }
     });
     window.addEventListener('mousemove', e => {
-      if (selecting) {
-        this.selection.end = this.screenToGrid(e.offsetX, e.offsetY);
-        this.scheduleDraw()
-      }
+      selectMove(e.offsetX, e.offsetY)
     });
     window.addEventListener('mouseup', e => {
-      if (selecting) {
-        selecting = false;
-        this.selection.end = this.screenToGrid(e.offsetX, e.offsetY);
-        this.scheduleDraw();
-        Object.assign(this.selection, this.getNormalizedSelection())
-      }
+      selectEnd(e.offsetX, e.offsetY)
     });
+
+    let touchPosition = null;
+    let touchDownTime = 0;
+    let touchSelectMinTime = 500;
+    let touchDidMove = false;
+    let getTouchPositionOffset = touch => {
+      let rect = this.canvas.getBoundingClientRect();
+      return [touch.clientX - rect.left, touch.clientY - rect.top];
+    }
+    this.canvas.addEventListener('touchstart', e => {
+      touchPosition = getTouchPositionOffset(e.touches[0])
+      touchDidMove = false;
+      touchDownTime = Date.now();
+    });
+    this.canvas.addEventListener('touchmove', e => {
+      touchPosition = getTouchPositionOffset(e.touches[0]);
+
+      if (!selecting && touchDidMove === false) {
+        if (touchDownTime < Date.now() - touchSelectMinTime) {
+          selectStart(...touchPosition);
+        }
+      } else if (selecting) {
+        e.preventDefault();
+        selectMove(...touchPosition);
+      }
+
+      touchDidMove = true;
+    });
+    this.canvas.addEventListener('touchend', e => {
+      if (e.touches[0]) {
+        touchPosition = getTouchPositionOffset(e.touches[0]);
+      }
+      if (selecting) {
+        e.preventDefault();
+        selectEnd(...touchPosition);
+
+        let touchSelectMenu = qs('#touch-select-menu')
+        touchSelectMenu.classList.add('open');
+        let rect = touchSelectMenu.getBoundingClientRect()
+
+        // use middle position for x and one line above for y
+        let selectionPos = this.gridToScreen(
+          (this.selection.start[0] + this.selection.end[0]) / 2,
+          this.selection.start[1] - 1
+        );
+        selectionPos[0] -= rect.width / 2
+        selectionPos[1] -= rect.height / 2
+        touchSelectMenu.style.transform = `translate(${selectionPos[0]}px, ${
+          selectionPos[1]}px)`
+      }
+
+      if (!touchDidMove) {
+        this.emit('tap', Object.assign(e, {
+          x: touchPosition[0],
+          y: touchPosition[1],
+        }))
+      }
+
+      touchPosition = null;
+    });
+
+    this.on('tap', e => {
+      if (this.selection.start[0] !== this.selection.end[0] ||
+        this.selection.start[1] !== this.selection.end[1]) {
+        // selection is not empty
+        // reset selection
+        this.selection.start = this.selection.end = [0, 0];
+        qs('#touch-select-menu').classList.remove('open');
+        this.scheduleDraw();
+      } else {
+        e.preventDefault();
+        this.emit('open-soft-keyboard');
+      }
+    })
+
+    $.ready(() => {
+      let copyButton = qs('#touch-select-copy-btn')
+      copyButton.addEventListener('click', () => {
+        this.copySelectionToClipboard();
+      });
+    });
+
     this.canvas.addEventListener('mousemove', e => {
       if (!selecting) {
         Input.onMouseMove(...this.screenToGrid(e.offsetX, e.offsetY))
@@ -360,7 +449,7 @@ class TermScreen {
     if (document.execCommand('copy')) {
       Notify.show('Copied to clipboard');
     } else {
-      console.warn('Copy failed');
+      Notify.show('Failed to copy');
       // unsuccessful copy
     }
     document.body.removeChild(textarea);
@@ -410,19 +499,18 @@ class TermScreen {
 
       if (underline || strike) {
         ctx.strokeStyle = inSelection ? SELECTION_FG : this.colors[fg];
-        ctx.lineWidth = this.window.devicePixelRatio==1?1:2;
+        ctx.lineWidth = 1;
         ctx.lineCap = 'round';
         ctx.beginPath();
 
-        let lineY;
         if (underline) {
-          lineY = Math.round(y * cellHeight + charSize.height) + 0.5;
+          let lineY = Math.round(y * cellHeight + charSize.height) + 0.5;
           ctx.moveTo(x * cellWidth, lineY);
           ctx.lineTo((x + 1) * cellWidth, lineY);
         }
 
         if (strike) {
-          lineY = Math.round((y + 0.5) * cellHeight) + 0.5;
+          let lineY = Math.round((y + 0.5) * cellHeight) + 0.5;
           ctx.moveTo(x * cellWidth, lineY);
           ctx.lineTo((x + 1) * cellWidth, lineY);
         }

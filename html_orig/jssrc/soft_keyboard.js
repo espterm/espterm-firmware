@@ -33,4 +33,6 @@ $.ready(() => {
   input.addEventListener('keypress', e => {
     e.stopPropagation()
   })
+
+  Screen.on('open-soft-keyboard', () => input.focus())
 })
