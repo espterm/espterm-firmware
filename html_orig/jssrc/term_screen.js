@@ -108,6 +108,8 @@ class TermScreen {
       end: [0, 0]
     }
 
+    this.mouseMode = { clicks: false, movement: false }
+
     const self = this
     this.window = new Proxy(this._window, {
       set (target, key, value, receiver) {
@@ -128,12 +130,15 @@ class TermScreen {
 
     let selecting = false
     this.canvas.addEventListener('mousedown', e => {
-      if (this.selection.selectable) {
+      if (this.selection.selectable || e.altKey) {
         let x = e.offsetX
         let y = e.offsetY
         selecting = true
         this.selection.start = this.selection.end = this.screenToGrid(x, y)
         this.scheduleDraw()
+      } else {
+        Input.onMouseDown(...this.screenToGrid(e.offsetX, e.offsetY),
+          e.button + 1)
       }
     })
     window.addEventListener('mousemove', e => {
@@ -149,6 +154,32 @@ class TermScreen {
         this.scheduleDraw()
         Object.assign(this.selection, this.getNormalizedSelection())
       }
+    })
+    this.canvas.addEventListener('mousemove', e => {
+      if (!selecting) {
+        Input.onMouseMove(...this.screenToGrid(e.offsetX, e.offsetY))
+      }
+    })
+    this.canvas.addEventListener('mouseup', e => {
+      if (!selecting) {
+        Input.onMouseUp(...this.screenToGrid(e.offsetX, e.offsetY),
+          e.button + 1)
+      }
+    })
+    this.canvas.addEventListener('wheel', e => {
+      if (this.mouseMode.clicks) {
+        Input.onMouseWheel(...this.screenToGrid(e.offsetX, e.offsetY),
+          e.deltaY > 0 ? 1 : -1)
+
+        // prevent page scrolling
+        e.preventDefault()
+      }
+    })
+
+    // bind ctrl+shift+c to copy
+    key('⌃+⇧+c', e => {
+      e.preventDefault()
+      this.copySelectionToClipboard()
     })
   }
 
@@ -243,7 +274,6 @@ class TermScreen {
   }
 
   isInSelection (col, line) {
-    if (!this.selection.selectable) return false
     let { start, end } = this.getNormalizedSelection()
     let colAfterStart = start[0] <= col
     let colBeforeEnd = col < end[0]
@@ -254,6 +284,44 @@ class TermScreen {
     else if (onStartLine) return colAfterStart
     else if (onEndLine) return colBeforeEnd
     else return start[1] < line && line < end[1]
+  }
+
+  getSelectedText () {
+    const screenLength = this.window.width * this.window.height
+    let lines = []
+    let previousLineIndex = -1
+
+    for (let cell = 0; cell < screenLength; cell++) {
+      let x = cell % this.window.width
+      let y = Math.floor(cell / this.window.width)
+
+      if (this.isInSelection(x, y)) {
+        if (previousLineIndex !== y) {
+          previousLineIndex = y
+          lines.push('')
+        }
+        lines[lines.length - 1] += this.screen[cell]
+      }
+    }
+
+    return lines.join('\n')
+  }
+
+  copySelectionToClipboard () {
+    let selectedText = this.getSelectedText()
+    // don't copy anything if nothing is selected
+    if (!selectedText) return
+    let textarea = document.createElement('textarea')
+    document.body.appendChild(textarea)
+    textarea.value = selectedText
+    textarea.select()
+    if (document.execCommand('copy')) {
+      Notify.show(`Copied to clipboard`)
+    } else {
+      // unsuccessful copy
+      // TODO: do something?
+    }
+    document.body.removeChild(textarea)
   }
 
   screenToGrid (x, y) {
@@ -421,6 +489,11 @@ class TermScreen {
     let trackMouseMovement = !!(attributes & 1 << 6)
 
     Input.setMouseMode(trackMouseClicks, trackMouseMovement)
+    this.selection.selectable = !trackMouseMovement
+    this.mouseMode = {
+      clicks: trackMouseClicks,
+      movement: trackMouseMovement
+    }
 
     let showButtons = !!(attributes & 1 << 7)
     let showConfigLinks = !!(attributes & 1 << 8)
