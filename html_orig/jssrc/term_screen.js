@@ -1,378 +1,645 @@
-var Screen = (function () {
-	var W = 0, H = 0; // dimensions
-	var inited = false;
+// Some non-bold Fraktur symbols are outside the contiguous block
+const frakturExceptions = {
+  'C': '\u212d',
+  'H': '\u210c',
+  'I': '\u2111',
+  'R': '\u211c',
+  'Z': '\u2128'
+}
 
-	var cursor = {
-		a: false,        // active (blink state)
-		x: 0,            // 0-based coordinates
-		y: 0,
-		fg: 7,           // colors 0-15
-		bg: 0,
-		attrs: 0,
-		suppress: false, // do not turn on in blink interval (for safe moving)
-		forceOn: false,  // force on unless hanging: used to keep cursor visible during move
-		hidden: false,    // do not show (DEC opt)
-		hanging: false,   // cursor at column "W+1" - not visible
-	};
+// constants for decoding the update blob
+const SEQ_SET_COLOR_ATTR = 1
+const SEQ_REPEAT = 2
+const SEQ_SET_COLOR = 3
+const SEQ_SET_ATTR = 4
 
-	var screen = [];
-	var blinkIval;
-	var cursorFlashStartIval;
+const SELECTION_BG = '#b2d7fe'
+const SELECTION_FG = '#333'
 
-	// Some non-bold Fraktur symbols are outside the contiguous block
-	var frakturExceptions = {
-		'C': '\u212d',
-		'H': '\u210c',
-		'I': '\u2111',
-		'R': '\u211c',
-		'Z': '\u2128',
-	};
+const themes = [
+  [ // Tango
+    '#111213', '#CC0000', '#4E9A06', '#C4A000', '#3465A4', '#75507B', '#06989A',
+    '#D3D7CF',
+    '#555753', '#EF2929', '#8AE234', '#FCE94F', '#729FCF', '#AD7FA8', '#34E2E2',
+    '#EEEEEC'
+  ],
+  [ // Linux
+    '#000000', '#aa0000', '#00aa00', '#aa5500', '#0000aa', '#aa00aa', '#00aaaa',
+    '#aaaaaa',
+    '#555555', '#ff5555', '#55ff55', '#ffff55', '#5555ff', '#ff55ff', '#55ffff',
+    '#ffffff'
+  ],
+  [ // xterm
+    '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000ee', '#cd00cd', '#00cdcd',
+    '#e5e5e5',
+    '#7f7f7f', '#ff0000', '#00ff00', '#ffff00', '#5c5cff', '#ff00ff', '#00ffff',
+    '#ffffff'
+  ],
+  [ // rxvt
+    '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000cd', '#cd00cd', '#00cdcd',
+    '#faebd7',
+    '#404040', '#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff',
+    '#ffffff'
+  ],
+  [ // Ambience
+    '#2e3436', '#cc0000', '#4e9a06', '#c4a000', '#3465a4', '#75507b', '#06989a',
+    '#d3d7cf',
+    '#555753', '#ef2929', '#8ae234', '#fce94f', '#729fcf', '#ad7fa8', '#34e2e2',
+    '#eeeeec'
+  ],
+  [ // Solarized
+    '#073642', '#dc322f', '#859900', '#b58900', '#268bd2', '#d33682', '#2aa198',
+    '#eee8d5',
+    '#002b36', '#cb4b16', '#586e75', '#657b83', '#839496', '#6c71c4', '#93a1a1',
+    '#fdf6e3'
+  ]
+]
 
-	// for BEL
-	var audioCtx = null;
-	try {
-		audioCtx = new (window.AudioContext || window.audioContext || window.webkitAudioContext)();
-	} catch (er) {
-		console.error("No AudioContext!", er);
-	}
+class TermScreen {
+  constructor () {
+    this.canvas = document.createElement('canvas')
+    this.ctx = this.canvas.getContext('2d')
 
-	/** Get cell under cursor */
-	function _curCell() {
-		return screen[cursor.y*W + cursor.x];
-	}
+    if ('AudioContext' in window || 'webkitAudioContext' in window) {
+      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    } else {
+      console.warn('No AudioContext!')
+    }
 
-	/** Safely move cursor */
-	function cursorSet(y, x) {
-		// Hide and prevent from showing up during the move
-		cursor.suppress = true;
-		_draw(_curCell(), false);
-		cursor.x = x;
-		cursor.y = y;
-		// Show again
-		cursor.suppress = false;
-		_draw(_curCell());
-	}
+    this.cursor = {
+      x: 0,
+      y: 0,
+      fg: 7,
+      bg: 0,
+      attrs: 0,
+      blinkOn: false,
+      visible: true,
+      hanging: false,
+      style: 'block',
+      blinkInterval: null
+    }
 
-	function alpha2fraktur(t) {
-		// perform substitution
-		if (t >= 'a' && t <= 'z') {
-			t = String.fromCodePoint(0x1d51e - 97 + t.charCodeAt(0));
-		}
-		else if (t >= 'A' && t <= 'Z') {
-			// this set is incomplete, some exceptions are needed
-			if (frakturExceptions.hasOwnProperty(t)) {
-				t = frakturExceptions[t];
-			} else {
-				t = String.fromCodePoint(0x1d504 - 65 + t.charCodeAt(0));
-			}
-		}
-		return t;
-	}
+    this._colors = themes[0]
 
-	/** Update cell on display. inv = invert (for cursor) */
-	function _draw(cell, inv) {
-		if (!cell) return;
-		if (typeof inv == 'undefined') {
-			inv = cursor.a && cursor.x == cell.x && cursor.y == cell.y;
-		}
+    this._window = {
+      width: 0,
+      height: 0,
+      devicePixelRatio: 1,
+      fontFamily: '"DejaVu Sans Mono", "Liberation Mono", "Inconsolata", ' +
+        'monospace',
+      fontSize: 20,
+      gridScaleX: 1.0,
+      gridScaleY: 1.2,
+      blinkStyleOn: true,
+      blinkInterval: null
+    }
+    this.windowState = {
+      width: 0,
+      height: 0,
+      devicePixelRatio: 0,
+      gridScaleX: 0,
+      gridScaleY: 0,
+      fontFamily: '',
+      fontSize: 0
+    }
+    this.selection = {
+      selectable: true,
+      start: [0, 0],
+      end: [0, 0]
+    }
 
-		var fg, bg, cn, t;
+    this.mouseMode = { clicks: false, movement: false }
 
-		fg = inv ? cell.bg : cell.fg;
-		bg = inv ? cell.fg : cell.bg;
+    const self = this
+    this.window = new Proxy(this._window, {
+      set (target, key, value, receiver) {
+        target[key] = value
+        self.updateSize()
+        self.scheduleDraw()
+        return true
+      }
+    })
 
-		t = cell.t;
-		if (!t.length) t = ' ';
+    this.screen = []
+    this.screenFG = []
+    this.screenBG = []
+    this.screenAttrs = []
 
-		cn = 'fg' + fg + ' bg' + bg;
-		if (cell.attrs & (1<<0)) cn += ' bold';
-		if (cell.attrs & (1<<1)) cn += ' faint';
-		if (cell.attrs & (1<<2)) cn += ' italic';
-		if (cell.attrs & (1<<3)) cn += ' under';
-		if (cell.attrs & (1<<4)) cn += ' blink';
-		if (cell.attrs & (1<<5)) {
-			cn += ' fraktur';
-			t = alpha2fraktur(t);
-		}
-		if (cell.attrs & (1<<6)) cn += ' strike';
+    this.resetBlink()
+    this.resetCursorBlink()
 
-		cell.slot.textContent = t;
-		cell.elem.className = cn;
-	}
+    let selecting = false
+    this.canvas.addEventListener('mousedown', e => {
+      if (this.selection.selectable || e.altKey) {
+        let x = e.offsetX
+        let y = e.offsetY
+        selecting = true
+        this.selection.start = this.selection.end = this.screenToGrid(x, y)
+        this.scheduleDraw()
+      } else {
+        Input.onMouseDown(...this.screenToGrid(e.offsetX, e.offsetY),
+          e.button + 1)
+      }
+    })
+    window.addEventListener('mousemove', e => {
+      if (selecting) {
+        this.selection.end = this.screenToGrid(e.offsetX, e.offsetY)
+        this.scheduleDraw()
+      }
+    })
+    window.addEventListener('mouseup', e => {
+      if (selecting) {
+        selecting = false
+        this.selection.end = this.screenToGrid(e.offsetX, e.offsetY)
+        this.scheduleDraw()
+        Object.assign(this.selection, this.getNormalizedSelection())
+      }
+    })
+    this.canvas.addEventListener('mousemove', e => {
+      if (!selecting) {
+        Input.onMouseMove(...this.screenToGrid(e.offsetX, e.offsetY))
+      }
+    })
+    this.canvas.addEventListener('mouseup', e => {
+      if (!selecting) {
+        Input.onMouseUp(...this.screenToGrid(e.offsetX, e.offsetY),
+          e.button + 1)
+      }
+    })
+    this.canvas.addEventListener('wheel', e => {
+      if (this.mouseMode.clicks) {
+        Input.onMouseWheel(...this.screenToGrid(e.offsetX, e.offsetY),
+          e.deltaY > 0 ? 1 : -1)
 
-	/** Show entire screen */
-	function _drawAll() {
-		for (var i = W*H-1; i>=0; i--) {
-			_draw(screen[i]);
-		}
-	}
+        // prevent page scrolling
+        e.preventDefault()
+      }
+    })
 
-	function _rebuild(rows, cols) {
-		W = cols;
-		H = rows;
+    // bind ctrl+shift+c to copy
+    key('⌃+⇧+c', e => {
+      e.preventDefault()
+      this.copySelectionToClipboard()
+    })
+  }
 
-		/* Build screen & show */
-		var cOuter, cInner, cell, screenDiv = qs('#screen');
+  get colors () { return this._colors }
+  set colors (theme) {
+    this._colors = theme
+    this.scheduleDraw()
+  }
 
-		// Empty the screen node
-		while (screenDiv.firstChild) screenDiv.removeChild(screenDiv.firstChild);
+  // schedule a draw in the next tick
+  scheduleDraw () {
+    clearTimeout(this._scheduledDraw)
+    this._scheduledDraw = setTimeout(() => this.draw(), 1)
+  }
 
-		screen = [];
+  getFont (modifiers = {}) {
+    let fontStyle = modifiers.style || 'normal'
+    let fontWeight = modifiers.weight || 'normal'
+    return `${fontStyle} normal ${fontWeight} ${
+      this.window.fontSize}px ${this.window.fontFamily}`
+  }
 
-		for(var i = 0; i < W*H; i++) {
-			cOuter = mk('span');
-			cInner = mk('span');
+  getCharSize () {
+    this.ctx.font = this.getFont()
 
-			/* Mouse tracking */
-			(function() {
-				var x = i % W;
-				var y = Math.floor(i / W);
-				cOuter.addEventListener('mouseenter', function (evt) {
-					Input.onMouseMove(x, y);
-				});
-				cOuter.addEventListener('mousedown', function (evt) {
-					Input.onMouseDown(x, y, evt.button+1);
-				});
-				cOuter.addEventListener('mouseup', function (evt) {
-					Input.onMouseUp(x, y, evt.button+1);
-				});
-				cOuter.addEventListener('contextmenu', function (evt) {
-					if (Input.mouseTracksClicks()) {
-						evt.preventDefault();
-					}
-				});
-				cOuter.addEventListener('mousewheel', function (evt) {
-					Input.onMouseWheel(x, y, evt.deltaY>0?1:-1);
-					return false;
-				});
-			})();
+    return {
+      width: this.ctx.measureText(' ').width,
+      height: this.window.fontSize
+    }
+  }
 
-			/* End of line */
-			if ((i > 0) && (i % W == 0)) {
-				screenDiv.appendChild(mk('br'));
-			}
-			/* The cell */
-			cOuter.appendChild(cInner);
-			screenDiv.appendChild(cOuter);
+  updateSize () {
+    this._window.devicePixelRatio = window.devicePixelRatio || 1
 
-			cell = {
-				t: ' ',
-				fg: 7,
-				bg: 0, // the colors will be replaced immediately as we receive data (user won't see this)
-				attrs: 0,
-				elem: cOuter,
-				slot: cInner,
-				x: i % W,
-				y: Math.floor(i / W),
-			};
-			screen.push(cell);
-			_draw(cell);
-		}
-	}
+    let didChange = false
+    for (let key in this.windowState) {
+      if (this.windowState[key] !== this.window[key]) {
+        didChange = true
+        this.windowState[key] = this.window[key]
+      }
+    }
 
-	/** Init the terminal */
-	function _init() {
-		/* Cursor blinking */
-		clearInterval(blinkIval);
-		blinkIval = setInterval(function () {
-			cursor.a = !cursor.a;
-			if (cursor.hidden || cursor.hanging) {
-				cursor.a = false;
-			}
+    if (didChange) {
+      const {
+        width, height, devicePixelRatio, gridScaleX, gridScaleY, fontSize
+      } = this.window
+      const charSize = this.getCharSize()
 
-			if (!cursor.suppress) {
-				_draw(_curCell(), cursor.forceOn || cursor.a);
-			}
-		}, 500);
+      this.canvas.width = width * devicePixelRatio * charSize.width * gridScaleX
+      this.canvas.style.width = `${Math.ceil(width * charSize.width *
+        gridScaleX)}px`
+      this.canvas.height = height * devicePixelRatio * charSize.height *
+        gridScaleY
+      this.canvas.style.height = `${Math.ceil(height * charSize.height *
+        gridScaleY)}px`
+    }
+  }
 
-		/* blink attribute animation */
-		setInterval(function () {
-			$('#screen').removeClass('blink-hide');
-			setTimeout(function () {
-				$('#screen').addClass('blink-hide');
-			}, 800); // 200 ms ON
-		}, 1000);
+  resetCursorBlink () {
+    this.cursor.blinkOn = true
+    clearInterval(this.cursor.blinkInterval)
+    this.cursor.blinkInterval = setInterval(() => {
+      this.cursor.blinkOn = !this.cursor.blinkOn
+      this.scheduleDraw()
+    }, 500)
+  }
 
-		inited = true;
-	}
+  resetBlink () {
+    this.window.blinkStyleOn = true
+    clearInterval(this.window.blinkInterval)
+    let intervals = 0
+    this.window.blinkInterval = setInterval(() => {
+      intervals++
+      if (intervals >= 4 && this.window.blinkStyleOn) {
+        this.window.blinkStyleOn = false
+        intervals = 0
+      } else if (intervals >= 1 && !this.window.blinkStyleOn) {
+        this.window.blinkStyleOn = true
+        intervals = 0
+      }
+    }, 200)
+  }
 
-	// constants for decoding the update blob
-	var SEQ_SET_COLOR_ATTR = 1;
-	var SEQ_REPEAT = 2;
-	var SEQ_SET_COLOR = 3;
-	var SEQ_SET_ATTR = 4;
+  getNormalizedSelection () {
+    let { start, end } = this.selection
+    // if the start line is after the end line, or if they're both on the same
+    // line but the start column comes after the end column, swap
+    if (start[1] > end[1] || (start[1] === end[1] && start[0] > end[0])) {
+      [start, end] = [end, start]
+    }
+    return { start, end }
+  }
 
-	/** Parse received screen update object (leading S removed already) */
-	function _load_content(str) {
-		var i = 0, ci = 0, j, jc, num, num2, t = ' ', fg, bg, attrs, cell;
+  isInSelection (col, line) {
+    let { start, end } = this.getNormalizedSelection()
+    let colAfterStart = start[0] <= col
+    let colBeforeEnd = col < end[0]
+    let onStartLine = line === start[1]
+    let onEndLine = line === end[1]
 
-		if (!inited) _init();
+    if (onStartLine && onEndLine) return colAfterStart && colBeforeEnd
+    else if (onStartLine) return colAfterStart
+    else if (onEndLine) return colBeforeEnd
+    else return start[1] < line && line < end[1]
+  }
 
-		var cursorMoved;
+  getSelectedText () {
+    const screenLength = this.window.width * this.window.height
+    let lines = []
+    let previousLineIndex = -1
 
-		// Set size
-		num = parse2B(str, i); i += 2;  // height
-		num2 = parse2B(str, i); i += 2; // width
-		if (num != H || num2 != W) {
-			_rebuild(num, num2);
-		}
-		// console.log("Size ",num, num2);
+    for (let cell = 0; cell < screenLength; cell++) {
+      let x = cell % this.window.width
+      let y = Math.floor(cell / this.window.width)
 
-		// Cursor position
-		num = parse2B(str, i); i += 2; // row
-		num2 = parse2B(str, i); i += 2; // col
-		cursorMoved = (cursor.x != num2 || cursor.y != num);
-		cursorSet(num, num2);
-		// console.log("Cursor at ",num, num2);
+      if (this.isInSelection(x, y)) {
+        if (previousLineIndex !== y) {
+          previousLineIndex = y
+          lines.push('')
+        }
+        lines[lines.length - 1] += this.screen[cell]
+      }
+    }
 
-		// Attributes
-		num = parse2B(str, i); i += 2; // fg bg attribs
-		cursor.hidden = !(num & (1<<0)); // DEC opt "visible"
-		cursor.hanging = !!(num & (1<<1));
-		// console.log("Attributes word ",num.toString(16)+'h');
+    return lines.join('\n')
+  }
 
-		Input.setAlts(
-			!!(num & (1<<2)), // cursors alt
-			!!(num & (1<<3)), // numpad alt
-			!!(num & (1<<4)) // fn keys alt
-		);
+  copySelectionToClipboard () {
+    let selectedText = this.getSelectedText()
+    // don't copy anything if nothing is selected
+    if (!selectedText) return
+    let textarea = document.createElement('textarea')
+    document.body.appendChild(textarea)
+    textarea.value = selectedText
+    textarea.select()
+    if (document.execCommand('copy')) {
+      Notify.show(`Copied to clipboard`)
+    } else {
+      // unsuccessful copy
+      // TODO: do something?
+    }
+    document.body.removeChild(textarea)
+  }
 
-		var mt_click = !!(num & (1<<5));
-		var mt_move = !!(num & (1<<6));
-		Input.setMouseMode(
-			mt_click,
-			mt_move
-		);
-		$('#screen').toggleClass('noselect', mt_move);
+  screenToGrid (x, y) {
+    let charSize = this.getCharSize()
+    let cellWidth = charSize.width * this.window.gridScaleX
+    let cellHeight = charSize.height * this.window.gridScaleY
 
-		var show_buttons = !!(num & (1<<7));
-		var show_config_links = !!(num & (1<<8));
-		$('.x-term-conf-btn').toggleClass('hidden', !show_config_links);
-		$('#action-buttons').toggleClass('hidden', !show_buttons);
+    return [
+      Math.floor((x + cellWidth / 2) / cellWidth),
+      Math.floor(y / cellHeight)
+    ]
+  }
 
-		fg = 7;
-		bg = 0;
-		attrs = 0;
+  drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs },
+      compositeAbove = false) {
+    const ctx = this.ctx
+    const inSelection = this.isInSelection(x, y)
+    ctx.fillStyle = inSelection ? SELECTION_BG : this.colors[bg]
+    if (!compositeAbove) ctx.globalCompositeOperation = 'destination-over'
+    ctx.fillRect(x * cellWidth, y * cellHeight,
+      Math.ceil(cellWidth), Math.ceil(cellHeight))
+    ctx.globalCompositeOperation = 'source-over'
 
-		// Here come the content
-		while(i < str.length && ci<W*H) {
+    let fontModifiers = {}
+    let underline = false
+    let blink = false
+    let strike = false
+    if (attrs & 1) fontModifiers.weight = 'bold'
+    if (attrs & 1 << 1) ctx.globalAlpha = 0.5
+    if (attrs & 1 << 2) fontModifiers.style = 'italic'
+    if (attrs & 1 << 3) underline = true
+    if (attrs & 1 << 4) blink = true
+    if (attrs & 1 << 5) text = TermScreen.alphaToFraktur(text)
+    if (attrs & 1 << 6) strike = true
 
-			j = str[i++];
-			jc = j.charCodeAt(0);
-			if (jc == SEQ_SET_COLOR_ATTR) {
-				num = parse3B(str, i); i += 3;
-				fg = num & 0x0F;
-				bg = (num & 0xF0) >> 4;
-				attrs = (num & 0xFF00)>>8;
-			}
-			else if (jc == SEQ_SET_COLOR) {
-				num = parse2B(str, i); i += 2;
-				fg = num & 0x0F;
-				bg = (num & 0xF0) >> 4;
-			}
-			else if (jc == SEQ_SET_ATTR) {
-				num = parse2B(str, i); i += 2;
-				attrs = num & 0xFF;
-			}
-			else if (jc == SEQ_REPEAT) {
-				num = parse2B(str, i); i += 2;
-				// console.log("Repeat x ",num);
-				for (; num>0 && ci<W*H; num--) {
-					cell = screen[ci++];
-					cell.fg = fg;
-					cell.bg = bg;
-					cell.t = t;
-					cell.attrs = attrs;
-				}
-			}
-			else {
-				cell = screen[ci++];
-				// Unique cell character
-				t = cell.t = j;
-				cell.fg = fg;
-				cell.bg = bg;
-				cell.attrs = attrs;
-				// console.log("Symbol ", j);
-			}
-		}
+    if (!blink || this.window.blinkStyleOn) {
+      ctx.font = this.getFont(fontModifiers)
+      ctx.fillStyle = inSelection ? SELECTION_FG : this.colors[fg]
+      ctx.fillText(text, (x + 0.5) * cellWidth, (y + 0.5) * cellHeight)
 
-		_drawAll();
+      if (underline || strike) {
+        let lineY = underline
+          ? y * cellHeight + charSize.height
+          : (y + 0.5) * cellHeight
 
-		// if (!cursor.hidden || cursor.hanging || !cursor.suppress) {
-		// 	// hide cursor asap
-		// 	_draw(_curCell(), false);
-		// }
+        ctx.strokeStyle = inSelection ? SELECTION_FG : this.colors[fg]
+        ctx.lineWidth = this.window.fontSize / 10
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(x * cellWidth, lineY)
+        ctx.lineTo((x + 1) * cellWidth, lineY)
+        ctx.stroke()
+      }
+    }
 
-		if (cursorMoved) {
-			cursor.forceOn = true;
-			cursorFlashStartIval = setTimeout(function() {
-				cursor.forceOn = false;
-			}, 1200);
-			_draw(_curCell(), true);
-		}
-	}
+    ctx.globalAlpha = 1
+  }
 
-	/** Apply labels to buttons and screen title (leading T removed already) */
-	function _load_labels(str) {
-		var pieces = str.split('\x01');
-		qs('h1').textContent = pieces[0];
-		$('#action-buttons button').forEach(function(x, i) {
-			var s = pieces[i+1].trim();
-			// if empty string, use the "dim" effect and put nbsp instead to stretch the btn vertically
-			x.innerHTML = s.length > 0 ? e(s) : "&nbsp;";
-			x.style.opacity = s.length > 0 ? 1 : 0.2;
-		})
-	}
+  draw () {
+    const ctx = this.ctx
+    const {
+      width,
+      height,
+      devicePixelRatio,
+      fontFamily,
+      fontSize,
+      gridScaleX,
+      gridScaleY
+    } = this.window
 
-	/** Audible beep for ASCII 7 */
-	function _beep() {
-		var osc, gain;
-		if (!audioCtx) return;
+    const charSize = this.getCharSize()
+    const cellWidth = charSize.width * gridScaleX
+    const cellHeight = charSize.height * gridScaleY
+    const screenWidth = width * cellWidth
+    const screenHeight = height * cellHeight
+    const screenLength = width * height
 
-		// Main beep
-		osc = audioCtx.createOscillator();
-		gain = audioCtx.createGain();
-		osc.connect(gain);
-		gain.connect(audioCtx.destination);
-		gain.gain.value = 0.5;
-		osc.frequency.value = 750;
-		osc.type = 'sine';
-		osc.start();
-		osc.stop(audioCtx.currentTime+0.05);
+    ctx.setTransform(this.window.devicePixelRatio, 0, 0,
+      this.window.devicePixelRatio, 0, 0)
+    ctx.clearRect(0, 0, screenWidth, screenHeight)
 
-		// Surrogate beep (making it sound like 'oops')
-		osc = audioCtx.createOscillator();
-		gain = audioCtx.createGain();
-		osc.connect(gain);
-		gain.connect(audioCtx.destination);
-		gain.gain.value = 0.2;
-		osc.frequency.value = 400;
-		osc.type = 'sine';
-		osc.start(audioCtx.currentTime+0.05);
-		osc.stop(audioCtx.currentTime+0.08);
-	}
+    ctx.font = this.getFont()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
 
-	/** Load screen content from a binary sequence (new) */
-	function load(str) {
-		//console.log(JSON.stringify(str));
-		var content = str.substr(1);
-		switch(str.charAt(0)) {
-			case 'S':
-				_load_content(content);
-				break;
-			case 'T':
-				_load_labels(content);
-				break;
-			case 'B':
-				_beep();
-				break;
-			default:
-				console.warn("Bad data message type, ignoring.");
-				console.log(str);
-		}
-	}
+    for (let cell = 0; cell < screenLength; cell++) {
+      let x = cell % width
+      let y = Math.floor(cell / width)
+      let isCursor = this.cursor.x === x && this.cursor.y === y
+      if (this.cursor.hanging) isCursor = false
+      let invertForCursor = isCursor && this.cursor.blinkOn &&
+        this.cursor.style === 'block'
 
-	return  {
-		load: load, // full load (string)
-	};
-})();
+      let text = this.screen[cell]
+      let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell]
+      let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell]
+      let attrs = this.screenAttrs[cell]
+
+      // HACK: ensure cursor is visible
+      if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0
+
+      this.drawCell({
+        x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
+      })
+
+      if (isCursor && this.cursor.blinkOn && this.cursor.style !== 'block') {
+        ctx.save()
+        ctx.beginPath()
+        if (this.cursor.style === 'bar') {
+          // vertical bar
+          let barWidth = 2
+          ctx.rect(x * cellWidth, y * cellHeight, barWidth, cellHeight)
+        } else if (this.cursor.style === 'line') {
+          // underline
+          let lineHeight = 2
+          ctx.rect(x * cellWidth, y * cellHeight + charSize.height,
+            cellWidth, lineHeight)
+        }
+        ctx.clip()
+
+        // swap foreground/background
+        fg = this.screenBG[cell]
+        bg = this.screenFG[cell]
+        // HACK: ensure cursor is visible
+        if (fg === bg) bg = fg === 0 ? 7 : 0
+
+        this.drawCell({
+          x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
+        }, true)
+        ctx.restore()
+      }
+    }
+  }
+
+  loadContent (str) {
+    // current index
+    let i = 0
+
+    // window size
+    this.window.height = parse2B(str, i)
+    this.window.width = parse2B(str, i + 2)
+    this.updateSize()
+    i += 4
+
+    // cursor position
+    let [cursorY, cursorX] = [parse2B(str, i), parse2B(str, i + 2)]
+    i += 4
+    let cursorMoved = (cursorX !== this.cursor.x || cursorY !== this.cursor.y)
+    this.cursor.x = cursorX
+    this.cursor.y = cursorY
+
+    if (cursorMoved) this.resetCursorBlink()
+
+    // attributes
+    let attributes = parse2B(str, i)
+    i += 2
+
+    this.cursor.visible = !!(attributes & 1)
+    this.cursor.hanging = !!(attributes & 1 << 1)
+
+    Input.setAlts(
+      !!(attributes & 1 << 2), // cursors alt
+      !!(attributes & 1 << 3), // numpad alt
+      !!(attributes & 1 << 4)  // fn keys alt
+    )
+
+    let trackMouseClicks = !!(attributes & 1 << 5)
+    let trackMouseMovement = !!(attributes & 1 << 6)
+
+    Input.setMouseMode(trackMouseClicks, trackMouseMovement)
+    this.selection.selectable = !trackMouseMovement
+    this.mouseMode = {
+      clicks: trackMouseClicks,
+      movement: trackMouseMovement
+    }
+
+    let showButtons = !!(attributes & 1 << 7)
+    let showConfigLinks = !!(attributes & 1 << 8)
+
+    $('.x-term-conf-btn').toggleClass('hidden', !showConfigLinks)
+    $('#action-buttons').toggleClass('hidden', !showButtons)
+
+    // content
+    let fg = 7
+    let bg = 0
+    let attrs = 0
+    let cell = 0 // cell index
+    let text = ' '
+    let screenLength = this.window.width * this.window.height
+
+    this.screen = new Array(screenLength).fill(' ')
+    this.screenFG = new Array(screenLength).fill(' ')
+    this.screenBG = new Array(screenLength).fill(' ')
+    this.screenAttrs = new Array(screenLength).fill(' ')
+
+    while (i < str.length && cell < screenLength) {
+      let character = str[i++]
+      let charCode = character.charCodeAt(0)
+
+      if (charCode === SEQ_SET_COLOR_ATTR) {
+        let data = parse3B(str, i)
+        i += 3
+        fg = data & 0xF
+        bg = data >> 4 & 0xF
+        attrs = data >> 8 & 0xFF
+      } else if (charCode == SEQ_SET_COLOR) {
+        let data = parse2B(str, i)
+        i += 2
+        fg = data & 0xF
+        bg = data >> 4 & 0xF
+      } else if (charCode === SEQ_SET_ATTR) {
+        let data = parse2B(str, i)
+        i += 2
+        attrs = data & 0xFF
+      } else if (charCode === SEQ_REPEAT) {
+        let count = parse2B(str, i)
+        i += 2
+        for (let j = 0; j < count; j++) {
+          this.screen[cell] = text
+          this.screenFG[cell] = fg
+          this.screenBG[cell] = bg
+          this.screenAttrs[cell] = attrs
+
+          if (++cell > screenLength) break
+        }
+      } else {
+        // unique cell character
+        this.screen[cell] = text = character
+        this.screenFG[cell] = fg
+        this.screenBG[cell] = bg
+        this.screenAttrs[cell] = attrs
+        cell++
+      }
+    }
+
+    this.scheduleDraw()
+    if (this.onload) this.onload()
+  }
+
+  /** Apply labels to buttons and screen title (leading T removed already) */
+  loadLabels (str) {
+    let pieces = str.split('\x01')
+    qs('h1').textContent = pieces[0]
+    $('#action-buttons button').forEach((button, i) => {
+      var label = pieces[i + 1].trim()
+      // if empty string, use the "dim" effect and put nbsp instead to
+      // stretch the button vertically
+      button.innerHTML = label ? e(label) : '&nbsp;';
+      button.style.opacity = label ? 1 : 0.2;
+    })
+  }
+
+  load (str) {
+    const content = str.substr(1)
+
+    switch (str[0]) {
+      case 'S':
+        this.loadContent(content)
+        break
+      case 'T':
+        this.loadLabels(content)
+        break
+      case 'B':
+        this.beep()
+        break
+      default:
+        console.warn(`Bad data message type; ignoring.\n${
+          JSON.stringify(content)}`)
+    }
+  }
+
+  beep () {
+    const audioCtx = this.audioCtx
+    if (!audioCtx) return
+
+    let osc, gain
+
+    // main beep
+    osc = audioCtx.createOscillator()
+    gain = audioCtx.createGain()
+    osc.connect(gain)
+    gain.connect(audioCtx.destination);
+    gain.gain.value = 0.5;
+    osc.frequency.value = 750;
+    osc.type = 'sine';
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+
+    // surrogate beep (making it sound like 'oops')
+    osc = audioCtx.createOscillator();
+    gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.value = 0.2;
+    osc.frequency.value = 400;
+    osc.type = 'sine';
+    osc.start(audioCtx.currentTime + 0.05);
+    osc.stop(audioCtx.currentTime + 0.08);
+  }
+
+  static alphaToFraktur (character) {
+    if ('a' <= character && character <= 'z') {
+      character = String.fromCodePoint(0x1d51e - 0x61 + character.charCodeAt(0))
+    } else if ('A' <= character && character <= 'Z') {
+      character = frakturExceptions[character] || String.fromCodePoint(
+        0x1d504 - 0x41 + character.charCodeAt(0))
+    }
+    return character
+  }
+}
+
+const Screen = new TermScreen()
+let didAddScreen = false
+Screen.onload = function () {
+  if (didAddScreen) return
+  didAddScreen = true
+  qs('#screen').appendChild(Screen.canvas)
+  for (let item of qs('#screen').classList) {
+    if (item.startsWith('theme-')) Screen.colors = themes[item.substr(6)]
+  }
+}
