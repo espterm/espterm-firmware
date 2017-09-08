@@ -409,16 +409,24 @@ class TermScreen {
       ctx.fillText(text, (x + 0.5) * cellWidth, (y + 0.5) * cellHeight);
 
       if (underline || strike) {
-        let lineY = underline
-          ? y * cellHeight + charSize.height
-          : (y + 0.5) * cellHeight;
-
         ctx.strokeStyle = inSelection ? SELECTION_FG : this.colors[fg];
-        ctx.lineWidth = this.window.fontSize / 10;
+        ctx.lineWidth = this.window.devicePixelRatio==1?1:2;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(x * cellWidth, lineY);
-        ctx.lineTo((x + 1) * cellWidth, lineY);
+
+        let lineY;
+        if (underline) {
+          lineY = Math.round(y * cellHeight + charSize.height) + 0.5;
+          ctx.moveTo(x * cellWidth, lineY);
+          ctx.lineTo((x + 1) * cellWidth, lineY);
+        }
+
+        if (strike) {
+          lineY = Math.round((y + 0.5) * cellHeight) + 0.5;
+          ctx.moveTo(x * cellWidth, lineY);
+          ctx.lineTo((x + 1) * cellWidth, lineY);
+        }
+
         ctx.stroke()
       }
     }
