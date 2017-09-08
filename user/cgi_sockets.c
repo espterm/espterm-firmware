@@ -47,6 +47,7 @@ notifyCooldownTimCb(void *arg)
 static void ICACHE_FLASH_ATTR
 notifyContentTimCb(void *arg)
 {
+	Websock *ws = arg;
 	void *data = NULL;
 	int max_bl, total_bl;
 	char sock_buff[SOCK_BUF_LEN];
@@ -65,8 +66,14 @@ notifyContentTimCb(void *arg)
 		int flg = 0;
 		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
 		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
-		cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), flg);
+		if (ws) {
+			cgiWebsocketSend(ws, sock_buff, (int) strlen(sock_buff), flg);
+		} else {
+			cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), flg);
+		}
 		if (cont == HTTPD_CGI_DONE) break;
+
+		system_soft_wdt_feed();
 	}
 
 	// cleanup
@@ -249,6 +256,12 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 			if (btnNum > 0 && btnNum < 10) {
 				UART_SendAsync(termconf_scratch.btn_msg[btnNum-1], -1);
 			}
+			break;
+
+		case 'i':
+			// requests initial load
+			dbg("Client requests initial load");
+			notifyContentTimCb(ws);
 			break;
 
 		case 'm':
