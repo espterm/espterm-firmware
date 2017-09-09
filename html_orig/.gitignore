@@ -1,1 +1,4 @@
 pages/_test_env.php
+js/*
+css/*
+!.gitkeep
