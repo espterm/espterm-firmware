@@ -332,6 +332,12 @@ class TermScreen {
     this.scheduleDraw();
   }
 
+  getColor (i) {
+    if (i === -1) return SELECTION_FG
+    if (i === -2) return SELECTION_BG
+    return this.colors[i]
+  }
+
   // schedule a size update in the next tick
   scheduleSizeUpdate () {
     clearTimeout(this._scheduledSizeUpdate);
@@ -537,8 +543,7 @@ class TermScreen {
 
   drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs }) {
     const ctx = this.ctx;
-    const inSelection = this.isInSelection(x, y);
-    ctx.fillStyle = inSelection ? SELECTION_BG : this.colors[bg];
+    ctx.fillStyle = this.getColor(bg);
     ctx.fillRect(x * cellWidth, y * cellHeight,
       Math.ceil(cellWidth), Math.ceil(cellHeight));
 
@@ -554,11 +559,11 @@ class TermScreen {
     if (attrs & 1 << 6) strike = true;
 
     if (!blink || this.window.blinkStyleOn) {
-      ctx.fillStyle = inSelection ? SELECTION_FG : this.colors[fg];
+      ctx.fillStyle = this.getColor(fg);
       ctx.fillText(text, (x + 0.5) * cellWidth, (y + 0.5) * cellHeight);
 
       if (underline || strike) {
-        ctx.strokeStyle = inSelection ? SELECTION_FG : this.colors[fg];
+        ctx.strokeStyle = this.getColor(fg);
         ctx.lineWidth = 1;
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -620,7 +625,7 @@ class TermScreen {
         !this.cursor.hanging;
       let invertForCursor = isCursor && this.cursor.blinkOn &&
         this.cursor.style === 'block';
-      let inSelection = this.isInSelection(x, y);
+      let inSelection = this.isInSelection(x, y)
 
       let text = this.screen[cell];
       let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell];
@@ -630,11 +635,15 @@ class TermScreen {
       // HACK: ensure cursor is visible
       if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0;
 
+      if (inSelection) {
+        fg = -1
+        bg = -2
+      }
+
       let cellDidChange = text !== this.drawnScreen[cell] ||
         fg !== this.drawnScreenFG[cell] ||
         bg !== this.drawnScreenBG[cell] ||
-        attrs !== this.drawnScreenAttrs[cell] ||
-        inSelection;
+        attrs !== this.drawnScreenAttrs[cell];
 
       let font = attrs & FONT_MASK;
       if (!fontGroups.has(font)) fontGroups.set(font, []);
