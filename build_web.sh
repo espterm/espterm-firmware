@@ -11,6 +11,8 @@ cd front-end
 sh ./build.sh
 cd ..
 
+cp front-end/out/*       html/
+
 cp front-end/js/app.js   html/js/
 cp front-end/css/app.css html/css/
 
