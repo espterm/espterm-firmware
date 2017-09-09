@@ -760,7 +760,7 @@ do_csi_xterm_screen_cmd(CSI_Data *opts)
 
 // data tables for the DECREPTPARM command response
 struct DECREPTPARM_parity { int parity; const char * msg; };
-static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] = {
+static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] ESP_CONST_DATA = {
 	{PARITY_NONE, "1"},
 	{PARITY_ODD, "4"},
 	{PARITY_EVEN, "5"},
@@ -768,7 +768,7 @@ static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] = {
 };
 
 struct DECREPTPARM_baud { int baud; const char * msg; };
-static const struct DECREPTPARM_baud DECREPTPARM_baud_arr[] = {
+static const struct DECREPTPARM_baud DECREPTPARM_baud_arr[] ESP_CONST_DATA = {
 	{BIT_RATE_300, "48"},
 	{BIT_RATE_600, "56"},
 	{BIT_RATE_1200, "64"},

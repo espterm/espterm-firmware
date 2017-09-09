@@ -12,7 +12,7 @@
 #define CODEPAGE_A_BEGIN 35
 #define CODEPAGE_A_END 35
 
-static const u16 codepage_A[] =
+static const u16 codepage_A[] ESP_CONST_DATA =
 	{//	Unicode    ASCII   SYM
 		// %%BEGIN:A%%
 		0x20a4, // 35   #   £
@@ -26,7 +26,7 @@ static const u16 codepage_A[] =
  * translates VT100 ACS escape codes to Unicode values.
  * Based on rxvt-unicode screen.C table.
  */
-static const u16 codepage_0[] =
+static const u16 codepage_0[] ESP_CONST_DATA =
 	{//	Unicode    ASCII   SYM
 		// %%BEGIN:0%%
 		0x2666, // 96	`	♦
@@ -66,7 +66,7 @@ static const u16 codepage_0[] =
 #define CODEPAGE_1_BEGIN 33
 #define CODEPAGE_1_END 126
 
-static const u16 codepage_1[] =
+static const u16 codepage_1[] ESP_CONST_DATA =
 	{//	Unicode    ASCII   SYM  DOS
 		// %%BEGIN:1%%
 		0x263A,	// 33	!	☺	(1)  - low ASCII symbols from DOS, moved to +32

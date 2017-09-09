@@ -110,8 +110,6 @@ set(SOURCE_FILES
         user/serial.h
         user/routes.c
         user/routes.h
-        user/uart_asyncdrv.c-
-        user/uart_asyncdrv.h-
         user/cgi_main.c
         user/cgi_main.h
         user/cgi_sockets.c
@@ -155,6 +153,7 @@ include_directories(esp_iot_sdk_v1.5.2/include)
 add_definitions(
         -D__ets__
         -DICACHE_FLASH
+        -DUSE_OPTIMIZE_PRINTF=1
         -DHTTPD_MAX_CONNECTIONS=5
         -DHTTPD_STACKSIZE=1000
         -DICACHE_FLASH_ATTR=
