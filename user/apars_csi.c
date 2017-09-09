@@ -672,12 +672,7 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 1048) {
 			// same as DECSC - save/restore cursor with attributes
-			if (yn) {
-				screen_cursor_save(true);
-			}
-			else {
-				screen_cursor_restore(true);
-			}
+			screen_cursor_save(yn);
 		}
 		else if (n == 1049) {
 			// save/restore cursor and screen and clear it

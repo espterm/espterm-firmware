@@ -7,7 +7,6 @@
 #include "apars_logging.h"
 #include "jstring.h"
 #include "character_sets.h"
-#include "uart_driver.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_scratch;
@@ -41,12 +40,8 @@ typedef struct __attribute__((packed)){
 static Cell screen[MAX_SCREEN_SIZE];
 
 
-#define TABSTOP_WORDS 5
-/**
- * Tab stops bitmap
- */
-static u32 tab_stops[TABSTOP_WORDS];
 
+#define TABSTOP_WORDS 5
 /**
  * Screen state structure
  */
@@ -63,6 +58,8 @@ static struct {
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
 	int vm1;
+
+	u32 tab_stops[TABSTOP_WORDS]; // tab stops bitmap
 } scr;
 
 #define R0 scr.vm0
@@ -106,6 +103,19 @@ static CursorTypeDef cursor;
  */
 static CursorTypeDef cursor_sav;
 bool cursor_saved = false;
+
+/** This structure holds old state when switching to an alternate buffer */
+static struct {
+	bool alternate_active;
+	char title[TERM_TITLE_LEN];
+	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
+	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
+	u32 width;
+	u32 height;
+	int vm0;
+	int vm1;
+	u32 tab_stops[TABSTOP_WORDS];
+} state_backup;
 
 /**
  * This is used to prevent premature change notifications
@@ -285,9 +295,32 @@ screen_reset_sgr(void)
 /**
  * Reset the screen - called by ESC c
  */
+static void ICACHE_FLASH_ATTR
+screen_reset_on_resize(void)
+{
+	dbg("Screen partial reset due to resize");
+	NOTIFY_LOCK();
+
+	cursor.x = 0;
+	cursor.y = 0;
+	cursor.hanging = false;
+
+	scr.vm0 = 0;
+	scr.vm1 = H-1;
+
+	// size is left unchanged
+	screen_clear(CLEAR_ALL);
+
+	NOTIFY_DONE();
+}
+
+/**
+ * Reset the screen - called by ESC c
+ */
 void ICACHE_FLASH_ATTR
 screen_reset(void)
 {
+	dbg("Screen reset.");
 	NOTIFY_LOCK();
 
 	cursor_reset();
@@ -301,6 +334,8 @@ screen_reset(void)
 	scr.vm0 = 0;
 	scr.vm1 = H-1;
 
+	state_backup.alternate_active = false;
+
 	mouse_tracking.encoding = MTE_SIMPLE;
 	mouse_tracking.focus_tracking = false;
 	mouse_tracking.mode = MTM_NONE;
@@ -312,7 +347,7 @@ screen_reset(void)
 
 	// Set initial tabstops
 	for (int i = 0; i < TABSTOP_WORDS; i++) {
-		tab_stops[i] = 0x80808080;
+		scr.tab_stops[i] = 0x80808080;
 	}
 
 	NOTIFY_DONE();
@@ -326,7 +361,42 @@ screen_reset(void)
 void ICACHE_FLASH_ATTR
 screen_swap_state(bool alternate)
 {
-	// TODO impl - backup/restore title, size, global attributes (not SGR)
+	if (alternate == state_backup.alternate_active) {
+		warn("No swap, already alternate = %d", alternate);
+		return; // nothing to do
+	}
+
+	if (alternate) {
+		dbg("Swap to alternate");
+		// store old state
+		memcpy(state_backup.title, termconf_scratch.title, TERM_TITLE_LEN);
+		memcpy(state_backup.btn, termconf_scratch.btn, sizeof(termconf_scratch.btn));
+		memcpy(state_backup.btn_msg, termconf_scratch.btn_msg, sizeof(termconf_scratch.btn_msg));
+		memcpy(state_backup.tab_stops, scr.tab_stops, sizeof(scr.tab_stops));
+		state_backup.vm0 = scr.vm0;
+		state_backup.vm1 = scr.vm1;
+		// remember old size. may have to resize when returning
+		state_backup.width = W;
+		state_backup.height = H;
+		// TODO backup screen content (if this is ever possible)
+	}
+	else {
+		dbg("Unswap from alternate");
+		NOTIFY_LOCK();
+		memcpy(termconf_scratch.title, state_backup.title, TERM_TITLE_LEN);
+		memcpy(termconf_scratch.btn, state_backup.btn, sizeof(termconf_scratch.btn));
+		memcpy(termconf_scratch.btn_msg, state_backup.btn_msg, sizeof(termconf_scratch.btn_msg));
+		memcpy(scr.tab_stops, state_backup.tab_stops, sizeof(scr.tab_stops));
+		scr.vm0 = state_backup.vm0;
+		scr.vm1 = state_backup.vm1;
+		// this may clear the screen as a side effect if size changed
+		screen_resize(state_backup.height, state_backup.width);
+		// TODO restore screen content (if this is ever possible)
+		NOTIFY_DONE();
+		screen_notifyChange(CHANGE_LABELS);
+	}
+
+	state_backup.alternate_active = alternate;
 }
 
 //endregion
@@ -336,19 +406,19 @@ screen_swap_state(bool alternate)
 void ICACHE_FLASH_ATTR
 screen_clear_all_tabs(void)
 {
-	memset(tab_stops, 0, sizeof(tab_stops));
+	memset(scr.tab_stops, 0, sizeof(scr.tab_stops));
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_tab(void)
 {
-	tab_stops[cursor.x/32] |= (1<<(cursor.x%32));
+	scr.tab_stops[cursor.x/32] |= (1<<(cursor.x%32));
 }
 
 void ICACHE_FLASH_ATTR
 screen_clear_tab(void)
 {
-	tab_stops[cursor.x/32] &= ~(1<<(cursor.x%32));
+	scr.tab_stops[cursor.x/32] &= ~(1<<(cursor.x%32));
 }
 
 /**
@@ -366,7 +436,7 @@ next_tab_stop(void)
 	int offs = (cursor.x+1)%32;
 	int cp = cursor.x;
 	while (idx < TABSTOP_WORDS) {
-		u32 w = tab_stops[idx];
+		u32 w = scr.tab_stops[idx];
 		w >>= offs;
 		for(;offs<32;offs++) {
 			cp++;
@@ -396,7 +466,7 @@ prev_tab_stop(void)
 	int offs = (cursor.x-1)%32;
 	int cp = cursor.x;
 	while (idx >= 0) {
-		u32 w = tab_stops[idx];
+		u32 w = scr.tab_stops[idx];
 		w <<= 31-offs;
 		if (w == 0) {
 			cp -= cp%32;
@@ -651,22 +721,23 @@ screen_fill_with_E(void)
 void ICACHE_FLASH_ATTR
 screen_resize(int rows, int cols)
 {
-	NOTIFY_LOCK();
 	// sanitize
 	if (cols < 1 || rows < 1) {
-		error("Screen size must be positive");
-		goto done;
+		error("Screen size must be positive, ignoring command: %d x %d", cols, rows);
+		return;
 	}
 
 	if (cols * rows > MAX_SCREEN_SIZE) {
-		error("Max screen size exceeded");
-		goto done;
+		error("Max screen size exceeded, ignoring command: %d x %d", cols, rows);
+		return;
 	}
 
+	if (W == cols && H == rows) return; // Do nothing
+
+	NOTIFY_LOCK();
 	W = cols;
 	H = rows;
-	screen_reset();
-	done:
+	screen_reset_on_resize();
 	NOTIFY_DONE();
 }
 
@@ -1288,12 +1359,6 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 	size_t remain = buf_len;
 	char *bb = buffer;
-
-	// Ideally we'd use snprintf here!
-#define bufprint(fmt, ...) do { \
-			used = sprintf(bb, fmt, ##__VA_ARGS__); \
-			if(used>0) { bb += used; remain -= used; } \
-		} while(0)
 
 #define bufput_c(c) do { \
 			*bb = (char)c; bb++; \

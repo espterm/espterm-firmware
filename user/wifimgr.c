@@ -52,7 +52,7 @@ configure_station(void)
 	struct station_config conf;
 	strcpy((char *) conf.ssid, (char *) wificonf->sta_ssid);
 	strcpy((char *) conf.password, (char *) wificonf->sta_password);
-	dbg("[WiFi] Connecting to \"%s\", password \"%s\"", conf.ssid, conf.password);
+	dbg("[WiFi] Connecting to \"%s\"%s password", conf.ssid, conf.password[0]!=0?" using saved":", no");
 	conf.bssid_set = 0;
 	conf.bssid[0] = 0;
 	wifi_station_disconnect();
