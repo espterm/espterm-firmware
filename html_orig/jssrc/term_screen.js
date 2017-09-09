@@ -620,6 +620,7 @@ class TermScreen {
         !this.cursor.hanging;
       let invertForCursor = isCursor && this.cursor.blinkOn &&
         this.cursor.style === 'block';
+      let inSelection = this.isInSelection(x, y);
 
       let text = this.screen[cell];
       let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell];
@@ -632,7 +633,8 @@ class TermScreen {
       let cellDidChange = text !== this.drawnScreen[cell] ||
         fg !== this.drawnScreenFG[cell] ||
         bg !== this.drawnScreenBG[cell] ||
-        attrs !== this.drawnScreenAttrs[cell];
+        attrs !== this.drawnScreenAttrs[cell] ||
+        inSelection;
 
       let font = attrs & FONT_MASK;
       if (!fontGroups.has(font)) fontGroups.set(font, []);
