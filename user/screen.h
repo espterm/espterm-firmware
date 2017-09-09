@@ -85,7 +85,8 @@ typedef struct {
 	bool show_buttons;
 	bool show_config_links;
 	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
-	enum CursorShape def_cursor_shape;
+	enum CursorShape cursor_shape;
+	bool crlf_mode;
 } TerminalConfigBundle;
 
 // Live config

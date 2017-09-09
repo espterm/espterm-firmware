@@ -120,6 +120,12 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		termconf->fn_alt_mode = (bool)n;
 	}
 
+	if (GET_ARG("crlf_mode")) {
+		dbg("CRLF mode: %s", buff);
+		n = atoi(buff);
+		termconf->crlf_mode = (bool)n;
+	}
+
 	if (GET_ARG("show_buttons")) {
 		dbg("Show buttons: %s", buff);
 		n = atoi(buff);
@@ -160,6 +166,17 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		} else {
 			warn("Bad theme num: %s", buff);
 			redir_url += sprintf(redir_url, "theme,");
+		}
+	}
+
+	if (GET_ARG("cursor_shape")) {
+		dbg("Cursor shape: %s", buff);
+		n = atoi(buff);
+		if (n >= 0 && n <= 6 && n != 1) {
+			termconf->cursor_shape = (enum CursorShape) n;
+		} else {
+			warn("Bad cursor_shape num: %s", buff);
+			redir_url += sprintf(redir_url, "cursor_shape,");
 		}
 	}
 
@@ -286,6 +303,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	else if (streq(token, "fn_alt_mode")) {
 		sprintf(buff, "%d", (int)termconf->fn_alt_mode);
 	}
+	else if (streq(token, "crlf_mode")) {
+		sprintf(buff, "%d", (int)termconf->crlf_mode);
+	}
 	else if (streq(token, "show_buttons")) {
 		sprintf(buff, "%d", (int)termconf->show_buttons);
 	}
@@ -303,6 +323,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "default_fg")) {
 		sprintf(buff, "%d", termconf->default_fg);
+	}
+	else if (streq(token, "cursor_shape")) {
+		sprintf(buff, "%d", termconf->cursor_shape);
 	}
 	else if (streq(token, "term_title")) {
 		strncpy_safe(buff, termconf->title, BUFLEN);

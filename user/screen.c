@@ -49,12 +49,10 @@ static struct {
 	bool numpad_alt_mode;  //!< DECNKM - Numpad Application Mode
 	bool cursors_alt_mode; //!< DECCKM - Cursors Application mode
 
-	bool newline_mode;       //!< LNM - CR automatically sends LF
 	bool reverse;            //!< DECSCNM - Reverse video
 
 	bool insert_mode;    //!< IRM - Insert mode (move rest of the line to the right)
 	bool cursor_visible; //!< DECTCEM - Cursor visible
-	enum CursorShape cursor_shape;
 
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
@@ -164,10 +162,11 @@ terminal_restore_defaults(void)
 	termconf->fn_alt_mode = SCR_DEF_FN_ALT_MODE;
 	termconf->config_version = TERMCONF_VERSION;
 	termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
-	termconf->loopback = 0;
-	termconf->show_buttons = 1;
-	termconf->show_config_links = 1;
-	termconf->def_cursor_shape = CURSOR_BLOCK_BL;
+	termconf->loopback = false;
+	termconf->show_buttons = true;
+	termconf->show_config_links = true;
+	termconf->cursor_shape = CURSOR_BLOCK_BL;
+	termconf->crlf_mode = false;
 }
 
 /**
@@ -214,7 +213,8 @@ terminal_apply_settings_noclear(void)
 	// Migrate to v3
 	if (termconf->config_version < 4) {
 		dbg("termconf: Updating to version 4");
-		termconf->def_cursor_shape = CURSOR_BLOCK_BL;
+		termconf->cursor_shape = CURSOR_BLOCK_BL;
+		termconf->crlf_mode = false;
 		changed = 1;
 	}
 
@@ -306,8 +306,8 @@ screen_reset_on_resize(void)
 void ICACHE_FLASH_ATTR
 screen_reset_sgr(void)
 {
-	cursor.fg = termconf_scratch.default_fg;
-	cursor.bg = termconf_scratch.default_bg;
+	cursor.fg = termconf->default_fg;
+	cursor.bg = termconf->default_bg;
 	cursor.attrs = 0;
 	cursor.inverse = false;
 }
@@ -329,11 +329,11 @@ screen_reset(void)
 	cursor.origin_mode = false;
 	cursor.auto_wrap = true;
 	cursor.reverse_wraparound = false;
-	scr.cursor_shape = termconf->def_cursor_shape;
+	termconf_scratch.cursor_shape = termconf->cursor_shape;
 
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
-	scr.newline_mode = false;
+	termconf_scratch.crlf_mode = termconf->crlf_mode;
 	scr.reverse = false;
 
 	scr.vm0 = 0;
@@ -707,8 +707,8 @@ screen_fill_with_E(void)
 	sample.c[1] = 0;
 	sample.c[2] = 0;
 	sample.c[3] = 0;
-	sample.fg = termconf_scratch.default_fg;
-	sample.bg = termconf_scratch.default_bg;
+	sample.fg = termconf->default_fg;
+	sample.bg = termconf->default_bg;
 	sample.attrs = 0;
 
 	for (unsigned int i = 0; i <= W*H-1; i++) {
@@ -848,8 +848,8 @@ void ICACHE_FLASH_ATTR
 screen_cursor_shape(enum CursorShape shape)
 {
 	NOTIFY_LOCK();
-	if (shape == CURSOR_DEFAULT) shape = termconf->def_cursor_shape;
-	scr.cursor_shape = shape;
+	if (shape == CURSOR_DEFAULT) shape = termconf->cursor_shape;
+	termconf_scratch.cursor_shape = shape;
 	NOTIFY_DONE();
 }
 
@@ -859,13 +859,13 @@ screen_cursor_blink(bool blink)
 {
 	NOTIFY_LOCK();
 	if (blink) {
-		if (scr.cursor_shape == CURSOR_BLOCK) scr.cursor_shape = CURSOR_BLOCK_BL;
-		if (scr.cursor_shape == CURSOR_BAR) scr.cursor_shape = CURSOR_BAR_BL;
-		if (scr.cursor_shape == CURSOR_UNDERLINE) scr.cursor_shape = CURSOR_UNDERLINE_BL;
+		if (termconf_scratch.cursor_shape == CURSOR_BLOCK) termconf_scratch.cursor_shape = CURSOR_BLOCK_BL;
+		if (termconf_scratch.cursor_shape == CURSOR_BAR) termconf_scratch.cursor_shape = CURSOR_BAR_BL;
+		if (termconf_scratch.cursor_shape == CURSOR_UNDERLINE) termconf_scratch.cursor_shape = CURSOR_UNDERLINE_BL;
 	} else {
-		if (scr.cursor_shape == CURSOR_BLOCK_BL) scr.cursor_shape = CURSOR_BLOCK;
-		if (scr.cursor_shape == CURSOR_BAR_BL) scr.cursor_shape = CURSOR_BAR;
-		if (scr.cursor_shape == CURSOR_UNDERLINE_BL) scr.cursor_shape = CURSOR_UNDERLINE;
+		if (termconf_scratch.cursor_shape == CURSOR_BLOCK_BL) termconf_scratch.cursor_shape = CURSOR_BLOCK;
+		if (termconf_scratch.cursor_shape == CURSOR_BAR_BL) termconf_scratch.cursor_shape = CURSOR_BAR;
+		if (termconf_scratch.cursor_shape == CURSOR_UNDERLINE_BL) termconf_scratch.cursor_shape = CURSOR_UNDERLINE;
 	}
 	NOTIFY_DONE();
 }
@@ -1182,7 +1182,9 @@ screen_set_reverse_video(bool reverse)
 void ICACHE_FLASH_ATTR
 screen_set_newline_mode(bool nlm)
 {
-	scr.newline_mode = nlm;
+	NOTIFY_LOCK();
+	termconf_scratch.crlf_mode = nlm;
+	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
@@ -1231,10 +1233,6 @@ screen_putchar(const char *ch)
 
 		case LF:
 			screen_cursor_move(1, 0, true); // can scroll
-			if (scr.newline_mode) {
-				// like CR
-				screen_cursor_set_x(0);
-			}
 			goto done;
 
 		case BS:
@@ -1436,7 +1434,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		} while(0)
 
 #define bufput_3B(n) do { \
-			encode3B((u16) n, &lw1); \
+			encode3B((u32) n, &lw1); \
 			bufput_c(lw1.lsb); \
 			bufput_c(lw1.msb); \
 			bufput_c(lw1.xsb); \
@@ -1466,17 +1464,19 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		bufput_2B(W);
 		bufput_2B(cursor.y);
 		bufput_2B(cursor.x);
-		bufput_2B(
-			(scr.cursor_visible ? 1<<0 : 0) |
-			(cursor.hanging ? 1<<1 : 0) |
-			(scr.cursors_alt_mode ? 1<<2 : 0) |
-			(scr.numpad_alt_mode ? 1<<3 : 0) |
-			(termconf->fn_alt_mode ? 1<<4 : 0) |
-			((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
-			((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
-			(termconf_scratch.show_buttons ? 1<<7 : 0) |
-			(termconf_scratch.show_config_links ? 1<<8 : 0) |
-			((scr.cursor_shape&0x03)<<9) // 9,10,11 - cursor shape based on DECSCUSR
+		// 3B has 18 free bits
+		bufput_3B(
+			(scr.cursor_visible << 0) |
+			(cursor.hanging << 1) |
+			(scr.cursors_alt_mode << 2) |
+			(scr.numpad_alt_mode << 3) |
+			(termconf_scratch.fn_alt_mode << 4) |
+			((mouse_tracking.mode>MTM_NONE) << 5) | // disables context menu
+			((mouse_tracking.mode>=MTM_NORMAL) << 6) | // disables selecting
+			(termconf_scratch.show_buttons << 7) |
+			(termconf_scratch.show_config_links << 8) |
+			((termconf_scratch.cursor_shape&0x03) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
+		    (termconf_scratch.crlf_mode << 12)
 	    );
 	}
 
