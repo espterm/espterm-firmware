@@ -79,7 +79,11 @@ class TermScreen {
       gridScaleY: 1.2,
       blinkStyleOn: true,
       blinkInterval: null,
+      fitIntoWidth: 0,
+      fitIntoHeight: 0,
     };
+
+    // properties of this.window that require updating size and redrawing
     this.windowState = {
       width: 0,
       height: 0,
@@ -88,9 +92,16 @@ class TermScreen {
       gridScaleY: 0,
       fontFamily: '',
       fontSize: 0,
+      fitIntoWidth: 0,
+      fitIntoHeight: 0,
     };
+
+    // current selection
     this.selection = {
+      // when false, this will prevent selection in favor of mouse events,
+      // though alt can be held to override it
       selectable: true,
+
       start: [0, 0],
       end: [0, 0],
     };
@@ -104,7 +115,7 @@ class TermScreen {
     this.window = new Proxy(this._window, {
       set (target, key, value, receiver) {
         target[key] = value;
-        self.updateSize();
+        self.scheduleSizeUpdate();
         self.scheduleDraw();
         return true
       }
@@ -315,6 +326,12 @@ class TermScreen {
     this.scheduleDraw();
   }
 
+  // schedule a size update in the next tick
+  scheduleSizeUpdate () {
+    clearTimeout(this._scheduledSizeUpdate);
+    this._scheduledSizeUpdate = setTimeout(() => this.updateSize(), 1)
+  }
+
   // schedule a draw in the next tick
   scheduleDraw () {
     clearTimeout(this._scheduledDraw);
@@ -352,20 +369,56 @@ class TermScreen {
     for (let key in this.windowState) {
       if (this.windowState.hasOwnProperty(key) && this.windowState[key] !== this.window[key]) {
         didChange = true;
-        this.windowState[key] = this.window[key]
+        this.windowState[key] = this.window[key];
       }
     }
 
     if (didChange) {
       const {
-        width, height, devicePixelRatio, gridScaleX, gridScaleY
+        width,
+        height,
+        devicePixelRatio,
+        gridScaleX,
+        gridScaleY,
+        fitIntoWidth,
+        fitIntoHeight
       } = this.window;
       const cellSize = this.getCellSize();
 
+      // real height of the canvas element in pixels
+      let realWidth = width * cellSize.width
+      let realHeight = height * cellSize.height
+
+      if (fitIntoWidth && fitIntoHeight) {
+        if (realWidth > fitIntoWidth || realHeight > fitIntoHeight) {
+          let terminalAspect = realWidth / realHeight
+          let fitAspect = fitIntoWidth / fitIntoHeight
+
+          if (terminalAspect < fitAspect) {
+            // align heights
+            realHeight = fitIntoHeight
+            realWidth = realHeight * terminalAspect
+          } else {
+            // align widths
+            realWidth = fitIntoWidth
+            realHeight = realWidth / terminalAspect
+          }
+        }
+      } else if (fitIntoWidth && realWidth > fitIntoWidth) {
+        realHeight = fitIntoWidth / (realWidth / realHeight)
+        realWidth = fitIntoWidth
+      } else if (fitIntoHeight && realHeight > fitIntoHeight) {
+        realWidth = fitIntoHeight * (realWidth / realHeight)
+        realHeight = fitIntoHeight
+      }
+
       this.canvas.width = width * devicePixelRatio * cellSize.width;
-      this.canvas.style.width = `${width * cellSize.width}px`;
+      this.canvas.style.width = `${realWidth}px`;
       this.canvas.height = height * devicePixelRatio * cellSize.height;
-      this.canvas.style.height = `${height * cellSize.height}px`
+      this.canvas.style.height = `${realHeight}px`;
+
+      // draw immediately; the canvas shouldn't flash
+      this.draw();
     }
   }
 
@@ -812,10 +865,7 @@ class TermScreen {
 
 const Screen = new TermScreen();
 
-let didAddScreen = false;
-Screen.on('load', () => {
-  if (didAddScreen) return;
-  didAddScreen = true;
+Screen.once('load', () => {
   qs('#screen').appendChild(Screen.canvas);
   for (let item of qs('#screen').classList) {
     if (item.startsWith('theme-')) {
@@ -823,3 +873,11 @@ Screen.on('load', () => {
     }
   }
 });
+
+let fitScreen = false
+function fitScreenIfNeeded () {
+  Screen.window.fitIntoWidth = fitScreen ? window.innerWidth : 0
+  Screen.window.fitIntoHeight = fitScreen ? window.innerHeight : 0
+}
+fitScreenIfNeeded();
+window.addEventListener('resize', fitScreenIfNeeded)
