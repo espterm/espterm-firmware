@@ -54,9 +54,19 @@
 /** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*25)
 
-#define TERMCONF_VERSION 3
+#define TERMCONF_VERSION 4
 
 // --- Persistent Settings ---
+
+enum CursorShape {
+	CURSOR_BLOCK_BL = 0,
+	CURSOR_DEFAULT  = 1, // this is translated to a user configured style
+	CURSOR_BLOCK = 2,
+	CURSOR_UNDERLINE_BL = 3,
+	CURSOR_UNDERLINE = 4,
+	CURSOR_BAR_BL = 5,
+	CURSOR_BAR = 6,
+};
 
 typedef struct {
 	u32 width;
@@ -75,6 +85,7 @@ typedef struct {
 	bool show_buttons;
 	bool show_config_links;
 	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
+	enum CursorShape def_cursor_shape;
 } TerminalConfigBundle;
 
 // Live config
@@ -173,6 +184,10 @@ void screen_scroll_down(unsigned int lines);
 
 // --- Cursor control ---
 
+/** Set cursor shape */
+void screen_cursor_shape(enum CursorShape shape);
+/** Toggle cursor blink (modifies shape) */
+void screen_cursor_blink(bool blink);
 /** Set cursor position */
 void screen_cursor_set(int y, int x);
 /** Read cursor pos to given vars */
@@ -196,6 +211,8 @@ void screen_set_insert_mode(bool insert);
 void screen_set_newline_mode(bool nlm);
 /** Enable auto wrap */
 void screen_wrap_enable(bool enable);
+/** Enable reverse wrap-around */
+void screen_reverse_wrap_enable(bool enable);
 /** Set scrolling region */
 void screen_set_scrolling_region(int from, int to);
 /** Enable or disable origin remap to top left of scrolling region */

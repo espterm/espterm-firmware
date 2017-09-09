@@ -49,11 +49,12 @@ static struct {
 	bool numpad_alt_mode;  //!< DECNKM - Numpad Application Mode
 	bool cursors_alt_mode; //!< DECCKM - Cursors Application mode
 
-	bool newline_mode; //!< LNM - CR automatically sends LF
-	bool reverse;      //!< DECSCNM - Reverse video
+	bool newline_mode;       //!< LNM - CR automatically sends LF
+	bool reverse;            //!< DECSCNM - Reverse video
 
 	bool insert_mode;    //!< IRM - Insert mode (move rest of the line to the right)
 	bool cursor_visible; //!< DECTCEM - Cursor visible
+	enum CursorShape cursor_shape;
 
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
@@ -90,6 +91,7 @@ typedef struct {
 
 	/** Options saved with cursor */
 	bool auto_wrap;      //!< DECAWM - Wrapping when EOL
+	bool reverse_wraparound; //!< Reverse-wraparound Mode. DECSET 45
 	bool origin_mode;    //!< DECOM - absolute positioning is relative to vertical margins
 } CursorTypeDef;
 
@@ -165,6 +167,7 @@ terminal_restore_defaults(void)
 	termconf->loopback = 0;
 	termconf->show_buttons = 1;
 	termconf->show_config_links = 1;
+	termconf->def_cursor_shape = CURSOR_BLOCK_BL;
 }
 
 /**
@@ -205,6 +208,13 @@ terminal_apply_settings_noclear(void)
 		for(int i=1; i <= TERM_BTN_COUNT; i++) {
 			sprintf(termconf->btn_msg[i-1], "%c", i);
 		}
+		changed = 1;
+	}
+
+	// Migrate to v3
+	if (termconf->config_version < 4) {
+		dbg("termconf: Updating to version 4");
+		termconf->def_cursor_shape = CURSOR_BLOCK_BL;
 		changed = 1;
 	}
 
@@ -269,30 +279,6 @@ cursor_reset(void)
 }
 
 /**
- * Reset the cursor position & colors
- */
-static void ICACHE_FLASH_ATTR
-decopt_reset(void)
-{
-	scr.cursor_visible = true;
-	scr.insert_mode = false;
-	cursor.origin_mode = false;
-	cursor.auto_wrap = true;
-}
-
-/**
- * Reset the cursor (\e[0m)
- */
-void ICACHE_FLASH_ATTR
-screen_reset_sgr(void)
-{
-	cursor.fg = termconf_scratch.default_fg;
-	cursor.bg = termconf_scratch.default_bg;
-	cursor.attrs = 0;
-	cursor.inverse = false;
-}
-
-/**
  * Reset the screen - called by ESC c
  */
 static void ICACHE_FLASH_ATTR
@@ -315,6 +301,18 @@ screen_reset_on_resize(void)
 }
 
 /**
+ * Reset the cursor (\e[0m)
+ */
+void ICACHE_FLASH_ATTR
+screen_reset_sgr(void)
+{
+	cursor.fg = termconf_scratch.default_fg;
+	cursor.bg = termconf_scratch.default_bg;
+	cursor.attrs = 0;
+	cursor.inverse = false;
+}
+
+/**
  * Reset the screen - called by ESC c
  */
 void ICACHE_FLASH_ATTR
@@ -324,7 +322,14 @@ screen_reset(void)
 	NOTIFY_LOCK();
 
 	cursor_reset();
-	decopt_reset();
+
+	// DECopts
+	scr.cursor_visible = true;
+	scr.insert_mode = false;
+	cursor.origin_mode = false;
+	cursor.auto_wrap = true;
+	cursor.reverse_wraparound = false;
+	scr.cursor_shape = termconf->def_cursor_shape;
 
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
@@ -838,6 +843,33 @@ screen_set_scrolling_region(int from, int to)
 
 //region --- Cursor manipulation ---
 
+/** set cursor type */
+void ICACHE_FLASH_ATTR
+screen_cursor_shape(enum CursorShape shape)
+{
+	NOTIFY_LOCK();
+	if (shape == CURSOR_DEFAULT) shape = termconf->def_cursor_shape;
+	scr.cursor_shape = shape;
+	NOTIFY_DONE();
+}
+
+/** set cursor blink option */
+void ICACHE_FLASH_ATTR
+screen_cursor_blink(bool blink)
+{
+	NOTIFY_LOCK();
+	if (blink) {
+		if (scr.cursor_shape == CURSOR_BLOCK) scr.cursor_shape = CURSOR_BLOCK_BL;
+		if (scr.cursor_shape == CURSOR_BAR) scr.cursor_shape = CURSOR_BAR_BL;
+		if (scr.cursor_shape == CURSOR_UNDERLINE) scr.cursor_shape = CURSOR_UNDERLINE_BL;
+	} else {
+		if (scr.cursor_shape == CURSOR_BLOCK_BL) scr.cursor_shape = CURSOR_BLOCK;
+		if (scr.cursor_shape == CURSOR_BAR_BL) scr.cursor_shape = CURSOR_BAR;
+		if (scr.cursor_shape == CURSOR_UNDERLINE_BL) scr.cursor_shape = CURSOR_UNDERLINE;
+	}
+	NOTIFY_DONE();
+}
+
 /**
  * Set cursor position
  */
@@ -921,7 +953,34 @@ screen_cursor_move(int dy, int dx, bool scroll)
 	cursor.x += dx;
 	cursor.y += dy;
 	if (cursor.x >= (int)W) cursor.x = W - 1;
-	if (cursor.x < (int)0) cursor.x = 0;
+	if (cursor.x < (int)0) {
+		if (cursor.auto_wrap && cursor.reverse_wraparound) {
+			// this is mimicking a behavior from xterm that allows any number of steps backwards with reverse wraparound enabled
+			int steps = -cursor.x;
+			if(steps > 1000) steps = 1; // avoid something stupid causing infinite loop here
+			for(;steps>0;steps--) {
+				if (cursor.x > 0) {
+					// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
+					cursor.hanging = false;
+					cursor.x--;
+				}
+				else {
+					if (cursor.y > 0) {
+						// end of previous line
+						cursor.y--;
+						cursor.x = W - 1;
+					}
+					else {
+						// end of screen, end of line (wrap around)
+						cursor.y = R1;
+						cursor.x = W - 1;
+					}
+				}
+			}
+		} else {
+			cursor.x = 0;
+		}
+	}
 
 	if (cursor.y < R0) {
 		if (was_inside) {
@@ -1028,6 +1087,15 @@ void ICACHE_FLASH_ATTR
 screen_wrap_enable(bool enable)
 {
 	cursor.auto_wrap = enable;
+}
+
+/**
+ * Enable reverse wraparound
+ */
+void ICACHE_FLASH_ATTR
+screen_reverse_wrap_enable(bool enable)
+{
+	cursor.reverse_wraparound = enable;
 }
 
 /**
@@ -1170,11 +1238,7 @@ screen_putchar(const char *ch)
 			goto done;
 
 		case BS:
-			if (cursor.x > 0) {
-				// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
-				cursor.hanging = false;
-				cursor.x--;
-			}
+			screen_cursor_move(0, -1, false);
 			// we should not wrap around, and backspace should not even clear the cell (verified in xterm)
 			goto done;
 
@@ -1402,17 +1466,18 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		bufput_2B(W);
 		bufput_2B(cursor.y);
 		bufput_2B(cursor.x);
-		bufput_2B((
-			 (scr.cursor_visible ? 1<<0 : 0) |
-			 (cursor.hanging ? 1<<1 : 0) |
-			 (scr.cursors_alt_mode ? 1<<2 : 0) |
-			 (scr.numpad_alt_mode ? 1<<3 : 0) |
-			 (termconf->fn_alt_mode ? 1<<4 : 0) |
-			 ((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
-			 ((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
-			 (termconf_scratch.show_buttons ? 1<<7 : 0) |
-			 (termconf_scratch.show_config_links ? 1<<8 : 0)
-		));
+		bufput_2B(
+			(scr.cursor_visible ? 1<<0 : 0) |
+			(cursor.hanging ? 1<<1 : 0) |
+			(scr.cursors_alt_mode ? 1<<2 : 0) |
+			(scr.numpad_alt_mode ? 1<<3 : 0) |
+			(termconf->fn_alt_mode ? 1<<4 : 0) |
+			((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
+			((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
+			(termconf_scratch.show_buttons ? 1<<7 : 0) |
+			(termconf_scratch.show_config_links ? 1<<8 : 0) |
+			((scr.cursor_shape&0x03)<<9) // 9,10,11 - cursor shape based on DECSCUSR
+	    );
 	}
 
 	int i = ss->index;

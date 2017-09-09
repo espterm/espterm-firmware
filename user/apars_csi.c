@@ -112,9 +112,9 @@ apars_handle_csi(char leadchar, const int *params, int count, char interchar, ch
 //					switch_csi_NoLeadInterDollar(opts);
 //					break;
 
-//				case ' ':
-//					switch_csi_NoLeadInterSpace(opts);
-//					break;
+				case ' ':
+					switch_csi_NoLeadInterSpace(opts);
+					break;
 
 //				case ',':
 //					switch_csi_NoLeadInterComma(opts);
@@ -410,6 +410,36 @@ switch_csi_NoLeadInterBang(CSI_Data *opts)
 
 
 /**
+ * CSI none Pm SP key
+ */
+static inline void  ICACHE_FLASH_ATTR
+switch_csi_NoLeadInterSpace(CSI_Data *opts)
+{
+	int n;
+	switch(opts->key) {
+		case 'q':
+			// DECSCUSR
+			// CSI Ps SP q
+			//		Set cursor style (DECSCUSR, VT520).
+			//		Ps = 0  -> blinking block.
+			//		Ps = 1  -> blinking block (default).
+			//		Ps = 2  -> steady block.
+			//		Ps = 3  -> blinking underline.
+			//		Ps = 4  -> steady underline.
+			//		Ps = 5  -> blinking bar (xterm).
+			//		Ps = 6  -> steady bar (xterm).
+			n = opts->n[0];
+			if (n > 6) n = 1; // use default if bad value set
+			screen_cursor_shape((enum CursorShape) n);
+			break;
+
+		default:
+			warn_bad_csi();
+	}
+}
+
+
+/**
  * CSI > Pm inter key
  */
 static inline void ICACHE_FLASH_ATTR
@@ -649,8 +679,10 @@ do_csi_set_private_option(CSI_Data *opts)
 				mouse_tracking.focus_tracking);
 		}
 		else if (n == 12) {
-			// TODO Cursor blink on/off
-			ansi_noimpl("Cursor blink toggle");
+			screen_cursor_blink(yn);
+		}
+		else if (n == 25) {
+			screen_set_cursor_visible(yn);
 		}
 		else if (n == 40) {
 			// allow/disallow 80->132 mode
@@ -659,7 +691,7 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 45) {
 			// reverse wrap-around
-			ansi_noimpl("Reverse Wraparound");
+			screen_reverse_wrap_enable(yn);
 		}
 		else if (n == 69) {
 			// horizontal margins
@@ -690,9 +722,6 @@ do_csi_set_private_option(CSI_Data *opts)
 		else if (n == 2004) {
 			// Bracketed paste mode
 			ansi_noimpl("Bracketed paste");
-		}
-		else if (n == 25) {
-			screen_set_cursor_visible(yn);
 		}
 		else if (n == 800) { // ESPTerm: Toggle display of buttons
 			termconf_scratch.show_buttons = yn;
