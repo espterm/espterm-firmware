@@ -1,4 +1,5 @@
 node_modules
 css/*
-css/*
+js/*
 !.gitkeep
+_env.php
