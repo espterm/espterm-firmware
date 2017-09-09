@@ -128,12 +128,12 @@ function Chr(n) {
 }
 
 /** Decode number from 2B encoding */
-function parse2B(s, i) {
+function parse2B(s, i=0) {
 	return (s.charCodeAt(i++) - 1) + (s.charCodeAt(i) - 1) * 127;
 }
 
 /** Decode number from 3B encoding */
-function parse3B(s, i) {
+function parse3B(s, i=0) {
 	return (s.charCodeAt(i) - 1) + (s.charCodeAt(i+1) - 1) * 127 + (s.charCodeAt(i+2) - 1) * 127 * 127;
 }
 

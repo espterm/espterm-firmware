@@ -160,9 +160,9 @@ class TermScreen {
     let getTouchPositionOffset = touch => {
       let rect = this.canvas.getBoundingClientRect();
       return [touch.clientX - rect.left, touch.clientY - rect.top];
-    }
+    };
     this.canvas.addEventListener('touchstart', e => {
-      touchPosition = getTouchPositionOffset(e.touches[0])
+      touchPosition = getTouchPositionOffset(e.touches[0]);
       touchDidMove = false;
       touchDownTime = Date.now();
     });
@@ -651,7 +651,7 @@ class TermScreen {
     let bg = 0;
     let attrs = 0;
     let cell = 0; // cell index
-    let text = ' ';
+    let lastChar = ' ';
     let screenLength = this.window.width * this.window.height;
 
     this.screen = new Array(screenLength).fill(' ');
@@ -659,47 +659,56 @@ class TermScreen {
     this.screenBG = new Array(screenLength).fill(' ');
     this.screenAttrs = new Array(screenLength).fill(' ');
 
-    while (i < str.length && cell < screenLength) {
-      let character = str[i++];
-      let charCode = character.charCodeAt(0);
+    let strArr = (typeof Array.from !== 'undefined' ? Array.from(str) : str.split(''));
+    while (i < strArr.length && cell < screenLength) {
+      let character = strArr[i++];
+      let charCode = character.codePointAt(0);
 
-      if (charCode === SEQ_SET_COLOR_ATTR) {
-        let data = parse3B(str, i);
-        i += 3;
-        fg = data & 0xF;
-        bg = data >> 4 & 0xF;
-        attrs = data >> 8 & 0xFF
-      }
-      else if (charCode == SEQ_SET_COLOR) {
-        let data = parse2B(str, i);
-        i += 2;
-        fg = data & 0xF;
-        bg = data >> 4 & 0xF
-      }
-      else if (charCode === SEQ_SET_ATTR) {
-        let data = parse2B(str, i);
-        i += 2;
-        attrs = data & 0xFF
-      }
-      else if (charCode === SEQ_REPEAT) {
-        let count = parse2B(str, i);
-        i += 2;
-        for (let j = 0; j < count; j++) {
-          this.screen[cell] = text;
+      let data, count;
+      switch (charCode) {
+        case SEQ_SET_COLOR_ATTR:
+          data = parse3B(strArr[i]+strArr[i+1]+strArr[i+2]);
+          i += 3;
+          fg = data & 0xF;
+          bg = data >> 4 & 0xF;
+          attrs = data >> 8 & 0xFF;
+          break;
+
+        case SEQ_SET_COLOR:
+          data = parse2B(strArr[i]+strArr[i+1]);
+          i += 2;
+          fg = data & 0xF;
+          bg = data >> 4 & 0xF;
+          break;
+
+        case SEQ_SET_ATTR:
+          data = parse2B(strArr[i]+strArr[i+1]);
+          i += 2;
+          attrs = data & 0xFF;
+          break;
+
+        case SEQ_REPEAT:
+          count = parse2B(strArr[i]+strArr[i+1]);
+          i += 2;
+          for (let j = 0; j < count; j++) {
+            this.screen[cell] = lastChar;
+            this.screenFG[cell] = fg;
+            this.screenBG[cell] = bg;
+            this.screenAttrs[cell] = attrs;
+
+            if (++cell > screenLength) break;
+          }
+          break;
+
+        default:
+          // safety replacement
+          if (charCode < 32) character = '\ufffd';
+          // unique cell character
+          this.screen[cell] = lastChar = character;
           this.screenFG[cell] = fg;
           this.screenBG[cell] = bg;
           this.screenAttrs[cell] = attrs;
-
-          if (++cell > screenLength) break
-        }
-      }
-      else {
-        // unique cell character
-        this.screen[cell] = text = character;
-        this.screenFG[cell] = fg;
-        this.screenBG[cell] = bg;
-        this.screenAttrs[cell] = attrs;
-        cell++
+          cell++;
       }
     }
 

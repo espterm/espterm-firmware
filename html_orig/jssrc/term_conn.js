@@ -11,6 +11,7 @@ var Conn = (function () {
 
   function onOpen(evt) {
     console.log("CONNECTED");
+    heartbeat();
     doSend("i");
   }
 

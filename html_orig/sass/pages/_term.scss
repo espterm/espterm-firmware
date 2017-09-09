@@ -43,7 +43,12 @@ body.term {
 		background: none;
 		border: none;
 		resize: none;
-		// visible for debugging. do opacity 0 later on
+		overflow: hidden;
+		opacity: 0;
+		outline: 0 none !important;
+		caret-color: transparent;
+		color: transparent;
+		@include click-through;
 	}
 
 	#touch-select-menu {

@@ -1396,10 +1396,10 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 			// copy the symbol, until first 0 or reached 4 bytes
 			char c;
-			int j = 0;
-			while ((c = cell->c[j]) != 0 && j < 4) {
+			for(int j=0; j<4; j++) {
+				c = cell->c[j];
+				if(!c) break;
 				bufput_c(c);
-				j++;
 			}
 
 			ss->lastFg = cell0->fg;
