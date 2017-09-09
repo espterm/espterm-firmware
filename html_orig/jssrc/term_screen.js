@@ -480,20 +480,18 @@ class TermScreen {
       Math.ceil(cellWidth), Math.ceil(cellHeight));
     ctx.globalCompositeOperation = 'source-over';
 
-    let fontModifiers = {};
+    if (!text) return;
+
     let underline = false;
     let blink = false;
     let strike = false;
-    if (attrs & 1) fontModifiers.weight = 'bold';
     if (attrs & 1 << 1) ctx.globalAlpha = 0.5;
-    if (attrs & 1 << 2) fontModifiers.style = 'italic';
     if (attrs & 1 << 3) underline = true;
     if (attrs & 1 << 4) blink = true;
     if (attrs & 1 << 5) text = TermScreen.alphaToFraktur(text);
     if (attrs & 1 << 6) strike = true;
 
     if (!blink || this.window.blinkStyleOn) {
-      ctx.font = this.getFont(fontModifiers);
       ctx.fillStyle = inSelection ? SELECTION_FG : this.colors[fg];
       ctx.fillText(text, (x + 0.5) * cellWidth, (y + 0.5) * cellHeight);
 
@@ -545,51 +543,73 @@ class TermScreen {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // bits in the attr value that affect the font
+    const FONT_MASK = 0b101;
+
+    // Map of (attrs & FONT_MASK) -> Array of cell indices
+    const fontGroups = new Map();
+
     for (let cell = 0; cell < screenLength; cell++) {
-      let x = cell % width;
-      let y = Math.floor(cell / width);
-      let isCursor = this.cursor.x === x && this.cursor.y === y;
-      if (this.cursor.hanging) isCursor = false;
-      let invertForCursor = isCursor && this.cursor.blinkOn &&
-        this.cursor.style === 'block';
-
-      let text = this.screen[cell];
-      let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell];
-      let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell];
       let attrs = this.screenAttrs[cell];
+      let font = attrs & FONT_MASK;
+      if (!fontGroups.has(font)) fontGroups.set(font, []);
+      fontGroups.get(font).push(cell);
+    }
 
-      // HACK: ensure cursor is visible
-      if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0;
+    for (let font of fontGroups.keys()) {
+      // set font once because in Firefox, this is a really slow action for some
+      // reason
+      let modifiers = {}
+      if (font & 1) modifiers.weight = 'bold'
+      if (font & 1 << 2) modifiers.style = 'italic'
+      ctx.font = this.getFont(modifiers)
 
-      this.drawCell({
-        x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
-      });
+      for (let cell of fontGroups.get(font)) {
+        let x = cell % width;
+        let y = Math.floor(cell / width);
+        let isCursor = this.cursor.x === x && this.cursor.y === y;
+        if (this.cursor.hanging) isCursor = false;
+        let invertForCursor = isCursor && this.cursor.blinkOn &&
+          this.cursor.style === 'block';
 
-      if (isCursor && this.cursor.blinkOn && this.cursor.style !== 'block') {
-        ctx.save();
-        ctx.beginPath();
-        if (this.cursor.style === 'bar') {
-          // vertical bar
-          let barWidth = 2;
-          ctx.rect(x * cellWidth, y * cellHeight, barWidth, cellHeight)
-        } else if (this.cursor.style === 'line') {
-          // underline
-          let lineHeight = 2;
-          ctx.rect(x * cellWidth, y * cellHeight + charSize.height,
-            cellWidth, lineHeight)
-        }
-        ctx.clip();
+        let text = this.screen[cell];
+        let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell];
+        let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell];
+        let attrs = this.screenAttrs[cell];
 
-        // swap foreground/background
-        fg = this.screenBG[cell];
-        bg = this.screenFG[cell];
         // HACK: ensure cursor is visible
-        if (fg === bg) bg = fg === 0 ? 7 : 0;
+        if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0;
 
         this.drawCell({
           x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
-        }, true);
-        ctx.restore()
+        });
+
+        if (isCursor && this.cursor.blinkOn && this.cursor.style !== 'block') {
+          ctx.save();
+          ctx.beginPath();
+          if (this.cursor.style === 'bar') {
+            // vertical bar
+            let barWidth = 2;
+            ctx.rect(x * cellWidth, y * cellHeight, barWidth, cellHeight)
+          } else if (this.cursor.style === 'line') {
+            // underline
+            let lineHeight = 2;
+            ctx.rect(x * cellWidth, y * cellHeight + charSize.height,
+              cellWidth, lineHeight)
+          }
+          ctx.clip();
+
+          // swap foreground/background
+          fg = this.screenBG[cell];
+          bg = this.screenFG[cell];
+          // HACK: ensure cursor is visible
+          if (fg === bg) bg = fg === 0 ? 7 : 0;
+
+          this.drawCell({
+            x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
+          }, true);
+          ctx.restore()
+        }
       }
     }
   }
