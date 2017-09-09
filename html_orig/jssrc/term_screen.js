@@ -881,3 +881,16 @@ function fitScreenIfNeeded () {
 }
 fitScreenIfNeeded();
 window.addEventListener('resize', fitScreenIfNeeded)
+
+window.toggleFitScreen = function () {
+  fitScreen = !fitScreen;
+  const resizeButtonIcon = qs('#resize-button-icon')
+  if (fitScreen) {
+    resizeButtonIcon.classList.remove('icn-resize-small')
+    resizeButtonIcon.classList.add('icn-resize-full')
+  } else {
+    resizeButtonIcon.classList.remove('icn-resize-full')
+    resizeButtonIcon.classList.add('icn-resize-small')
+  }
+  fitScreenIfNeeded();
+}

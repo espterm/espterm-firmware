@@ -58,7 +58,8 @@
 </div>
 
 <nav id="term-nav">
-	<a href="#" onclick="kbOpen(true);return false" class="mq-tablet-max"><i class="icn-keyboard"></i><span><?= tr('term_nav.keybd') ?></span></a><!--
+	<a href="#" onclick="toggleFitScreen();return false" class="mq-tablet-max"><i id="resize-button-icon" class="icn-resize-small"></i></a><!--
+	--><a href="#" onclick="kbOpen(true);return false" class="mq-tablet-max"><i class="icn-keyboard"></i><span><?= tr('term_nav.keybd') ?></span></a><!--
 	--><a href="#" onclick="TermUpl.open();return false"><i class="icn-download"></i><span><?= tr('term_nav.upload') ?></span></a><!--
 	--><a href="<?= url('cfg_term') ?>" class="x-term-conf-btn"><i class="icn-configure"></i><span><?= tr('term_nav.config') ?></span></a><!--
 	--><a href="<?= url('cfg_wifi') ?>" class="x-term-conf-btn"><i class="icn-wifi"></i><span><?= tr('term_nav.wifi') ?></span></a><!--
