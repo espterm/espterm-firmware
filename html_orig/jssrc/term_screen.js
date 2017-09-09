@@ -679,15 +679,18 @@ class TermScreen {
     this.screenBG = new Array(screenLength).fill(' ');
     this.screenAttrs = new Array(screenLength).fill(' ');
 
-    let strArr = (typeof Array.from !== 'undefined' ? Array.from(str) : str.split(''));
-    while (i < strArr.length && cell < screenLength) {
-      let character = strArr[i++];
+    let strArray = typeof Array.from !== 'undefined'
+      ? Array.from(str)
+      : str.split('');
+
+    while (i < strArray.length && cell < screenLength) {
+      let character = strArray[i++];
       let charCode = character.codePointAt(0);
 
-      let data, count;
+      let data;
       switch (charCode) {
         case SEQ_SET_COLOR_ATTR:
-          data = parse3B(strArr[i]+strArr[i+1]+strArr[i+2]);
+          data = parse3B(strArray[i] + strArray[i + 1] + strArray[i + 2]);
           i += 3;
           fg = data & 0xF;
           bg = data >> 4 & 0xF;
@@ -695,20 +698,20 @@ class TermScreen {
           break;
 
         case SEQ_SET_COLOR:
-          data = parse2B(strArr[i]+strArr[i+1]);
+          data = parse2B(strArray[i] + strArray[i + 1]);
           i += 2;
           fg = data & 0xF;
           bg = data >> 4 & 0xF;
           break;
 
         case SEQ_SET_ATTR:
-          data = parse2B(strArr[i]+strArr[i+1]);
+          data = parse2B(strArray[i] + strArray[i + 1]);
           i += 2;
           attrs = data & 0xFF;
           break;
 
         case SEQ_REPEAT:
-          count = parse2B(strArr[i]+strArr[i+1]);
+          let count = parse2B(strArray[i] + strArray[i + 1]);
           i += 2;
           for (let j = 0; j < count; j++) {
             this.screen[cell] = lastChar;
