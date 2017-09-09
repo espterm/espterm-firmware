@@ -1371,6 +1371,7 @@ struct ScreenSerializeState {
 	Color lastBg;
 	bool lastAttrs;
 	char lastChar[4];
+	u8 lastCharLen;
 	int index;
 };
 
@@ -1456,6 +1457,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastBg = 0;
 		ss->lastFg = 0;
 		ss->lastAttrs = 0;
+		ss->lastCharLen = 0;
 		memset(ss->lastChar, 0, 4); // this ensures the first char is never "repeat"
 
 		bufput_c('S');
@@ -1526,10 +1528,12 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 			// copy the symbol, until first 0 or reached 4 bytes
 			char c;
+			ss->lastCharLen = 0;
 			for(int j=0; j<4; j++) {
 				c = cell->c[j];
 				if(!c) break;
 				bufput_c(c);
+				ss->lastCharLen++;
 			}
 
 			ss->lastFg = cell0->fg;
@@ -1539,8 +1543,19 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 			i++;
 		} else {
-			// Repeat count
-			bufput_t2B('\x02', repCnt);
+			// last character was repeated repCnt times
+			int savings = ss->lastCharLen*repCnt;
+			if (savings > 3) {
+				// Repeat count
+				bufput_t2B('\x02', repCnt);
+			} else {
+				// repeat it manually
+				for(int k=0; k<repCnt; k++) {
+					for (int j = 0; j < ss->lastCharLen; j++) {
+						bufput_c(ss->lastChar[j]);
+					}
+				}
+			}
 		}
 	}
 
