@@ -21,6 +21,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	char buff[50];
 	char redir_url_buf[100];
 	int32 n, w, h;
+	bool notify_screen_content = 0, notify_screen_labels = 0;
 
 	bool shall_clear_screen = false;
 
@@ -46,7 +47,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 						if (termconf->width != w || termconf->height != h) {
 							termconf->width = w;
 							termconf->height = h;
-							shall_clear_screen = true;
+							shall_clear_screen = true; // this causes a notify
 						}
 					} else {
 						warn("Bad dimensions: %d x %d (total %d)", w, h, w*h);
@@ -78,6 +79,20 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		} else {
 			warn("Bad color %s", buff);
 			redir_url += sprintf(redir_url, "default_bg,");
+		}
+	}
+
+	if (GET_ARG("default_fg")) {
+		dbg("Screen default FG: %s", buff);
+		n = atoi(buff);
+		if (n >= 0 && n < 16) {
+			if (termconf->default_fg != n) {
+				termconf->default_fg = (u8) n;
+				shall_clear_screen = true;
+			}
+		} else {
+			warn("Bad color %s", buff);
+			redir_url += sprintf(redir_url, "default_fg,");
 		}
 	}
 
@@ -118,24 +133,28 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		dbg("FN alt mode: %s", buff);
 		n = atoi(buff);
 		termconf->fn_alt_mode = (bool)n;
+		notify_screen_content = true;
 	}
 
 	if (GET_ARG("crlf_mode")) {
 		dbg("CRLF mode: %s", buff);
 		n = atoi(buff);
 		termconf->crlf_mode = (bool)n;
+		notify_screen_content = true;
 	}
 
 	if (GET_ARG("show_buttons")) {
 		dbg("Show buttons: %s", buff);
 		n = atoi(buff);
 		termconf->show_buttons = (bool)n;
+		notify_screen_content = true;
 	}
 
 	if (GET_ARG("show_config_links")) {
 		dbg("Show config links: %s", buff);
 		n = atoi(buff);
 		termconf->show_config_links = (bool)n;
+		notify_screen_content = true;
 	}
 
 	if (GET_ARG("loopback")) {
@@ -144,25 +163,12 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		termconf->loopback = (bool)n;
 	}
 
-	if (GET_ARG("default_fg")) {
-		dbg("Screen default FG: %s", buff);
-		n = atoi(buff);
-		if (n >= 0 && n < 16) {
-			if (termconf->default_fg != n) {
-				termconf->default_fg = (u8) n;
-				shall_clear_screen = true;
-			}
-		} else {
-			warn("Bad color %s", buff);
-			redir_url += sprintf(redir_url, "default_fg,");
-		}
-	}
-
 	if (GET_ARG("theme")) {
 		dbg("Screen color theme: %s", buff);
 		n = atoi(buff);
 		if (n >= 0 && n <= 5) { // ALWAYS ADJUST WHEN ADDING NEW THEME!
 			termconf->theme = (u8) n;
+			// this can't be notified, page must reload.
 		} else {
 			warn("Bad theme num: %s", buff);
 			redir_url += sprintf(redir_url, "theme,");
@@ -174,6 +180,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		n = atoi(buff);
 		if (n >= 0 && n <= 6 && n != 1) {
 			termconf->cursor_shape = (enum CursorShape) n;
+			notify_screen_content = true;
 		} else {
 			warn("Bad cursor_shape num: %s", buff);
 			redir_url += sprintf(redir_url, "cursor_shape,");
@@ -183,6 +190,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	if (GET_ARG("term_title")) {
 		dbg("Terminal title default text: \"%s\"", buff);
 		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
+		notify_screen_labels = true;
 	}
 
 	for (int btn_i = 1; btn_i <= TERM_BTN_COUNT; btn_i++) {
@@ -190,6 +198,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		if (GET_ARG(buff)) {
 			dbg("Button%d default text: \"%s\"", btn_i, buff);
 			strncpy_safe(termconf->btn[btn_i-1], buff, TERM_BTN_LEN);
+			notify_screen_labels = true;
 		}
 
 		sprintf(buff, "bm%d", btn_i);
@@ -259,6 +268,14 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			terminal_apply_settings();
 		} else {
 			terminal_apply_settings_noclear();
+		}
+
+		if (notify_screen_content) {
+			screen_notifyChange(CHANGE_CONTENT);
+		}
+
+		if (notify_screen_labels) {
+			screen_notifyChange(CHANGE_LABELS);
 		}
 
 		httpdRedirect(connData, SET_REDIR_SUC);

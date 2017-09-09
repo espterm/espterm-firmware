@@ -1475,7 +1475,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			((mouse_tracking.mode>=MTM_NORMAL) << 6) | // disables selecting
 			(termconf_scratch.show_buttons << 7) |
 			(termconf_scratch.show_config_links << 8) |
-			((termconf_scratch.cursor_shape&0x03) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
+			((termconf_scratch.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
 		    (termconf_scratch.crlf_mode << 12)
 	    );
 	}
