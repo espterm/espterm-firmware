@@ -34,6 +34,7 @@ typedef struct {
 // Disambiguations
 static inline void switch_csi_Plain(CSI_Data *opts);
 static inline void switch_csi_NoLeadInterBang(CSI_Data *opts);
+static inline void switch_csi_NoLeadInterSpace(CSI_Data *opts);
 static inline void switch_csi_LeadGreater(CSI_Data *opts);
 static inline void switch_csi_LeadQuest(CSI_Data *opts);
 static inline void switch_csi_LeadEquals(CSI_Data *opts);
@@ -113,7 +114,7 @@ apars_handle_csi(char leadchar, const int *params, int count, char interchar, ch
 //					break;
 
 				case ' ':
-					switch_csi_NoLeadInterSpace(opts);
+					switch_csi_NoLeadInterSpace(&opts);
 					break;
 
 //				case ',':
