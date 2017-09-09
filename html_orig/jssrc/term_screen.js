@@ -126,6 +126,12 @@ class TermScreen {
     this.screenBG = [];
     this.screenAttrs = [];
 
+    // used to determine if a cell should be redrawn
+    this.drawnScreen = [];
+    this.drawnScreenFG = [];
+    this.drawnScreenBG = [];
+    this.drawnScreenAttrs = [];
+
     this.resetBlink();
     this.resetCursorBlink();
 
@@ -417,6 +423,12 @@ class TermScreen {
       this.canvas.height = height * devicePixelRatio * cellSize.height;
       this.canvas.style.height = `${realHeight}px`;
 
+      // the screen has been cleared (by changing canvas width)
+      this.drawnScreen = [];
+      this.drawnScreenFG = [];
+      this.drawnScreenBG = [];
+      this.drawnScreenAttrs = [];
+
       // draw immediately; the canvas shouldn't flash
       this.draw();
     }
@@ -427,8 +439,8 @@ class TermScreen {
     clearInterval(this.cursor.blinkInterval);
     this.cursor.blinkInterval = setInterval(() => {
       this.cursor.blinkOn = !this.cursor.blinkOn;
-      this.scheduleDraw()
-    }, 500)
+      this.scheduleDraw();
+    }, 500);
   }
 
   resetBlink () {
@@ -439,12 +451,12 @@ class TermScreen {
       intervals++;
       if (intervals >= 4 && this.window.blinkStyleOn) {
         this.window.blinkStyleOn = false;
-        intervals = 0
+        intervals = 0;
       } else if (intervals >= 1 && !this.window.blinkStyleOn) {
         this.window.blinkStyleOn = true;
-        intervals = 0
+        intervals = 0;
       }
-    }, 200)
+    }, 200);
   }
 
   getNormalizedSelection () {
@@ -452,9 +464,9 @@ class TermScreen {
     // if the start line is after the end line, or if they're both on the same
     // line but the start column comes after the end column, swap
     if (start[1] > end[1] || (start[1] === end[1] && start[0] > end[0])) {
-      [start, end] = [end, start]
+      [start, end] = [end, start];
     }
-    return { start, end }
+    return { start, end };
   }
 
   isInSelection (col, line) {
@@ -467,7 +479,7 @@ class TermScreen {
     if (onStartLine && onEndLine) return colAfterStart && colBeforeEnd;
     else if (onStartLine) return colAfterStart;
     else if (onEndLine) return colBeforeEnd;
-    else return start[1] < line && line < end[1]
+    else return start[1] < line && line < end[1];
   }
 
   getSelectedText () {
@@ -482,13 +494,13 @@ class TermScreen {
       if (this.isInSelection(x, y)) {
         if (previousLineIndex !== y) {
           previousLineIndex = y;
-          lines.push('')
+          lines.push('');
         }
-        lines[lines.length - 1] += this.screen[cell]
+        lines[lines.length - 1] += this.screen[cell];
       }
     }
 
-    return lines.join('\n')
+    return lines.join('\n');
   }
 
   copySelectionToClipboard () {
@@ -513,7 +525,7 @@ class TermScreen {
 
     return [
       Math.floor((x + cellSize.width / 2) / cellSize.width),
-      Math.floor(y / cellSize.height)
+      Math.floor(y / cellSize.height),
     ];
   }
 
@@ -523,15 +535,12 @@ class TermScreen {
     return [ x * cellSize.width, y * cellSize.height ];
   }
 
-  drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs },
-            compositeAbove = false) {
+  drawCell ({ x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs }) {
     const ctx = this.ctx;
     const inSelection = this.isInSelection(x, y);
     ctx.fillStyle = inSelection ? SELECTION_BG : this.colors[bg];
-    if (!compositeAbove) ctx.globalCompositeOperation = 'destination-over';
     ctx.fillRect(x * cellWidth, y * cellHeight,
       Math.ceil(cellWidth), Math.ceil(cellHeight));
-    ctx.globalCompositeOperation = 'source-over';
 
     if (!text) return;
 
@@ -566,11 +575,11 @@ class TermScreen {
           ctx.lineTo((x + 1) * cellWidth, lineY);
         }
 
-        ctx.stroke()
+        ctx.stroke();
       }
     }
 
-    ctx.globalAlpha = 1
+    ctx.globalAlpha = 1;
   }
 
   draw () {
@@ -590,7 +599,6 @@ class TermScreen {
     const screenLength = width * height;
 
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.clearRect(0, 0, screenWidth, screenHeight);
 
     ctx.font = this.getFont();
     ctx.textAlign = 'center';
@@ -602,40 +610,79 @@ class TermScreen {
     // Map of (attrs & FONT_MASK) -> Array of cell indices
     const fontGroups = new Map();
 
+    // Map of (cell index) -> boolean, whether or not a cell needs to be redrawn
+    const updateMap = new Map();
+
     for (let cell = 0; cell < screenLength; cell++) {
+      let x = cell % width;
+      let y = Math.floor(cell / width);
+      let isCursor = this.cursor.x === x && this.cursor.y === y &&
+        !this.cursor.hanging;
+      let invertForCursor = isCursor && this.cursor.blinkOn &&
+        this.cursor.style === 'block';
+
+      let text = this.screen[cell];
+      let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell];
+      let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell];
       let attrs = this.screenAttrs[cell];
+
+      // HACK: ensure cursor is visible
+      if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0;
+
+      let cellDidChange = text !== this.drawnScreen[cell] ||
+        fg !== this.drawnScreenFG[cell] ||
+        bg !== this.drawnScreenBG[cell] ||
+        attrs !== this.drawnScreenAttrs[cell];
+
       let font = attrs & FONT_MASK;
       if (!fontGroups.has(font)) fontGroups.set(font, []);
-      fontGroups.get(font).push(cell);
+
+      fontGroups.get(font).push([cell, x, y, text, fg, bg, attrs, isCursor]);
+      updateMap.set(cell, cellDidChange);
     }
 
     for (let font of fontGroups.keys()) {
       // set font once because in Firefox, this is a really slow action for some
       // reason
-      let modifiers = {}
-      if (font & 1) modifiers.weight = 'bold'
-      if (font & 1 << 2) modifiers.style = 'italic'
-      ctx.font = this.getFont(modifiers)
+      let modifiers = {};
+      if (font & 1) modifiers.weight = 'bold';
+      if (font & 1 << 2) modifiers.style = 'italic';
+      ctx.font = this.getFont(modifiers);
 
-      for (let cell of fontGroups.get(font)) {
-        let x = cell % width;
-        let y = Math.floor(cell / width);
-        let isCursor = this.cursor.x === x && this.cursor.y === y;
-        if (this.cursor.hanging) isCursor = false;
-        let invertForCursor = isCursor && this.cursor.blinkOn &&
-          this.cursor.style === 'block';
+      for (let data of fontGroups.get(font)) {
+        let [cell, x, y, text, fg, bg, attrs, isCursor] = data;
 
-        let text = this.screen[cell];
-        let fg = invertForCursor ? this.screenBG[cell] : this.screenFG[cell];
-        let bg = invertForCursor ? this.screenFG[cell] : this.screenBG[cell];
-        let attrs = this.screenAttrs[cell];
+        // check if this cell or any adjacent cells updated
+        let needsUpdate = false;
+        let updateCells = [
+          cell,
+          cell - 1,
+          cell + 1,
+          cell - width,
+          cell + width,
+          // diagonal box drawing characters exist, too
+          cell - width - 1,
+          cell - width + 1,
+          cell + width - 1,
+          cell + width + 1
+        ];
+        for (let index of updateCells) {
+          if (updateMap.has(index) && updateMap.get(index)) {
+            needsUpdate = true;
+            break;
+          }
+        }
 
-        // HACK: ensure cursor is visible
-        if (invertForCursor && fg === bg) bg = fg === 0 ? 7 : 0;
+        if (needsUpdate) {
+          this.drawCell({
+            x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
+          });
 
-        this.drawCell({
-          x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
-        });
+          this.drawnScreen[cell] = text;
+          this.drawnScreenFG[cell] = fg;
+          this.drawnScreenBG[cell] = bg;
+          this.drawnScreenAttrs[cell] = attrs;
+        }
 
         if (isCursor && this.cursor.blinkOn && this.cursor.style !== 'block') {
           ctx.save();
@@ -660,8 +707,8 @@ class TermScreen {
 
           this.drawCell({
             x, y, charSize, cellWidth, cellHeight, text, fg, bg, attrs
-          }, true);
-          ctx.restore()
+          });
+          ctx.restore();
         }
       }
     }
