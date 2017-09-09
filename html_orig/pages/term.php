@@ -71,26 +71,11 @@
 		window.noAutoShow = true;
 		termInit(); // the screen will be loaded via ajax
 		Screen.load('%j:labels_seq%');
-
-		// auto-clear the input box
-		$('#softkb-input').on('input', function(e) {
-			setTimeout(function(){
-				var str = $('#softkb-input').val();
-				$('#softkb-input').val('');
-				Input.sendString(str);
-			}, 1);
-		});
 	} catch(e) {
 		console.error(e);
 		console.error("Fail, reloading in 3s…");
 		setTimeout(function() {
 			location.reload(true);
 		}, 3000);
-	}
-
-	function kbOpen(yes) {
-		var i = qs('#softkb-input');
-		if (yes) i.focus();
-		else i.blur();
 	}
 </script>

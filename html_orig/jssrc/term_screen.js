@@ -333,9 +333,9 @@ class TermScreen {
   }
 
   // schedule a draw in the next tick
-  scheduleDraw () {
+  scheduleDraw (aggregateTime = 1) {
     clearTimeout(this._scheduledDraw);
-    this._scheduledDraw = setTimeout(() => this.draw(), 1)
+    this._scheduledDraw = setTimeout(() => this.draw(), aggregateTime)
   }
 
   getFont (modifiers = {}) {
@@ -788,7 +788,7 @@ class TermScreen {
       }
     }
 
-    this.scheduleDraw();
+    this.scheduleDraw(16);
     this.emit('load');
   }
 
