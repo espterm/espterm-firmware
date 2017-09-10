@@ -302,6 +302,12 @@ void screen_putchar(const char *ch);
  */
 void screen_fill_with_E(void);
 
+/**
+ * Repeat last graphic character
+ * @param count
+ */
+void screen_repeat_last_character(int count);
+
 // --- Queries ---
 
 /** Report current SGR as num;num;... for DAC query */

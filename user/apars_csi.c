@@ -244,8 +244,7 @@ switch_csi_Plain(CSI_Data *opts)
 			break;
 
 		case 'b':
-			// TODO repeat preceding graphic character n1 times
-			ansi_noimpl("Repeat char");
+			screen_repeat_last_character(n1);
 			return;
 
 			// Set X

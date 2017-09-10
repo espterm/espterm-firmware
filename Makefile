@@ -152,7 +152,6 @@ define maplookup
 $(patsubst $(strip $(1)):%,%,$(filter $(strip $(1)):%,$(2)))
 endef
 
-
 #Include options and target specific to the OUTPUT_TYPE
 include Makefile.$(OUTPUT_TYPE)
 
@@ -203,19 +202,25 @@ espsize:
 espmac:
 	$(Q) esptool --port /dev/ttyUSB0 read_mac
 
-all: checkdirs parser $(TARGET_OUT) $(FW_BASE)
+all: checkdirs
+	$(Q) make actual_all -j4 -B
+
+actual_all: parser $(TARGET_OUT) $(FW_BASE)
 
 libesphttpd/Makefile:
 	$(Q) [[ -e "libesphttpd/Makefile" ]] || echo -e "\e[31mlibesphttpd submodule missing.\nIf build fails, run \"git submodule init\" and \"git submodule update\".\e[0m"
 
 libesphttpd: libesphttpd/Makefile
-	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK) SERVERNAME_PREFIX="ESPTerm "
+	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK) SERVERNAME_PREFIX="ESPTerm " -j4
 
 $(APP_AR): libesphttpd $(OBJ)
 	$(vecho) "AR $@"
 	$(Q) $(AR) cru $@ $(OBJ)
 
 checkdirs: $(BUILD_DIR) html/favicon.ico
+
+html/favicon.ico:
+	$(Q) [[ -e "html/favicon.ico" ]] || ./build_web.sh
 
 $(BUILD_DIR):
 	$(Q) mkdir -p $@

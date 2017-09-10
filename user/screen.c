@@ -61,6 +61,7 @@ static struct {
 	int vm1;
 
 	u32 tab_stops[TABSTOP_WORDS]; // tab stops bitmap
+	char last_char[4];
 } scr;
 
 #define R0 scr.vm0
@@ -995,7 +996,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		if (cursor.auto_wrap && cursor.reverse_wrap) {
 			// this is mimicking a behavior from xterm that allows any number of steps backwards with reverse wraparound enabled
 			int steps = -cursor.x;
-			if(steps > 1000) steps = 1; // avoid something stupid causing infinite loop here
+			if(steps > W*H) steps = W*H; // avoid something stupid causing infinite loop here
 			for(;steps>0;steps--) {
 				if (cursor.x > 0) {
 					// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
@@ -1349,6 +1350,58 @@ screen_report_sgr(char *buffer)
 
 //region --- Printing ---
 
+static const char *putchar_graphic(const char *ch)
+{
+	if (cursor.hanging) {
+		// perform the scheduled wrap if hanging
+		// if auto-wrap = off, it overwrites the last char
+		if (cursor.auto_wrap) {
+			cursor.x = 0;
+			cursor.y++;
+			// Y wrap
+			if (cursor.y > R1) {
+				// Scroll up, so we have space for writing
+				screen_scroll_up(1);
+				cursor.y = R1;
+			}
+
+			cursor.hanging = false;
+		}
+	}
+
+	Cell *c = &screen[cursor.x + cursor.y * W];
+
+	// move the rest of the line if we're in Insert Mode
+	if (cursor.x < W-1 && scr.insert_mode) screen_insert_characters(1);
+
+	if (ch[1] == 0 && ch[0] <= 0x7f) {
+		// we have len=1 and ASCII, can be re-mapped using a table
+		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+	}
+	else {
+		// copy unicode char
+		strncpy(c->c, ch, 4);
+	}
+
+	if (cursor.inverse) {
+		c->fg = cursor.bg;
+		c->bg = cursor.fg;
+	} else {
+		c->fg = cursor.fg;
+		c->bg = cursor.bg;
+	}
+	c->attrs = cursor.attrs;
+
+	cursor.x++;
+	// X wrap
+	if (cursor.x >= W) {
+		cursor.hanging = true; // hanging - next typed char wraps around, but backspace and arrows still stay on the same line.
+		cursor.x = W - 1;
+	}
+
+	return c->c;
+}
+
 /**
  * Set a character in the cursor color, move to right with wrap.
  */
@@ -1387,54 +1440,36 @@ screen_putchar(const char *ch)
 			}
 	}
 
-	if (cursor.hanging) {
-		// perform the scheduled wrap if hanging
-		// if auto-wrap = off, it overwrites the last char
-		if (cursor.auto_wrap) {
-			cursor.x = 0;
-			cursor.y++;
-			// Y wrap
-			if (cursor.y > R1) {
-				// Scroll up, so we have space for writing
-				screen_scroll_up(1);
-				cursor.y = R1;
-			}
+	const char *result = putchar_graphic(ch);
 
-			cursor.hanging = false;
-		}
-	}
-
-	Cell *c = &screen[cursor.x + cursor.y * W];
-
-	// move the rest of the line if we're in Insert Mode
-	if (cursor.x < W-1 && scr.insert_mode) screen_insert_characters(1);
-
-	if (ch[1] == 0 && ch[0] <= 0x7f) {
-		// we have len=1 and ASCII
-		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
-	}
-	else {
-		// copy unicode char
-		strncpy(c->c, ch, 4);
-	}
-
-	if (cursor.inverse) {
-		c->fg = cursor.bg;
-		c->bg = cursor.fg;
-	} else {
-		c->fg = cursor.fg;
-		c->bg = cursor.bg;
-	}
-	c->attrs = cursor.attrs;
-
-	cursor.x++;
-	// X wrap
-	if (cursor.x >= W) {
-		cursor.hanging = true; // hanging - next typed char wraps around, but backspace and arrows still stay on the same line.
-		cursor.x = W - 1;
-	}
+	// Remember the resulting character
+	// If we re-mapped ASCII to high UTF, the following Repeat command will
+	// not have to call the remap function repeatedly.
+	strncpy(scr.last_char, result, 4);
 
 	done:
+	NOTIFY_DONE();
+}
+
+/**
+ * Repeat last graphic character
+ * @param count
+ */
+void ICACHE_FLASH_ATTR
+screen_repeat_last_character(int count)
+{
+	NOTIFY_LOCK();
+	if (scr.last_char[0]==0) {
+		scr.last_char[0] = ' ';
+		scr.last_char[1] = 0;
+	}
+
+	if (count > W*H) count = W*H;
+
+	while (count > 0) {
+		putchar_graphic(scr.last_char);
+		count--;
+	}
 	NOTIFY_DONE();
 }
 
