@@ -37,17 +37,21 @@ apars_handle_osc(char *buffer)
 		// Do something with the data string and number
 		// (based on xterm manpage)
 		if (n == 0 || n == 2) {
+			// Window title (or "icon name" in Xterm)
 			screen_set_title(buffer);
 		}
 		else if (n == 9) {
+			// iTerm2-style "growl" notifications
 			buffer--;
 			buffer[0] = 'G';
 			notify_growl(buffer);
 		}
-		else if (n >= 81 && n <= 85) { // ESPTerm: action button label
+		else if (n >= 81 && n <= 85) {
+			// ESPTerm: action button label
 			screen_set_button_text(n - 80, buffer);
 		}
-		else if (n >= 91 && n <= 95) { // ESPTerm: action button text
+		else if (n >= 91 && n <= 95) {
+			// ESPTerm: action button message
 			strncpy(termconf_scratch.btn_msg[n - 91], buffer, TERM_BTN_MSG_LEN);
 		}
 		else {

@@ -46,6 +46,4 @@ enum SGR_CODES {
 	SGR_BG_BRT_END = 107,
 };
 
-#define SGR_OFF(n) (20+(n))
-
 #endif //ESP_VT100_FIRMWARE_SGR_H
