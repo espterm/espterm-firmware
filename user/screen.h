@@ -230,6 +230,7 @@ typedef uint8_t Color; // 0-16
 #define ATTR_BLINK (1<<4)
 #define ATTR_FRAKTUR (1<<5)
 #define ATTR_STRIKE (1<<6)
+#define ATTR_OVERLINE (1<<7)
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);

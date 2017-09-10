@@ -552,7 +552,7 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_FG_256 || n == SGR_BG_256) {
 			if (i < count-2) {
 				if (opts->n[i + 1] == 5) {
-					int color = opts->n[i + 2];
+					u16 color = (u16) opts->n[i + 2];
 					bool fg = n == SGR_FG_256;
 					if (fg) {
 						screen_set_fg_ext(color);
@@ -582,15 +582,17 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_FRAKTUR) screen_set_sgr(ATTR_FRAKTUR, 1);
 		else if (n == SGR_INVERSE) screen_set_sgr_inverse(1);
 		else if (n == SGR_CONCEAL) screen_set_sgr_conceal(1);
+		else if (n == SGR_OVERLINE) screen_set_sgr(ATTR_OVERLINE, 1);
 			// -- clear attr --
-		else if (n == SGR_OFF(SGR_BOLD)) screen_set_sgr(ATTR_BOLD, 0); // can also mean "Double Underline"
-		else if (n == SGR_OFF(SGR_FAINT)) screen_set_sgr(ATTR_FAINT | ATTR_BOLD, 0); // "normal"
-		else if (n == SGR_OFF(SGR_ITALIC)) screen_set_sgr(ATTR_ITALIC | ATTR_FRAKTUR, 0); // there is no dedicated OFF code for Fraktur
-		else if (n == SGR_OFF(SGR_UNDERLINE)) screen_set_sgr(ATTR_UNDERLINE, 0);
-		else if (n == SGR_OFF(SGR_BLINK)) screen_set_sgr(ATTR_BLINK, 0);
-		else if (n == SGR_OFF(SGR_STRIKE)) screen_set_sgr(ATTR_STRIKE, 0);
-		else if (n == SGR_OFF(SGR_INVERSE)) screen_set_sgr_inverse(0);
-		else if (n == SGR_OFF(SGR_CONCEAL)) screen_set_sgr_conceal(0);
+		else if (n == SGR_NO_BOLD) screen_set_sgr(ATTR_BOLD, 0); // can also mean "Double Underline"
+		else if (n == SGR_NO_BOLD_FAINT) screen_set_sgr(ATTR_FAINT | ATTR_BOLD, 0); // "normal"
+		else if (n == SGR_NO_ITALIC_FRACTUR) screen_set_sgr(ATTR_ITALIC | ATTR_FRAKTUR, 0); // there is no dedicated OFF code for Fraktur
+		else if (n == SGR_NO_UNDERLINE) screen_set_sgr(ATTR_UNDERLINE, 0);
+		else if (n == SGR_NO_BLINK) screen_set_sgr(ATTR_BLINK, 0);
+		else if (n == SGR_NO_STRIKE) screen_set_sgr(ATTR_STRIKE, 0);
+		else if (n == SGR_NO_INVERSE) screen_set_sgr_inverse(0);
+		else if (n == SGR_NO_CONCEAL) screen_set_sgr_conceal(0);
+		else if (n == SGR_NO_OVERLINE) screen_set_sgr(ATTR_OVERLINE, 0);
 		else {
 			ansi_noimpl("SGR %d", n);
 		}
