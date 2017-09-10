@@ -41,7 +41,7 @@ apars_handle_osc(char *buffer)
 		}
 		else if (n == 9) {
 			buffer--;
-			buffer[0] = 'g';
+			buffer[0] = 'G';
 			notify_growl(buffer);
 		}
 		else if (n >= 81 && n <= 85) { // ESPTerm: action button label
