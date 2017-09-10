@@ -12,7 +12,7 @@
 
 // Max nr of CSI parameters
 #define CSI_N_MAX 10
-#define STR_CHAR_MAX 64
+#define ANSI_STR_LEN 64
 
 static volatile int cs = -1;
 static volatile bool inside_string = false;
@@ -80,7 +80,7 @@ ansi_parser(char newchar)
 	static int  arg_ni;
 	static int  arg_cnt;
 	static int  arg[CSI_N_MAX];
-	static char string_buffer[STR_CHAR_MAX];
+	static char string_buffer[ANSI_STR_LEN];
 	static int  str_ni;
 
 	// This is used to detect timeout delay (time since last rx char)

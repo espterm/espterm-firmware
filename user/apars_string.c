@@ -21,7 +21,7 @@
 // ----- Generic String cmd - disambiguation -----
 
 void ICACHE_FLASH_ATTR
-apars_handle_string_cmd(char leadchar, const char *buffer)
+apars_handle_string_cmd(char leadchar, char *buffer)
 {
 	switch (leadchar) {
 		case 'k': // ESC k TITLE ST (defined in GNU screen manpage)

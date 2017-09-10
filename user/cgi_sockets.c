@@ -119,6 +119,16 @@ send_beep(void)
 }
 
 
+/** Pop-up notification (from iTerm2) */
+void ICACHE_FLASH_ATTR
+notify_growl(char *msg)
+{
+	// TODO via timer...
+	// here's some potential for a race error with the other broadcast functions :C
+	cgiWebsockBroadcast(URL_WS_UPDATE, msg, (int) strlen(msg), 0);
+}
+
+
 /**
  * Broadcast screen state to sockets.
  * This is a callback for the Screen module,

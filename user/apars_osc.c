@@ -14,13 +14,14 @@
 #include "apars_logging.h"
 #include "screen.h"
 #include "ansi_parser.h"
+#include "cgi_sockets.h"
 
 /**
  * Helper function to parse incoming OSC (Operating System Control)
  * @param buffer - the OSC body (after OSC and before ST)
  */
 void ICACHE_FLASH_ATTR
-apars_handle_osc(const char *buffer)
+apars_handle_osc(char *buffer)
 {
 	int n = 0;
 	char c = 0;
@@ -37,6 +38,11 @@ apars_handle_osc(const char *buffer)
 		// (based on xterm manpage)
 		if (n == 0 || n == 2) {
 			screen_set_title(buffer);
+		}
+		else if (n == 9) {
+			buffer--;
+			buffer[0] = 'g';
+			notify_growl(buffer);
 		}
 		else if (n >= 81 && n <= 85) { // ESPTerm: action button label
 			screen_set_button_text(n - 80, buffer);
