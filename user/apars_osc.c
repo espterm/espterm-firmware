@@ -52,7 +52,7 @@ apars_handle_osc(char *buffer)
 		}
 		else if (n >= 91 && n <= 95) {
 			// ESPTerm: action button message
-			strncpy(termconf_scratch.btn_msg[n - 91], buffer, TERM_BTN_MSG_LEN);
+			strncpy(termconf_live.btn_msg[n - 91], buffer, TERM_BTN_MSG_LEN);
 		}
 		else {
 			ansi_noimpl("OSC %d ; %s ST", n, buffer);

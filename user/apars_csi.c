@@ -49,7 +49,8 @@ static inline void do_csi_set_private_option(CSI_Data *opts);
 /**
  * Show warning and dump context for invalid CSI
  */
-static void warn_bad_csi(void)
+static void ICACHE_FLASH_ATTR
+warn_bad_csi(void)
 {
 	ansi_noimpl_r("Unknown CSI");
 	apars_show_context();
@@ -487,27 +488,32 @@ switch_csi_LeadEquals(CSI_Data *opts)
 static inline void  ICACHE_FLASH_ATTR
 switch_csi_LeadQuest(CSI_Data *opts)
 {
+	int n = 0;
 	switch(opts->key) {
 		case 's':
 			// Save private attributes
-			ansi_noimpl("Save private attrs");
-			apars_show_context(); // TODO priv attr s/r
+			for (int i = 0; i < opts->count; i++) {
+				n = opts->n[i];
+				screen_save_private_opt(n);
+			}
 			break;
 
 		case 'r':
 			// Restore private attributes
-			ansi_noimpl("Restore private attrs");
-			apars_show_context(); // TODO priv attr s/r
+			for (int i = 0; i < opts->count; i++) {
+				n = opts->n[i];
+				screen_restore_private_opt(n);
+			}
 			break;
 
 		case 'J': // Erase screen selectively
 			// TODO selective erase
-			ansi_noimpl("Selective screen erase");
+			switch_csi_Plain(opts); // ignore the ?, do normal erase
 			break;
 
 		case 'K': // Erase line selectively
 			// TODO selective erase
-			ansi_noimpl("Selective line erase");
+			switch_csi_Plain(opts); // ignore the ?, do normal erase
 			break;
 
 		case 'l':
@@ -546,8 +552,8 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n >= SGR_FG_BRT_START && n <= SGR_FG_BRT_END) screen_set_fg((Color) ((n - SGR_FG_BRT_START) + 8)); // AIX bright fg
 		else if (n >= SGR_BG_BRT_START && n <= SGR_BG_BRT_END) screen_set_bg((Color) ((n - SGR_BG_BRT_START) + 8)); // AIX bright bg
 			// reset color
-		else if (n == SGR_FG_DEFAULT) screen_set_fg(termconf_scratch.default_fg); // default fg
-		else if (n == SGR_BG_DEFAULT) screen_set_bg(termconf_scratch.default_bg); // default bg
+		else if (n == SGR_FG_DEFAULT) screen_set_fg(termconf_live.default_fg); // default fg
+		else if (n == SGR_BG_DEFAULT) screen_set_bg(termconf_live.default_bg); // default bg
 			// 256 colors
 		else if (n == SGR_FG_256 || n == SGR_BG_256) {
 			if (i < count-2) {
@@ -617,7 +623,7 @@ do_csi_set_option(CSI_Data *opts)
 		}
 		else if (n == 12) {
 			// SRM is inverted, according to vt510 manual
-			termconf_scratch.loopback = !yn;
+			termconf_live.loopback = !yn;
 		}
 		else if (n == 20) {
 			screen_set_newline_mode(yn);
@@ -754,11 +760,11 @@ do_csi_set_private_option(CSI_Data *opts)
 			ansi_noimpl("Bracketed paste");
 		}
 		else if (n == 800) { // ESPTerm: Toggle display of buttons
-			termconf_scratch.show_buttons = yn;
+			termconf_live.show_buttons = yn;
 			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
 		}
 		else if (n == 801) { // ESPTerm: Toggle display of config links
-			termconf_scratch.show_config_links = yn;
+			termconf_live.show_config_links = yn;
 			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
 		}
 		else {
@@ -783,14 +789,14 @@ do_csi_xterm_screen_cmd(CSI_Data *opts)
 
 		case 18: // Report the size of the text area in characters.
 		case 19: // Report the size of the screen in characters.
-			sprintf(resp_buf, "\033[8;%d;%dt", termconf_scratch.height, termconf_scratch.width);
+			sprintf(resp_buf, "\033[8;%d;%dt", termconf_live.height, termconf_live.width);
 			apars_respond(resp_buf);
 			break;
 
 		case 20: // Report icon
 		case 21: // Report title
 			apars_respond("\033]l");
-			apars_respond(termconf_scratch.title);
+			apars_respond(termconf_live.title);
 			apars_respond("\033\\");
 			break;
 
@@ -802,7 +808,7 @@ do_csi_xterm_screen_cmd(CSI_Data *opts)
 			break;
 
 		case 24: // Set Height only
-			screen_resize(opts->n[1], termconf_scratch.width);
+			screen_resize(opts->n[1], termconf_live.width);
 			break;
 
 		default:

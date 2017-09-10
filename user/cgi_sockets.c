@@ -8,6 +8,7 @@
 #include "ansi_parser.h"
 #include "jstring.h"
 #include "uart_driver.h"
+#include "cgi_logging.h"
 
 // Heartbeat interval in ms
 #define HB_TIME 1000
@@ -243,7 +244,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	switch (c) {
 		case 's':
 			// pass string verbatim
-			if (termconf_scratch.loopback) {
+			if (termconf_live.loopback) {
 				for (int i = 1; i < len; i++) {
 					ansi_parser(data[i]);
 				}
@@ -264,13 +265,13 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 			// action button press
 			btnNum = (u8) (data[1]);
 			if (btnNum > 0 && btnNum < 10) {
-				UART_SendAsync(termconf_scratch.btn_msg[btnNum-1], -1);
+				UART_SendAsync(termconf_live.btn_msg[btnNum-1], -1);
 			}
 			break;
 
 		case 'i':
 			// requests initial load
-			dbg("Client requests initial load");
+			ws_dbg("Client requests initial load");
 			notifyContentTimCb(ws);
 			break;
 

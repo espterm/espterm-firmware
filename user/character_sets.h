@@ -9,15 +9,7 @@
 
 // Tables must be contiguous!
 
-#define CODEPAGE_A_BEGIN 35
-#define CODEPAGE_A_END 35
-
-static const u16 codepage_A[] ESP_CONST_DATA =
-	{//	Unicode    ASCII   SYM
-		// %%BEGIN:A%%
-		0x20a4, // 35   #   £
-		// %%END:A%%
-	};
+// Full range of UTF-8 is now supported, if needed, but the table must be changed to uint32_t
 
 #define CODEPAGE_0_BEGIN 96
 #define CODEPAGE_0_END 126

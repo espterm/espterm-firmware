@@ -62,8 +62,8 @@ LIBS		= c gcc hal phy pp net80211 wpa main lwip crypto
 #Add in esphttpd lib
 LIBS += esphttpd
 
-# compiler flags using during compilation of source files
-CFLAGS		= -Os -ggdb -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
+# compiler flags using during compilation of source files -ggdb
+CFLAGS		= -Os -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
 		-Wno-address -Wno-unused
 
@@ -171,7 +171,7 @@ MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
 ESP_FLASH_SIZE_IX=$(call maplookup,$(ESP_SPI_FLASH_SIZE_K),512:0 1024:2 2048:5 4096:6)
 ESPTOOL_FREQ=$(call maplookup,$(ESP_FLASH_FREQ_DIV),0:40m 1:26m 2:20m 0xf:80m 15:80m)
 ESPTOOL_MODE=$(call maplookup,$(ESP_FLASH_MODE),0:qio 1:qout 2:dio 3:dout)
-ESPTOOL_SIZE=$(call maplookup,$(ESP_SPI_FLASH_SIZE_K),512:4m 256:2m 1024:8m 2048:16m 4096:32m)
+ESPTOOL_SIZE=$(call maplookup,$(ESP_SPI_FLASH_SIZE_K),512:512KB 256:256KB 1024:1MB 2048:2MB 4096:4MB)
 
 ESPTOOL_OPTS=--port $(ESPPORT) --baud $(ESPBAUD)
 ESPTOOL_FLASHDEF=--flash_freq $(ESPTOOL_FREQ) --flash_mode $(ESPTOOL_MODE) --flash_size $(ESPTOOL_SIZE)
@@ -189,7 +189,7 @@ $1/%.o: %.S
 	$(Q) $(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
 endef
 
-.PHONY: all web parser checkdirs clean libesphttpd default-tgt
+.PHONY: all web parser checkdirs clean libesphttpd default-tgt espsize espmac
 
 web:
 	$(Q) ./build_web.sh
@@ -197,7 +197,13 @@ web:
 parser:
 	$(Q) ./build_parser.sh
 
-all: checkdirs web parser $(TARGET_OUT) $(FW_BASE)
+espsize:
+	$(Q) esptool --port /dev/ttyUSB0 flash_id
+
+espmac:
+	$(Q) esptool --port /dev/ttyUSB0 read_mac
+
+all: checkdirs parser $(TARGET_OUT) $(FW_BASE)
 
 libesphttpd/Makefile:
 	$(Q) [[ -e "libesphttpd/Makefile" ]] || echo -e "\e[31mlibesphttpd submodule missing.\nIf build fails, run \"git submodule init\" and \"git submodule update\".\e[0m"
@@ -209,7 +215,7 @@ $(APP_AR): libesphttpd $(OBJ)
 	$(vecho) "AR $@"
 	$(Q) $(AR) cru $@ $(OBJ)
 
-checkdirs: $(BUILD_DIR)
+checkdirs: $(BUILD_DIR) html/favicon.ico
 
 $(BUILD_DIR):
 	$(Q) mkdir -p $@

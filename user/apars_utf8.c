@@ -37,7 +37,7 @@ apars_handle_plainchar(char c)
 		if (utf_i == 0) {
 			// start
 			if (c == 192 || c == 193 || c >= 245) {
-				// forbidden codes
+				// forbidden codes (would be an overlong sequence)
 				goto fail;
 			}
 

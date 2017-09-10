@@ -7,17 +7,18 @@
 #include "apars_logging.h"
 #include "jstring.h"
 #include "character_sets.h"
+#include "utf8.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
-TerminalConfigBundle termconf_scratch;
+TerminalConfigBundle termconf_live;
 
 MouseTrackingConfig mouse_tracking;
 
 // forward declare
 static void utf8_remap(char* out, char g, char charset);
 
-#define W termconf_scratch.width
-#define H termconf_scratch.height
+#define W termconf_live.width
+#define H termconf_live.height
 
 /**
  * Highest permissible value of the color attribute
@@ -48,8 +49,9 @@ static Cell screen[MAX_SCREEN_SIZE];
 static struct {
 	bool numpad_alt_mode;  //!< DECNKM - Numpad Application Mode
 	bool cursors_alt_mode; //!< DECCKM - Cursors Application mode
+	bool bracketed_paste;
 
-	bool reverse;            //!< DECSCNM - Reverse video
+	bool reverse_video;            //!< DECSCNM - Reverse video
 
 	bool insert_mode;    //!< IRM - Insert mode (move rest of the line to the right)
 	bool cursor_visible; //!< DECTCEM - Cursor visible
@@ -90,7 +92,7 @@ typedef struct {
 
 	/** Options saved with cursor */
 	bool auto_wrap;      //!< DECAWM - Wrapping when EOL
-	bool reverse_wraparound; //!< Reverse-wraparound Mode. DECSET 45
+	bool reverse_wrap; //!< Reverse-wraparound Mode. DECSET 45
 	bool origin_mode;    //!< DECOM - absolute positioning is relative to vertical margins
 } CursorTypeDef;
 
@@ -117,6 +119,23 @@ static struct {
 	int vm1;
 	u32 tab_stops[TABSTOP_WORDS];
 } state_backup;
+
+/** options backup (save/restore) */
+static struct {
+	bool cursors_alt_mode;
+	bool reverse_video;
+	bool origin_mode;
+	bool auto_wrap;
+	enum MTM mouse_tracking;
+	enum MTE mouse_encoding;
+	bool focus_tracking;
+	bool cursor_blink;
+	bool cursor_visible;
+	bool reverse_wrap;
+	bool bracketed_paste;
+	bool show_buttons;
+	bool show_config_links;
+} opt_backup;
 
 /**
  * This is used to prevent premature change notifications
@@ -188,14 +207,14 @@ terminal_apply_settings_noclear(void)
 
 	// Migrate to v1
 	if (termconf->config_version < 1) {
-		dbg("termconf: Updating to version 1");
+		persist_dbg("termconf: Updating to version 1");
 		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
 		changed = 1;
 	}
 
 	// Migrate to v2
 	if (termconf->config_version < 2) {
-		dbg("termconf: Updating to version 2");
+		persist_dbg("termconf: Updating to version 2");
 		termconf->loopback = 0;
 		termconf->show_config_links = 1;
 		termconf->show_buttons = 1;
@@ -204,7 +223,7 @@ terminal_apply_settings_noclear(void)
 
 	// Migrate to v3
 	if (termconf->config_version < 3) {
-		dbg("termconf: Updating to version 3");
+		persist_dbg("termconf: Updating to version 3");
 		for(int i=1; i <= TERM_BTN_COUNT; i++) {
 			sprintf(termconf->btn_msg[i-1], "%c", i);
 		}
@@ -213,7 +232,7 @@ terminal_apply_settings_noclear(void)
 
 	// Migrate to v3
 	if (termconf->config_version < 4) {
-		dbg("termconf: Updating to version 4");
+		persist_dbg("termconf: Updating to version 4");
 		termconf->cursor_shape = CURSOR_BLOCK_BL;
 		termconf->crlf_mode = false;
 		changed = 1;
@@ -231,13 +250,13 @@ terminal_apply_settings_noclear(void)
 		changed = 1;
 	}
 
-	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+	memcpy(&termconf_live, termconf, sizeof(TerminalConfigBundle));
 	if (W*H > MAX_SCREEN_SIZE) {
 		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
 		error("reverting terminal settings to default");
 		terminal_restore_defaults();
 		changed = true;
-		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+		memcpy(&termconf_live, termconf, sizeof(TerminalConfigBundle));
 		screen_init();
 	}
 
@@ -255,7 +274,7 @@ terminal_apply_settings_noclear(void)
 void ICACHE_FLASH_ATTR
 screen_init(void)
 {
-	dbg("Screen buffer size = %d bytes", sizeof(screen));
+	if(DEBUG_HEAP) dbg("Screen buffer size = %d bytes", sizeof(screen));
 
 	NOTIFY_LOCK();
 	screen_reset();
@@ -285,7 +304,7 @@ cursor_reset(void)
 static void ICACHE_FLASH_ATTR
 screen_reset_on_resize(void)
 {
-	dbg("Screen partial reset due to resize");
+	ansi_dbg("Screen partial reset due to resize");
 	NOTIFY_LOCK();
 
 	cursor.x = 0;
@@ -320,7 +339,7 @@ screen_reset_sgr(void)
 void ICACHE_FLASH_ATTR
 screen_reset(void)
 {
-	dbg("Screen reset.");
+	ansi_dbg("Screen reset.");
 	NOTIFY_LOCK();
 
 	cursor_reset();
@@ -330,13 +349,13 @@ screen_reset(void)
 	scr.insert_mode = false;
 	cursor.origin_mode = false;
 	cursor.auto_wrap = true;
-	cursor.reverse_wraparound = false;
-	termconf_scratch.cursor_shape = termconf->cursor_shape;
+	cursor.reverse_wrap = false;
+	termconf_live.cursor_shape = termconf->cursor_shape;
 
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
-	termconf_scratch.crlf_mode = termconf->crlf_mode;
-	scr.reverse = false;
+	termconf_live.crlf_mode = termconf->crlf_mode;
+	scr.reverse_video = false;
 
 	scr.vm0 = 0;
 	scr.vm1 = H-1;
@@ -350,12 +369,25 @@ screen_reset(void)
 	// size is left unchanged
 	screen_clear(CLEAR_ALL);
 
-	screen_clear_all_tabs();
-
 	// Set initial tabstops
 	for (int i = 0; i < TABSTOP_WORDS; i++) {
 		scr.tab_stops[i] = 0x80808080;
 	}
+
+	// initial values in the save buffer in case of receiving restore without storing first
+	opt_backup.cursors_alt_mode = scr.cursors_alt_mode;
+	opt_backup.reverse_video = scr.reverse_video;
+	opt_backup.origin_mode = cursor.origin_mode;
+	opt_backup.auto_wrap = cursor.auto_wrap;
+	opt_backup.mouse_tracking = mouse_tracking.mode;
+	opt_backup.mouse_encoding = mouse_tracking.encoding;
+	opt_backup.focus_tracking = mouse_tracking.focus_tracking;
+	opt_backup.cursor_blink = CURSOR_BLINKS(termconf_live.cursor_shape);
+	opt_backup.cursor_visible = scr.cursor_visible;
+	opt_backup.reverse_wrap = cursor.reverse_wrap;
+	opt_backup.bracketed_paste = scr.bracketed_paste;
+	opt_backup.show_buttons = termconf_live.show_buttons;
+	opt_backup.show_config_links = termconf_live.show_config_links;
 
 	NOTIFY_DONE();
 }
@@ -369,16 +401,16 @@ void ICACHE_FLASH_ATTR
 screen_swap_state(bool alternate)
 {
 	if (alternate == state_backup.alternate_active) {
-		warn("No swap, already alternate = %d", alternate);
+		ansi_warn("No swap, already alternate = %d", alternate);
 		return; // nothing to do
 	}
 
 	if (alternate) {
-		dbg("Swap to alternate");
+		ansi_dbg("Swap to alternate");
 		// store old state
-		memcpy(state_backup.title, termconf_scratch.title, TERM_TITLE_LEN);
-		memcpy(state_backup.btn, termconf_scratch.btn, sizeof(termconf_scratch.btn));
-		memcpy(state_backup.btn_msg, termconf_scratch.btn_msg, sizeof(termconf_scratch.btn_msg));
+		memcpy(state_backup.title, termconf_live.title, TERM_TITLE_LEN);
+		memcpy(state_backup.btn, termconf_live.btn, sizeof(termconf_live.btn));
+		memcpy(state_backup.btn_msg, termconf_live.btn_msg, sizeof(termconf_live.btn_msg));
 		memcpy(state_backup.tab_stops, scr.tab_stops, sizeof(scr.tab_stops));
 		state_backup.vm0 = scr.vm0;
 		state_backup.vm1 = scr.vm1;
@@ -388,11 +420,11 @@ screen_swap_state(bool alternate)
 		// TODO backup screen content (if this is ever possible)
 	}
 	else {
-		dbg("Unswap from alternate");
+		ansi_dbg("Unswap from alternate");
 		NOTIFY_LOCK();
-		memcpy(termconf_scratch.title, state_backup.title, TERM_TITLE_LEN);
-		memcpy(termconf_scratch.btn, state_backup.btn, sizeof(termconf_scratch.btn));
-		memcpy(termconf_scratch.btn_msg, state_backup.btn_msg, sizeof(termconf_scratch.btn_msg));
+		memcpy(termconf_live.title, state_backup.title, TERM_TITLE_LEN);
+		memcpy(termconf_live.btn, state_backup.btn, sizeof(termconf_live.btn));
+		memcpy(termconf_live.btn_msg, state_backup.btn_msg, sizeof(termconf_live.btn_msg));
 		memcpy(scr.tab_stops, state_backup.tab_stops, sizeof(scr.tab_stops));
 		scr.vm0 = state_backup.vm0;
 		scr.vm1 = state_backup.vm1;
@@ -613,7 +645,8 @@ screen_clear_in_line(unsigned int count)
 	}
 }
 
-void screen_insert_lines(unsigned int lines)
+void ICACHE_FLASH_ATTR
+screen_insert_lines(unsigned int lines)
 {
 	if (!cursor_inside_region()) return; // can't insert if not inside region
 	NOTIFY_LOCK();
@@ -637,7 +670,8 @@ void screen_insert_lines(unsigned int lines)
 	NOTIFY_DONE();
 }
 
-void screen_delete_lines(unsigned int lines)
+void ICACHE_FLASH_ATTR
+screen_delete_lines(unsigned int lines)
 {
 	if (!cursor_inside_region()) return; // can't delete if not inside region
 	NOTIFY_LOCK();
@@ -658,7 +692,8 @@ void screen_delete_lines(unsigned int lines)
 	NOTIFY_DONE();
 }
 
-void screen_insert_characters(unsigned int count)
+void ICACHE_FLASH_ATTR
+screen_insert_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
 	int targetStart = cursor.x + count;
@@ -675,7 +710,8 @@ void screen_insert_characters(unsigned int count)
 	NOTIFY_DONE();
 }
 
-void screen_delete_characters(unsigned int count)
+void ICACHE_FLASH_ATTR
+screen_delete_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
 	int targetEnd = W - count;
@@ -730,12 +766,12 @@ screen_resize(int rows, int cols)
 {
 	// sanitize
 	if (cols < 1 || rows < 1) {
-		error("Screen size must be positive, ignoring command: %d x %d", cols, rows);
+		error("Bad size: %d x %d", cols, rows);
 		return;
 	}
 
 	if (cols * rows > MAX_SCREEN_SIZE) {
-		error("Max screen size exceeded, ignoring command: %d x %d", cols, rows);
+		error("Too big size: %d x %d", cols, rows);
 		return;
 	}
 
@@ -751,7 +787,7 @@ screen_resize(int rows, int cols)
 void ICACHE_FLASH_ATTR
 screen_set_title(const char *title)
 {
-	strncpy(termconf_scratch.title, title, TERM_TITLE_LEN);
+	strncpy(termconf_live.title, title, TERM_TITLE_LEN);
 	screen_notifyChange(CHANGE_LABELS);
 }
 
@@ -763,7 +799,7 @@ screen_set_title(const char *title)
 void ICACHE_FLASH_ATTR
 screen_set_button_text(int num, const char *text)
 {
-	strncpy(termconf_scratch.btn[num-1], text, TERM_BTN_LEN);
+	strncpy(termconf_live.btn[num-1], text, TERM_BTN_LEN);
 	screen_notifyChange(CHANGE_LABELS);
 }
 
@@ -851,7 +887,7 @@ screen_cursor_shape(enum CursorShape shape)
 {
 	NOTIFY_LOCK();
 	if (shape == CURSOR_DEFAULT) shape = termconf->cursor_shape;
-	termconf_scratch.cursor_shape = shape;
+	termconf_live.cursor_shape = shape;
 	NOTIFY_DONE();
 }
 
@@ -861,13 +897,13 @@ screen_cursor_blink(bool blink)
 {
 	NOTIFY_LOCK();
 	if (blink) {
-		if (termconf_scratch.cursor_shape == CURSOR_BLOCK) termconf_scratch.cursor_shape = CURSOR_BLOCK_BL;
-		if (termconf_scratch.cursor_shape == CURSOR_BAR) termconf_scratch.cursor_shape = CURSOR_BAR_BL;
-		if (termconf_scratch.cursor_shape == CURSOR_UNDERLINE) termconf_scratch.cursor_shape = CURSOR_UNDERLINE_BL;
+		if (termconf_live.cursor_shape == CURSOR_BLOCK) termconf_live.cursor_shape = CURSOR_BLOCK_BL;
+		if (termconf_live.cursor_shape == CURSOR_BAR) termconf_live.cursor_shape = CURSOR_BAR_BL;
+		if (termconf_live.cursor_shape == CURSOR_UNDERLINE) termconf_live.cursor_shape = CURSOR_UNDERLINE_BL;
 	} else {
-		if (termconf_scratch.cursor_shape == CURSOR_BLOCK_BL) termconf_scratch.cursor_shape = CURSOR_BLOCK;
-		if (termconf_scratch.cursor_shape == CURSOR_BAR_BL) termconf_scratch.cursor_shape = CURSOR_BAR;
-		if (termconf_scratch.cursor_shape == CURSOR_UNDERLINE_BL) termconf_scratch.cursor_shape = CURSOR_UNDERLINE;
+		if (termconf_live.cursor_shape == CURSOR_BLOCK_BL) termconf_live.cursor_shape = CURSOR_BLOCK;
+		if (termconf_live.cursor_shape == CURSOR_BAR_BL) termconf_live.cursor_shape = CURSOR_BAR;
+		if (termconf_live.cursor_shape == CURSOR_UNDERLINE_BL) termconf_live.cursor_shape = CURSOR_UNDERLINE;
 	}
 	NOTIFY_DONE();
 }
@@ -956,7 +992,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 	cursor.y += dy;
 	if (cursor.x >= (int)W) cursor.x = W - 1;
 	if (cursor.x < (int)0) {
-		if (cursor.auto_wrap && cursor.reverse_wraparound) {
+		if (cursor.auto_wrap && cursor.reverse_wrap) {
 			// this is mimicking a behavior from xterm that allows any number of steps backwards with reverse wraparound enabled
 			int steps = -cursor.x;
 			if(steps > 1000) steps = 1; // avoid something stupid causing infinite loop here
@@ -1097,7 +1133,7 @@ screen_wrap_enable(bool enable)
 void ICACHE_FLASH_ATTR
 screen_reverse_wrap_enable(bool enable)
 {
-	cursor.reverse_wraparound = enable;
+	cursor.reverse_wrap = enable;
 }
 
 /**
@@ -1201,7 +1237,7 @@ void ICACHE_FLASH_ATTR
 screen_set_reverse_video(bool reverse)
 {
 	NOTIFY_LOCK();
-	scr.reverse = reverse;
+	scr.reverse_video = reverse;
 	NOTIFY_DONE();
 }
 
@@ -1209,7 +1245,7 @@ void ICACHE_FLASH_ATTR
 screen_set_newline_mode(bool nlm)
 {
 	NOTIFY_LOCK();
-	termconf_scratch.crlf_mode = nlm;
+	termconf_live.crlf_mode = nlm;
 	NOTIFY_DONE();
 }
 
@@ -1218,6 +1254,79 @@ screen_set_origin_mode(bool region_origin)
 {
 	cursor.origin_mode = region_origin;
 	screen_cursor_set(0, 0);
+}
+
+static void ICACHE_FLASH_ATTR
+do_save_private_opt(int n, bool save)
+{
+#define SAVE_RESTORE(sf, of) do { if (save) sf=(of); else of=(sf); } while(0)
+	switch (n) {
+		case 1:
+			SAVE_RESTORE(opt_backup.cursors_alt_mode, scr.cursors_alt_mode);
+			break;
+		case 5:
+			SAVE_RESTORE(opt_backup.reverse_video, scr.reverse_video);
+			break;
+		case 6:
+			SAVE_RESTORE(opt_backup.origin_mode, cursor.origin_mode);
+			break;
+		case 7:
+			SAVE_RESTORE(opt_backup.auto_wrap, cursor.auto_wrap);
+			break;
+		case 9:
+		case 1000:
+		case 1001: // hilite, not implemented
+		case 1002:
+		case 1003:
+			SAVE_RESTORE(opt_backup.mouse_tracking, mouse_tracking.mode);
+			break;
+		case 1004:
+			SAVE_RESTORE(opt_backup.focus_tracking, mouse_tracking.focus_tracking);
+			break;
+		case 1005:
+		case 1006:
+		case 1015:
+			SAVE_RESTORE(opt_backup.mouse_encoding, mouse_tracking.encoding);
+			break;
+		case 12: // cursor blink
+			if (save) {
+				opt_backup.cursor_blink = CURSOR_BLINKS(termconf_live.cursor_shape);
+			} else {
+				screen_cursor_blink(opt_backup.cursor_blink);
+			}
+			break;
+		case 25:
+			SAVE_RESTORE(opt_backup.cursor_visible, scr.cursor_visible);
+			break;
+		case 45:
+			SAVE_RESTORE(opt_backup.reverse_wrap, cursor.reverse_wrap);
+			break;
+		case 2004:
+			SAVE_RESTORE(opt_backup.bracketed_paste, scr.bracketed_paste);
+			break;
+		case 800:
+			SAVE_RESTORE(opt_backup.show_buttons, termconf_live.show_buttons);
+			break;
+		case 801:
+			SAVE_RESTORE(opt_backup.show_config_links, termconf_live.show_config_links);
+			break;
+		default:
+			ansi_warn("Cannot store ?%d", n);
+	}
+}
+
+void ICACHE_FLASH_ATTR
+screen_save_private_opt(int n)
+{
+	do_save_private_opt(n, true);
+}
+
+void ICACHE_FLASH_ATTR
+screen_restore_private_opt(int n)
+{
+	NOTIFY_LOCK();
+	do_save_private_opt(n, false);
+	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
@@ -1357,10 +1466,7 @@ utf8_remap(char *out, char g, char charset)
 			break;
 
 		case CS_A_UKASCII: /* UK, replaces # with GBP */
-			if ((g >= CODEPAGE_A_BEGIN) && (g <= CODEPAGE_A_END)) {
-				n = codepage_A[g - CODEPAGE_A_BEGIN];
-				if (n) utf = n;
-			}
+			if (g == '#') utf = 0x20a4; // £
 			break;
 
 		default:
@@ -1369,28 +1475,7 @@ utf8_remap(char *out, char g, char charset)
 			break;
 	}
 
-	// Encode to UTF-8
-	if (utf > 0x7F) {
-		// formulas taken from: https://gist.github.com/yamamushi/5823402
-		if ((utf >= 0x80) && (utf <= 0x07FF)) {
-			// 2-byte unicode
-			out[0] = (char) ((utf >> 0x06) ^ 0xC0);
-			out[1] = (char) (((utf ^ 0xFFC0) | 0x80) & ~0x40);
-			out[2]=0;
-		}
-		else {
-			// 3-byte unicode
-			out[0] = (char) (((utf ^ 0xFC0FFF) >> 0x0C) | 0xE0);
-			out[1] = (char) ((((utf ^ 0xFFF03F) >> 0x06) | 0x80) & ~0x40);
-			out[2] = (char) (((utf ^ 0xFFFC0) | 0x80) & ~0x40);
-			out[3]=0;
-		}
-		// Missing 4-byte formulas :(
-	} else {
-		// low ASCII
-		out[0] = (char) utf;
-		out[1] = 0;
-	}
+	utf8_encode(out, utf);
 }
 //endregion
 
@@ -1415,12 +1500,12 @@ screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
 {
 	// let's just assume it's long enough - called with the huge websocket buffer
 	sprintf(buffer, "T%s\x01%s\x01%s\x01%s\x01%s\x01%s", // use 0x01 as separator
-			termconf_scratch.title,
-			termconf_scratch.btn[0],
-			termconf_scratch.btn[1],
-			termconf_scratch.btn[2],
-			termconf_scratch.btn[3],
-			termconf_scratch.btn[4]
+			termconf_live.title,
+			termconf_live.btn[0],
+			termconf_live.btn[1],
+			termconf_live.btn[2],
+			termconf_live.btn[3],
+			termconf_live.btn[4]
 	);
 }
 
@@ -1502,13 +1587,13 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			(cursor.hanging << 1) |
 			(scr.cursors_alt_mode << 2) |
 			(scr.numpad_alt_mode << 3) |
-			(termconf_scratch.fn_alt_mode << 4) |
+			(termconf_live.fn_alt_mode << 4) |
 			((mouse_tracking.mode>MTM_NONE) << 5) | // disables context menu
 			((mouse_tracking.mode>=MTM_NORMAL) << 6) | // disables selecting
-			(termconf_scratch.show_buttons << 7) |
-			(termconf_scratch.show_config_links << 8) |
-			((termconf_scratch.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
-		    (termconf_scratch.crlf_mode << 12)
+			(termconf_live.show_buttons << 7) |
+			(termconf_live.show_config_links << 8) |
+			((termconf_live.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
+		    (termconf_live.crlf_mode << 12)
 	    );
 	}
 
@@ -1535,7 +1620,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			Color fg, bg;
 
 			// Reverse fg and bg if we're in global reverse mode
-			if (! scr.reverse) {
+			if (! scr.reverse_video) {
 				fg = cell0->fg;
 				bg = cell0->bg;
 			}

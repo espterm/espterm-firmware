@@ -4,7 +4,7 @@
 #include "ansi_parser.h"
 #include "syscfg.h"
 
-#define LOGBUF_SIZE 2048
+#define LOGBUF_SIZE 512
 static char logbuf[LOGBUF_SIZE];
 static u32 lb_nw = 1;
 static u32 lb_ls = 0;
@@ -18,7 +18,8 @@ static void buf_putc(char c)
 	}
 }
 
-static void buf_pop(void *unused)
+static void ICACHE_FLASH_ATTR
+buf_pop(void *unused)
 {
 	u32 quantity = 32;
 	u32 old_ls;

@@ -118,7 +118,8 @@ void ICACHE_FLASH_ATTR UART_SetupAsyncReceiver(void)
  *
  * @param events
  */
-static void uart_recvTask(os_event_t *events)
+static void ICACHE_FLASH_ATTR
+uart_recvTask(os_event_t *events)
 {
 //#define PROCESS_CHUNK_LEN 64
 //	static char buf[PROCESS_CHUNK_LEN];
@@ -158,7 +159,8 @@ static void uart_recvTask(os_event_t *events)
  *
  * @param events
  */
-static void uart_processTask(os_event_t *events)
+static void ICACHE_FLASH_ATTR
+uart_processTask(os_event_t *events)
 {
 	static char buf[PROCESS_CHUNK_LEN];
 

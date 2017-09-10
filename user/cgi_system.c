@@ -8,6 +8,7 @@
 #include "syscfg.h"
 #include "uart_driver.h"
 #include "ansi_parser.h"
+#include "cgi_logging.h"
 
 #define SET_REDIR_SUC "/cfg/system"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
@@ -90,7 +91,7 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 	}
 
 	if (GET_ARG("uart_baud")) {
-		dbg("Baud rate: %s", buff);
+		cgi_dbg("Baud rate: %s", buff);
 		int baud = atoi(buff);
 		if (baud == BIT_RATE_300 ||
 				baud == BIT_RATE_600 ||
@@ -110,43 +111,43 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 				baud == BIT_RATE_3686400) {
 			sysconf->uart_baudrate = (u32) baud;
 		} else {
-			warn("Bad baud rate %s", buff);
+			cgi_warn("Bad baud rate %s", buff);
 			redir_url += sprintf(redir_url, "uart_baud,");
 		}
 	}
 
 	if (GET_ARG("uart_parity")) {
-		dbg("Parity: %s", buff);
+		cgi_dbg("Parity: %s", buff);
 		int parity = atoi(buff);
 		if (parity >= 0 && parity <= 2) {
 			sysconf->uart_parity = (UartParityMode) parity;
 		} else {
-			warn("Bad parity %s", buff);
+			cgi_warn("Bad parity %s", buff);
 			redir_url += sprintf(redir_url, "uart_parity,");
 		}
 	}
 
 	if (GET_ARG("uart_stopbits")) {
-		dbg("Stop bits: %s", buff);
+		cgi_dbg("Stop bits: %s", buff);
 		int stopbits = atoi(buff);
 		if (stopbits >= 1 && stopbits <= 3) {
 			sysconf->uart_stopbits = (UartStopBitsNum) stopbits;
 		} else {
-			warn("Bad stopbits %s", buff);
+			cgi_warn("Bad stopbits %s", buff);
 			redir_url += sprintf(redir_url, "uart_stopbits,");
 		}
 	}
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
-		info("Set system params - success, saving...");
+		cgi_info("Set system params - success, saving...");
 
 		sysconf_apply_settings();
 		persist_store();
 
 		httpdRedirect(connData, SET_REDIR_SUC);
 	} else {
-		warn("Some settings did not validate, asking for correction");
+		cgi_warn("Some settings did not validate, asking for correction");
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}

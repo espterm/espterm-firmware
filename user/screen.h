@@ -68,6 +68,8 @@ enum CursorShape {
 	CURSOR_BAR = 6,
 };
 
+#define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
+
 typedef struct {
 	u32 width;
 	u32 height;
@@ -96,7 +98,7 @@ extern TerminalConfigBundle * const termconf;
  * Transient live config with no persist, can be modified via esc sequences.
  * terminal_apply_settings() copies termconf to this struct, erasing old scratch changes
  */
-extern TerminalConfigBundle termconf_scratch;
+extern TerminalConfigBundle termconf_live;
 
 enum MTM {
 	MTM_NONE = 0,
@@ -259,6 +261,10 @@ void screen_set_numpad_alt_mode(bool app_mode);
 void screen_set_cursors_alt_mode(bool app_mode);
 /** Set reverse video mode */
 void screen_set_reverse_video(bool reverse);
+/** Save DECOPT */
+void screen_save_private_opt(int n);
+/** Restore DECOPT */
+void screen_restore_private_opt(int n);
 
 // --- Charset ---
 

@@ -139,7 +139,7 @@ set(SOURCE_FILES
         user/apars_osc.c
         user/apars_osc.h
         user/apars_dcs.c
-        user/apars_dcs.h user/uart_buffer.c user/uart_buffer.h user/jstring.c user/jstring.h user/character_sets.h)
+        user/apars_dcs.h user/uart_buffer.c user/uart_buffer.h user/jstring.c user/jstring.h user/character_sets.h user/utf8.h user/utf8.c user/cgi_logging.h)
 
 include_directories(include)
 include_directories(user)

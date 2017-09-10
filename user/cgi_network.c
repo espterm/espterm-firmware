@@ -8,6 +8,7 @@ configuring the network settings
 #include "wifimgr.h"
 #include "persist.h"
 #include "helpers.h"
+#include "cgi_logging.h"
 
 #define SET_REDIR_SUC "/cfg/network"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
@@ -43,7 +44,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 	// ---- AP DHCP server lease time ----
 
 	if (GET_ARG("ap_dhcp_time")) {
-		dbg("Setting DHCP lease time to: %s min.", buff);
+		cgi_dbg("Setting DHCP lease time to: %s min.", buff);
 		int min = atoi(buff);
 		if (min >= 1 && min <= 2880) {
 			if (wificonf->ap_dhcp_time != min) {
@@ -51,7 +52,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Lease time %s out of allowed range 1-2880.", buff);
+			cgi_warn("Lease time %s out of allowed range 1-2880.", buff);
 			redir_url += sprintf(redir_url, "ap_dhcp_time,");
 		}
 	}
@@ -59,7 +60,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 	// ---- AP DHCP start and end IP ----
 
 	if (GET_ARG("ap_dhcp_start")) {
-		dbg("Setting DHCP range start IP to: \"%s\"", buff);
+		cgi_dbg("Setting DHCP range start IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
 			if (wificonf->ap_dhcp_range.start_ip.addr != ip) {
@@ -67,13 +68,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad IP: %s", buff);
+			cgi_warn("Bad IP: %s", buff);
 			redir_url += sprintf(redir_url, "ap_dhcp_start,");
 		}
 	}
 
 	if (GET_ARG("ap_dhcp_end")) {
-		dbg("Setting DHCP range end IP to: \"%s\"", buff);
+		cgi_dbg("Setting DHCP range end IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
 			if (wificonf->ap_dhcp_range.end_ip.addr != ip) {
@@ -81,7 +82,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad IP: %s", buff);
+			cgi_warn("Bad IP: %s", buff);
 			redir_url += sprintf(redir_url, "ap_dhcp_end,");
 		}
 	}
@@ -89,7 +90,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 	// ---- AP local address & config ----
 
 	if (GET_ARG("ap_addr_ip")) {
-		dbg("Setting AP local IP to: \"%s\"", buff);
+		cgi_dbg("Setting AP local IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
 			if (wificonf->ap_addr.ip.addr != ip) {
@@ -98,13 +99,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad IP: %s", buff);
+			cgi_warn("Bad IP: %s", buff);
 			redir_url += sprintf(redir_url, "ap_addr_ip,");
 		}
 	}
 
 	if (GET_ARG("ap_addr_mask")) {
-		dbg("Setting AP local IP netmask to: \"%s\"", buff);
+		cgi_dbg("Setting AP local IP netmask to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
 			if (wificonf->ap_addr.netmask.addr != ip) {
@@ -114,7 +115,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad IP mask: %s", buff);
+			cgi_warn("Bad IP mask: %s", buff);
 			redir_url += sprintf(redir_url, "ap_addr_mask,");
 		}
 	}
@@ -123,7 +124,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 
 	// DHCP enable / disable (disable means static IP is enabled)
 	if (GET_ARG("sta_dhcp_enable")) {
-		dbg("DHCP enable = %s", buff);
+		cgi_dbg("DHCP enable = %s", buff);
 		int enable = atoi(buff);
 		if (wificonf->sta_dhcp_enable != enable) {
 			wificonf->sta_dhcp_enable = (bool)enable;
@@ -134,7 +135,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 	// ---- Station IP config (Static IP) ----
 
 	if (GET_ARG("sta_addr_ip")) {
-		dbg("Setting Station mode static IP to: \"%s\"", buff);
+		cgi_dbg("Setting Station mode static IP to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
 			if (wificonf->sta_addr.ip.addr != ip) {
@@ -142,13 +143,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.sta = true;
 			}
 		} else {
-			warn("Bad IP: %s", buff);
+			cgi_warn("Bad IP: %s", buff);
 			redir_url += sprintf(redir_url, "sta_addr_ip,");
 		}
 	}
 
 	if (GET_ARG("sta_addr_mask")) {
-		dbg("Setting Station mode static IP netmask to: \"%s\"", buff);
+		cgi_dbg("Setting Station mode static IP netmask to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0 && ip != 0xFFFFFFFFUL) {
 			if (wificonf->sta_addr.netmask.addr != ip) {
@@ -156,13 +157,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.sta = true;
 			}
 		} else {
-			warn("Bad IP mask: %s", buff);
+			cgi_warn("Bad IP mask: %s", buff);
 			redir_url += sprintf(redir_url, "sta_addr_mask,");
 		}
 	}
 
 	if (GET_ARG("sta_addr_gw")) {
-		dbg("Setting Station mode static IP default gateway to: \"%s\"", buff);
+		cgi_dbg("Setting Station mode static IP default gateway to: \"%s\"", buff);
 		u32 ip = ipaddr_addr(buff);
 		if (ip != 0) {
 			if (wificonf->sta_addr.gw.addr != ip) {
@@ -170,14 +171,14 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 				wifi_change_flags.sta = true;
 			}
 		} else {
-			warn("Bad gw IP: %s", buff);
+			cgi_warn("Bad gw IP: %s", buff);
 			redir_url += sprintf(redir_url, "sta_addr_gw,");
 		}
 	}
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
-		info("Set network params - success, applying in 1000 ms");
+		cgi_info("Set network params - success, applying in 1000 ms");
 
 		// Settings are applied only if all was OK
 		persist_store();
@@ -190,7 +191,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 
 		httpdRedirect(connData, SET_REDIR_SUC);
 	} else {
-		warn("Some WiFi settings did not validate, asking for correction");
+		cgi_warn("Some WiFi settings did not validate, asking for correction");
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}

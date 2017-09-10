@@ -60,4 +60,14 @@ void wifimgr_restore_defaults(void);
 
 void wifimgr_apply_settings(void);
 
+#if DEBUG_WIFI
+#define wifi_warn warn
+#define wifi_dbg dbg
+#define wifi_info info
+#else
+#define wifi_warn(fmt, ...)
+#define wifi_dbg(fmt, ...)
+#define wifi_info(fmt, ...)
+#endif
+
 #endif //ESP_VT100_FIRMWARE_WIFI_MANAGER_H

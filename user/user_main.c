@@ -124,7 +124,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	os_timer_arm(&userStartTimer, 10, 0);
 }
 
-static void user_start(void *unused)
+static void ICACHE_FLASH_ATTR user_start(void *unused)
 {
 	// Load and apply stored settings, or defaults if stored settings are invalid
 	persist_load();
