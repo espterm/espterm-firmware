@@ -76,6 +76,7 @@ typedef struct {
 
 	/* SGR */
 	bool inverse; //!< not in attrs bc it's applied server-side (not sent to browser)
+	bool conceal;  //!< similar to inverse, causes all to be replaced by SP
 	u8 attrs;
 	Color fg;     //!< Foreground color for writing
 	Color bg;     //!< Background color for writing
@@ -310,6 +311,7 @@ screen_reset_sgr(void)
 	cursor.bg = termconf->default_bg;
 	cursor.attrs = 0;
 	cursor.inverse = false;
+	cursor.conceal = false;
 }
 
 /**
@@ -1118,6 +1120,24 @@ screen_set_bg(Color color)
 	cursor.bg = color;
 }
 
+/**
+ * Set cursor foreground color, extended
+ */
+void ICACHE_FLASH_ATTR
+screen_set_fg_ext(u16 color)
+{
+	// TODO validate and set
+}
+
+/**
+ * Set cursor background color, extended
+ */
+void ICACHE_FLASH_ATTR
+screen_set_bg_ext(u16 color)
+{
+	// TODO validate and set
+}
+
 void ICACHE_FLASH_ATTR
 screen_set_sgr(u8 attrs, bool ena)
 {
@@ -1133,6 +1153,12 @@ void ICACHE_FLASH_ATTR
 screen_set_sgr_inverse(bool ena)
 {
 	cursor.inverse = ena;
+}
+
+void ICACHE_FLASH_ATTR
+screen_set_sgr_conceal(bool ena)
+{
+	cursor.conceal = ena;
 }
 
 void ICACHE_FLASH_ATTR
@@ -1224,6 +1250,10 @@ screen_putchar(const char *ch)
 
 	// clear "hanging" flag if not possible
 	clear_invalid_hanging();
+
+	if (cursor.conceal) {
+		ch = " ";
+	}
 
 	// Special treatment for CRLF
 	switch (ch[0]) {
