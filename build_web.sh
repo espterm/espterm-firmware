@@ -3,23 +3,11 @@
 echo "-- Preparing WWW files --"
 
 [[ -e html ]] && rm -r html
-mkdir -p html/img
-mkdir -p html/js
-mkdir -p html/css
 
 cd front-end
-sh ./build.sh
+ESP_PROD=1 sh ./build.sh
 cd ..
 
-cp front-end/out/*       html/
+echo "Copying from submodule..."
 
-cp front-end/js/app.js   html/js/
-cp front-end/css/app.css html/css/
-
-cp front-end/img/*       html/img/
-cp front-end/favicon.ico html/favicon.ico
-
-# cleanup
-find html/ -name "*.orig" -delete
-find html/ -name "*.xcf" -delete
-find html/ -name "*~" -delete
+cp -r front-end/out html
