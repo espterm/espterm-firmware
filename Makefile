@@ -67,7 +67,8 @@ CFLAGS		= -Os -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inli
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
 		-Wno-address -Wno-unused
 
-CFLAGS += -DGIT_HASH='"$(shell git rev-parse --short HEAD)"'
+CFLAGS += -DGIT_HASH_BACKEND='"$(shell git rev-parse --short HEAD)"'
+CFLAGS += -DGIT_HASH_FRONTEND='"$(shell cd front-end && git rev-parse --short HEAD)"'
 CFLAGS += -DADMIN_PASSWORD=$(ADMIN_PASSWORD)
 
 ifdef GLOBAL_CFLAGS

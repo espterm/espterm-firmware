@@ -32,7 +32,6 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_FILE("/help/?", "/help.html"),
 
 	// --- Sockets ---
-	ROUTE_CGI("/term/init", cgiTermInitialImage),
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),
 
 	// --- System control ---

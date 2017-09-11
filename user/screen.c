@@ -188,6 +188,7 @@ terminal_restore_defaults(void)
 	termconf->show_config_links = SCR_DEF_SHOW_MENU;
 	termconf->cursor_shape = SCR_DEF_CURSOR_SHAPE;
 	termconf->crlf_mode = SCR_DEF_CRLF;
+	termconf->want_all_fn = SCR_DEF_ALLFN;
 }
 
 /**
@@ -231,11 +232,18 @@ terminal_apply_settings_noclear(void)
 		changed = 1;
 	}
 
-	// Migrate to v3
+	// Migrate to v4
 	if (termconf->config_version < 4) {
 		persist_dbg("termconf: Updating to version 4");
 		termconf->cursor_shape = CURSOR_BLOCK_BL;
 		termconf->crlf_mode = false;
+		changed = 1;
+	}
+
+	// Migrate to v5
+	if (termconf->config_version < 4) {
+		persist_dbg("termconf: Updating to version 5");
+		termconf->want_all_fn = 0;
 		changed = 1;
 	}
 

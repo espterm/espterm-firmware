@@ -33,32 +33,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 		sprintf(buff, "%d", termconf->theme);
 		tplSend(connData, buff, -1);
 	}
+	else if (streq(token, "want_all_fn")) {
+		sprintf(buff, "%d", termconf->want_all_fn);
+		tplSend(connData, buff, -1);
+	}
 
 	return HTTPD_CGI_DONE;
-}
-
-httpd_cgi_state ICACHE_FLASH_ATTR
-cgiTermInitialImage(HttpdConnData *connData)
-{
-	const int bufsiz = 512;
-	char buff[bufsiz];
-
-	if (connData->conn == NULL) {
-		//Connection aborted. Clean up.
-		// Release data object
-		screenSerializeToBuffer(NULL, 0, &connData->cgiData);
-		return HTTPD_CGI_DONE;
-	}
-
-	if (connData->cgiData == NULL) {
-		httpdStartResponse(connData, 200);
-		httpdHeader(connData, "Content-Type", "application/octet-stream");
-		httpdEndHeaders(connData);
-	}
-
-	httpd_cgi_state cont = screenSerializeToBuffer(buff, bufsiz, &connData->cgiData);
-	httpdSend(connData, buff, -1); // no encode
-	return cont;
 }
 
 /** "About" page */
@@ -82,8 +62,17 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 	else if (streq(token, "vers_sdk")) {
 		tplSend(connData, STR(ESP_SDK_VERSION), -1);
 	}
+	else if (streq(token, "hash_backend")) {
+		tplSend(connData, GIT_HASH_BACKEND, -1);
+	}
+	else if (streq(token, "hash_frontend")) {
+		tplSend(connData, GIT_HASH_FRONTEND, -1);
+	}
 	else if (streq(token, "githubrepo")) {
 		tplSend(connData, TERMINAL_GITHUB_REPO, -1);
+	}
+	else if (streq(token, "githubrepo_front")) {
+		tplSend(connData, TERMINAL_GITHUB_REPO_FRONT, -1);
 	}
 
 	return HTTPD_CGI_DONE;

@@ -137,6 +137,12 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		notify_screen_content = true;
 	}
 
+	if (GET_ARG("want_all_fn")) {
+		cgi_dbg("AllFN mode: %s", buff);
+		n = atoi(buff);
+		termconf->want_all_fn = (bool)n;
+	}
+
 	if (GET_ARG("crlf_mode")) {
 		cgi_dbg("CRLF mode: %s", buff);
 		n = atoi(buff);
@@ -320,6 +326,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "fn_alt_mode")) {
 		sprintf(buff, "%d", (int)termconf->fn_alt_mode);
+	}
+	else if (streq(token, "want_all_fn")) {
+		sprintf(buff, "%d", (int)termconf->want_all_fn);
 	}
 	else if (streq(token, "crlf_mode")) {
 		sprintf(buff, "%d", (int)termconf->crlf_mode);
