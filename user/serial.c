@@ -21,7 +21,7 @@ static void buf_putc(char c)
 static void ICACHE_FLASH_ATTR
 buf_pop(void *unused)
 {
-	u32 quantity = 32;
+	u32 quantity = 16;
 	u32 old_ls;
 	while (quantity > 0) {
 		// stop when done

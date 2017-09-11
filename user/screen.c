@@ -1373,7 +1373,8 @@ screen_report_sgr(char *buffer)
 
 //region --- Printing ---
 
-static const char *putchar_graphic(const char *ch)
+static const char* ICACHE_FLASH_ATTR
+putchar_graphic(const char *ch)
 {
 	static char buf[4];
 
