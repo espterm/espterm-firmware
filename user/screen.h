@@ -48,8 +48,8 @@
 #define SCR_DEF_DISPLAY_COOLDOWN_MS 35
 #define SCR_DEF_PARSER_TOUT_MS 10
 #define SCR_DEF_FN_ALT_MODE true // true - SS3 codes, easier to parse & for xterm compatibility
-#define SCR_DEF_WIDTH 80
-#define SCR_DEF_HEIGHT 25
+#define SCR_DEF_WIDTH 26
+#define SCR_DEF_HEIGHT 10
 #define SCR_DEF_TITLE "ESPTerm"
 
 /** Maximum screen size (determines size of the static data array) */
