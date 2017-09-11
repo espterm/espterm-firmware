@@ -131,7 +131,6 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 
 	captdnsInit();
 	httpdInit(routes, 80);
-	screen_init();
 
 	// Print the CANCEL character to indicate the module has restarted
 	// Critically important for client application if any kind of screen persistence / content re-use is needed

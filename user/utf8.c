@@ -5,16 +5,27 @@
 #include <esp8266.h>
 #include "utf8.h"
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	char bytes[4];
 	uint16_t count;
 } UnicodeCacheSlot;
 
 static UnicodeCacheSlot cache[UNICODE_CACHE_SIZE];
 
-#define REF_TO_ID(c) (u8)(c > 127 ? c & 0x7f + 32 : c)
-#define ID_TO_REF(c) (UnicodeCacheRef)(c > 31 ? c + 95 : 95)
-#define IS_UNICODE_CACHE_REF(c) (c < 32 || c >= 127)
+#define REF_TO_ID(c) (u8)((c) >= 127 ? (c) - 95 : (c))
+#define ID_TO_REF(c) (UnicodeCacheRef)((c) > 31 ? (c) + 95 : c)
+
+/**
+ * Clear the entire cache
+ * @return
+ */
+void ICACHE_FLASH_ATTR
+unicode_cache_clear(void) {
+	utfc_dbg("utf8 cache clear!");
+	for (int slot = 0; slot < UNICODE_CACHE_SIZE; slot++) {
+		cache[slot].count=0;
+	}
+}
 
 /**
  * Add a code point to the cache. ASCII is passed through.
@@ -36,7 +47,7 @@ unicode_cache_add(const u8 *bytes) {
 		if (strneq(cache[slot].bytes, bytes, 4)) {
 			cache[slot].count++;
 			if (cache[slot].count == 1) {
-				utfc_dbg("utf8 cache resurrect '%.4s' @ %d", bytes, slot);
+				utfc_dbg("utf8 cache new '%.4s' @ %d", bytes, slot);
 			} else {
 				utfc_dbg("utf8 cache inc '%.4s' @ %d, %d uses", bytes, slot, cache[slot].count);
 			}
@@ -46,7 +57,7 @@ unicode_cache_add(const u8 *bytes) {
 	for (slot = 0; slot < UNICODE_CACHE_SIZE; slot++) {
 		if (cache[slot].count==0) {
 			// empty slot, store it
-			strncpy(cache[slot].bytes, bytes, 4); // this will zero out the remainder
+			strncpy(cache[slot].bytes, (const char *) bytes, 4); // this will zero out the remainder
 			cache[slot].count = 1;
 			utfc_dbg("utf8 cache new '%.4s' @ %d", bytes, slot);
 			goto suc;
@@ -75,16 +86,15 @@ unicode_cache_retrieve(UnicodeCacheRef ref, u8 *target) {
 	}
 
 	u8 slot = REF_TO_ID(ref);
-
 	if (cache[slot].count == 0) {
 		// "use after free"
 		target[0] = '?';
 		target[1] = 0;
-		utfc_warn("utf8 cache use-after-free @ %d (freed)", slot);
+		utfc_warn("utf8 cache use-after-free @ %d ('%.4s')", slot, cache[slot].bytes);
 		return false;
 	}
 
-	utfc_dbg("utf8 cache hit '%.4s' @ %d, uses %d", cache[slot].bytes, slot, cache[slot].count);
+	//utfc_dbg("utf8 cache hit '%.4s' @ %d", cache[slot].bytes, slot, cache[slot].count);
 	strncpy((char*)target, cache[slot].bytes, 4);
 	return true;
 }
@@ -103,7 +113,7 @@ unicode_cache_remove(UnicodeCacheRef ref) {
 	u8 slot = REF_TO_ID(ref);
 
 	if (cache[slot].count == 0) {
-		utfc_warn("utf8 cache double-free @ %d", slot, cache[slot].count);
+		utfc_warn("utf8 cache double-free @ %d ('%.4s')", slot, cache[slot].bytes);
 		return false;
 	}
 
@@ -111,7 +121,7 @@ unicode_cache_remove(UnicodeCacheRef ref) {
 	if (cache[slot].count) {
 		utfc_dbg("utf8 cache sub '%.4s' @ %d, %d uses remain", cache[slot].bytes, slot, cache[slot].count);
 	} else {
-		utfc_dbg("utf8 cache del '%.4s' @ %d", cache[slot].bytes, slot, cache[slot].count);
+		utfc_dbg("utf8 cache del '%.4s' @ %d", cache[slot].bytes, slot);
 	}
 	return true;
 }

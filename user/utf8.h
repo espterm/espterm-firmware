@@ -11,6 +11,13 @@
 #define UNICODE_CACHE_SIZE 160
 
 typedef u8 UnicodeCacheRef;
+#define IS_UNICODE_CACHE_REF(c) ((c) < 32 || (c) >= 127)
+
+/**
+ * Clear the entire cache
+ * @return
+ */
+void unicode_cache_clear(void);
 
 /**
  * Add a code point to the cache. ASCII is passed through.

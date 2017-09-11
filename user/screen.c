@@ -29,9 +29,9 @@ static void utf8_remap(char* out, char g, char charset);
  * Screen cell data type (16 bits)
  */
 typedef struct __attribute__((packed)){
-	char c[4]; // space for a full unicode character
-	Color fg : 4;
-	Color bg : 4;
+	UnicodeCacheRef symbol : 8;
+	Color fg : 8;
+	Color bg : 8;
 	u8 attrs;
 } Cell;
 
@@ -278,6 +278,15 @@ screen_init(void)
 	if(DEBUG_HEAP) dbg("Screen buffer size = %d bytes", sizeof(screen));
 
 	NOTIFY_LOCK();
+	Cell sample;
+	sample.symbol = ' ';
+	sample.fg = termconf->default_fg;
+	sample.bg = termconf->default_bg;
+	sample.attrs = 0;
+	for (unsigned int i = 0; i < MAX_SCREEN_SIZE; i++) {
+		memcpy(&screen[i], &sample, sizeof(Cell));
+	}
+
 	screen_reset();
 	NOTIFY_DONE();
 }
@@ -317,6 +326,7 @@ screen_reset_on_resize(void)
 
 	// size is left unchanged
 	screen_clear(CLEAR_ALL);
+	unicode_cache_clear();
 
 	NOTIFY_DONE();
 }
@@ -344,6 +354,7 @@ screen_reset(void)
 	NOTIFY_LOCK();
 
 	cursor_reset();
+	unicode_cache_clear();
 
 	// DECopts
 	scr.cursor_visible = true;
@@ -573,15 +584,14 @@ clear_range(unsigned int from, unsigned int to)
 	Color bg = (cursor.inverse) ? cursor.fg : cursor.bg;
 
 	Cell sample;
-	sample.c[0] = ' ';
-	sample.c[1] = 0;
-	sample.c[2] = 0;
-	sample.c[3] = 0;
+	sample.symbol = ' ';
 	sample.fg = fg;
 	sample.bg = bg;
 	sample.attrs = 0;
 
 	for (unsigned int i = from; i <= to; i++) {
+		UnicodeCacheRef symbol = screen[i].symbol;
+		if (IS_UNICODE_CACHE_REF(symbol)) unicode_cache_remove(symbol);
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
 }
@@ -651,6 +661,9 @@ screen_insert_lines(unsigned int lines)
 {
 	if (!cursor_inside_region()) return; // can't insert if not inside region
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
+
 	// shift the following lines
 	int targetStart = cursor.y + lines;
 	if (targetStart > R1) {
@@ -677,6 +690,8 @@ screen_delete_lines(unsigned int lines)
 	if (!cursor_inside_region()) return; // can't delete if not inside region
 	NOTIFY_LOCK();
 
+	// FIXME remove cleared & overwritten cells from unicode cache!
+
 	// shift lines up
 	int targetEnd = R1 - lines - 1;
 	if (targetEnd <= cursor.y) {
@@ -697,6 +712,9 @@ void ICACHE_FLASH_ATTR
 screen_insert_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
+
 	int targetStart = cursor.x + count;
 	if (targetStart >= W) {
 		targetStart = W-1;
@@ -715,6 +733,8 @@ void ICACHE_FLASH_ATTR
 screen_delete_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
 	int targetEnd = W - count;
 	if (targetEnd > cursor.x) {
 		// do the moving
@@ -742,10 +762,7 @@ screen_fill_with_E(void)
 	screen_reset(); // based on observation from xterm
 
 	Cell sample;
-	sample.c[0] = 'E';
-	sample.c[1] = 0;
-	sample.c[2] = 0;
-	sample.c[3] = 0;
+	sample.symbol = 'E';
 	sample.fg = termconf->default_fg;
 	sample.bg = termconf->default_bg;
 	sample.attrs = 0;
@@ -821,6 +838,8 @@ screen_scroll_up(unsigned int lines)
 		goto done;
 	}
 
+	// FIXME remove cleared & overwritten cells from unicode cache!
+
 	int y;
 	for (y = R0; y <= R1 - lines; y++) {
 		memcpy(screen + y * W, screen + (y + lines) * W, W * sizeof(Cell));
@@ -843,6 +862,8 @@ screen_scroll_down(unsigned int lines)
 		clear_range(R0*W, (R1+1)*W-1);
 		goto done;
 	}
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
 
 	// bad cmd
 	if (lines == 0) {
@@ -1060,6 +1081,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 void ICACHE_FLASH_ATTR
 screen_cursor_save(bool withAttrs)
 {
+	(void)withAttrs;
 	// always save with attribs
 	memcpy(&cursor_sav, &cursor, sizeof(CursorTypeDef));
 	cursor_saved = true;
@@ -1344,6 +1366,7 @@ screen_report_sgr(char *buffer)
 	if (cursor.inverse) buffer += sprintf(buffer, ";%d", SGR_INVERSE);
 	if (cursor.fg != termconf->default_fg) buffer += sprintf(buffer, ";%d", ((cursor.fg > 7) ? SGR_FG_BRT_START : SGR_FG_START) + (cursor.fg&7));
 	if (cursor.bg != termconf->default_bg) buffer += sprintf(buffer, ";%d", ((cursor.bg > 7) ? SGR_BG_BRT_START : SGR_BG_START) + (cursor.bg&7));
+	(void)buffer;
 }
 
 //endregion
@@ -1352,6 +1375,8 @@ screen_report_sgr(char *buffer)
 
 static const char *putchar_graphic(const char *ch)
 {
+	static char buf[4];
+
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
 		// if auto-wrap = off, it overwrites the last char
@@ -1376,12 +1401,11 @@ static const char *putchar_graphic(const char *ch)
 
 	if (ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII, can be re-mapped using a table
-		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		utf8_remap(buf, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		ch = buf;
 	}
-	else {
-		// copy unicode char
-		strncpy(c->c, ch, 4);
-	}
+	unicode_cache_remove(c->symbol);
+	c->symbol = unicode_cache_add((const u8 *)ch);
 
 	if (cursor.inverse) {
 		c->fg = cursor.bg;
@@ -1399,7 +1423,7 @@ static const char *putchar_graphic(const char *ch)
 		cursor.x = W - 1;
 	}
 
-	return c->c;
+	return ch;
 }
 
 /**
@@ -1419,6 +1443,9 @@ screen_putchar(const char *ch)
 
 	// Special treatment for CRLF
 	switch (ch[0]) {
+		case DEL:
+			goto done;
+
 		case CR:
 			screen_cursor_set_x(0);
 			goto done;
@@ -1520,6 +1547,7 @@ struct ScreenSerializeState {
 	Color lastFg;
 	Color lastBg;
 	bool lastAttrs;
+	UnicodeCacheRef lastSymbol;
 	char lastChar[4];
 	u8 lastCharLen;
 	int index;
@@ -1608,7 +1636,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastFg = 0;
 		ss->lastAttrs = 0;
 		ss->lastCharLen = 0;
-		memset(ss->lastChar, 0, 4); // this ensures the first char is never "repeat"
+		ss->lastSymbol = 32;
+		strncpy(ss->lastChar, " ", 4);
 
 		bufput_c('S');
 		// H W X Y Attribs
@@ -1642,7 +1671,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			   && cell->fg == ss->lastFg
 			   && cell->bg == ss->lastBg
 			   && cell->attrs == ss->lastAttrs
-			   && strneq(cell->c, ss->lastChar, 4)) {
+			   && cell->symbol == ss->lastSymbol) {
 			// Repeat
 			repCnt++;
 			cell = &screen[++i];
@@ -1679,8 +1708,9 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			// copy the symbol, until first 0 or reached 4 bytes
 			char c;
 			ss->lastCharLen = 0;
+			unicode_cache_retrieve(cell->symbol, (u8 *) ss->lastChar);
 			for(int j=0; j<4; j++) {
-				c = cell->c[j];
+				c = ss->lastChar[j];
 				if(!c) break;
 				bufput_c(c);
 				ss->lastCharLen++;
@@ -1689,7 +1719,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			ss->lastFg = cell0->fg;
 			ss->lastBg = cell0->bg;
 			ss->lastAttrs = cell0->attrs;
-			memcpy(ss->lastChar, cell0->c, 4);
+			ss->lastSymbol = cell0->symbol;
 
 			i++;
 		} else {
@@ -1700,7 +1730,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 				bufput_t2B('\x02', repCnt);
 			} else {
 				// repeat it manually
-				for(int k=0; k<repCnt; k++) {
+				for(int k = 0; k < repCnt; k++) {
 					for (int j = 0; j < ss->lastCharLen; j++) {
 						bufput_c(ss->lastChar[j]);
 					}
