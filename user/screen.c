@@ -184,10 +184,10 @@ terminal_restore_defaults(void)
 	termconf->config_version = TERMCONF_VERSION;
 	termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
 	termconf->loopback = false;
-	termconf->show_buttons = true;
-	termconf->show_config_links = true;
-	termconf->cursor_shape = CURSOR_BLOCK_BL;
-	termconf->crlf_mode = false;
+	termconf->show_buttons = SCR_DEF_SHOW_BUTTONS;
+	termconf->show_config_links = SCR_DEF_SHOW_MENU;
+	termconf->cursor_shape = SCR_DEF_CURSOR_SHAPE;
+	termconf->crlf_mode = SCR_DEF_CRLF;
 }
 
 /**

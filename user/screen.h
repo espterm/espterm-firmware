@@ -37,26 +37,23 @@
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define TERMCONF_SIZE 300
+#define TERMCONF_VERSION 4
 
 #define TERM_BTN_LEN 10
 #define TERM_BTN_MSG_LEN 10
 #define TERM_TITLE_LEN 64
 #define TERM_BTN_COUNT 5
 
-#define SCR_DEF_DISPLAY_TOUT_MS 10
-#define SCR_DEF_DISPLAY_COOLDOWN_MS 30
+#define SCR_DEF_DISPLAY_TOUT_MS 12
+#define SCR_DEF_DISPLAY_COOLDOWN_MS 35
 #define SCR_DEF_PARSER_TOUT_MS 10
 #define SCR_DEF_FN_ALT_MODE true // true - SS3 codes, easier to parse & for xterm compatibility
-#define SCR_DEF_WIDTH 26
-#define SCR_DEF_HEIGHT 10
+#define SCR_DEF_WIDTH 80
+#define SCR_DEF_HEIGHT 25
 #define SCR_DEF_TITLE "ESPTerm"
 
 /** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*25)
-
-#define TERMCONF_VERSION 4
-
-// --- Persistent Settings ---
 
 enum CursorShape {
 	CURSOR_BLOCK_BL = 0,
@@ -68,6 +65,13 @@ enum CursorShape {
 	CURSOR_BAR = 6,
 };
 
+#define SCR_DEF_SHOW_BUTTONS 0
+#define SCR_DEF_SHOW_MENU 1
+#define SCR_DEF_CURSOR_SHAPE CURSOR_BLOCK_BL
+#define SCR_DEF_CRLF 0
+
+
+// --- Persistent Settings ---
 #define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
 
 typedef struct {
