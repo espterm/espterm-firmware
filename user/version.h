@@ -7,7 +7,7 @@
 
 #define FW_V_MAJOR 1
 #define FW_V_MINOR 0
-#define FW_V_PATCH 1
+#define FW_V_PATCH 2
 
 #define FIRMWARE_VERSION STR(FW_V_MAJOR) "." STR(FW_V_MINOR) "." STR(FW_V_PATCH) "+" GIT_HASH
 #define FIRMWARE_VERSION_NUM (FW_V_MAJOR*1000 + FW_V_MINOR*10 + FW_V_PATCH) // this is used in ID queries
