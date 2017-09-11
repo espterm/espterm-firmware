@@ -31,7 +31,7 @@ buf_pop(void *unused)
 		lb_ls++;
 		if (lb_ls >= LOGBUF_SIZE) lb_ls = 0;
 
-		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 1000)) {
+		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 5)) {
 			quantity--;
 		} else {
 			// try another time

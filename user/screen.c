@@ -28,10 +28,10 @@ static void utf8_remap(char* out, char g, char charset);
 /**
  * Screen cell data type (16 bits)
  */
-typedef struct __attribute__((packed)){
+typedef struct __attribute__((packed)) {
 	UnicodeCacheRef symbol : 8;
-	Color fg : 8;
-	Color bg : 8;
+	Color fg;
+	Color bg;
 	u8 attrs;
 } Cell;
 
@@ -68,8 +68,8 @@ static struct {
 #define R1 scr.vm1
 #define RH (scr.vm1 - scr.vm0 + 1)
 // horizontal edges - will be useful if horizontal margin is implemented
-#define C0 0
-#define C1 (W-1)
+//#define C0 0
+//#define C1 (W-1)
 
 typedef struct {
 	/* Cursor position */
@@ -1165,7 +1165,6 @@ screen_reverse_wrap_enable(bool enable)
 void ICACHE_FLASH_ATTR
 screen_set_fg(Color color)
 {
-	if (color > COLOR_MAX) color = COLOR_MAX;
 	cursor.fg = color;
 }
 
@@ -1175,26 +1174,7 @@ screen_set_fg(Color color)
 void ICACHE_FLASH_ATTR
 screen_set_bg(Color color)
 {
-	if (color > COLOR_MAX) color = COLOR_MAX;
 	cursor.bg = color;
-}
-
-/**
- * Set cursor foreground color, extended
- */
-void ICACHE_FLASH_ATTR
-screen_set_fg_ext(u16 color)
-{
-	// TODO validate and set
-}
-
-/**
- * Set cursor background color, extended
- */
-void ICACHE_FLASH_ATTR
-screen_set_bg_ext(u16 color)
-{
-	// TODO validate and set
 }
 
 void ICACHE_FLASH_ATTR
@@ -1261,6 +1241,14 @@ screen_set_reverse_video(bool reverse)
 {
 	NOTIFY_LOCK();
 	scr.reverse_video = reverse;
+	NOTIFY_DONE();
+}
+
+void ICACHE_FLASH_ATTR
+screen_set_bracketed_paste(bool ena)
+{
+	NOTIFY_LOCK();
+	scr.bracketed_paste = ena;
 	NOTIFY_DONE();
 }
 
@@ -1562,6 +1550,7 @@ struct ScreenSerializeState {
 void ICACHE_FLASH_ATTR
 screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
 {
+	(void)buf_len;
 	// let's just assume it's long enough - called with the huge websocket buffer
 	sprintf(buffer, "T%s\x01%s\x01%s\x01%s\x01%s\x01%s", // use 0x01 as separator
 			termconf_live.title,
@@ -1658,9 +1647,16 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			(termconf_live.show_buttons << 7) |
 			(termconf_live.show_config_links << 8) |
 			((termconf_live.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
-		    (termconf_live.crlf_mode << 12)
+		    (termconf_live.crlf_mode << 12) |
+			(scr.bracketed_paste << 13)
 	    );
 	}
+
+#define SEQ_TAG_REPEAT '\x02'
+#define SEQ_TAG_COLORS '\x03'
+#define SEQ_TAG_ATTRS '\x04'
+#define SEQ_TAG_FG '\x05'
+#define SEQ_TAG_BG '\x06'
 
 	int i = ss->index;
 	while(i < W*H && remain > 12) {
@@ -1681,7 +1677,9 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		if (repCnt == 0) {
 			// No repeat
 			bool changeAttrs = cell0->attrs != ss->lastAttrs;
-			bool changeColors = (cell0->fg != ss->lastFg || cell0->bg != ss->lastBg);
+			bool changeFg = cell0->fg != ss->lastFg;
+			bool changeBg = cell0->bg != ss->lastBg;
+			bool changeColors = changeFg && changeBg;
 			Color fg, bg;
 
 			// Reverse fg and bg if we're in global reverse mode
@@ -1694,16 +1692,18 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 				bg = cell0->fg;
 			}
 
-			if (!changeAttrs && changeColors) {
-				bufput_t2B('\x03', fg | (bg<<4));
+			if (changeColors) {
+				bufput_t3B(SEQ_TAG_COLORS, bg<<8 | fg);
 			}
-			else if (changeAttrs && !changeColors) {
-				// attrs only
-				bufput_t2B('\x04', cell0->attrs);
+			else if (changeFg) {
+				bufput_t2B(SEQ_TAG_FG, fg);
 			}
-			else if (changeAttrs && changeColors) {
-				// colors and attrs
-				bufput_t3B('\x01', (u32) (fg | (bg<<4) | (cell0->attrs<<8)));
+			else if (changeBg) {
+				bufput_t2B(SEQ_TAG_BG, bg);
+			}
+
+			if (changeAttrs) {
+				bufput_t2B(SEQ_TAG_ATTRS, cell0->attrs);
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
@@ -1728,7 +1728,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			int savings = ss->lastCharLen*repCnt;
 			if (savings > 3) {
 				// Repeat count
-				bufput_t2B('\x02', repCnt);
+				bufput_t2B(SEQ_TAG_REPEAT, repCnt);
 			} else {
 				// repeat it manually
 				for(int k = 0; k < repCnt; k++) {

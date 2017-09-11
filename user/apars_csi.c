@@ -557,12 +557,12 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_FG_256 || n == SGR_BG_256) {
 			if (i < count-2) {
 				if (opts->n[i + 1] == 5) {
-					u16 color = (u16) opts->n[i + 2];
+					u8 color = (u8) opts->n[i + 2];
 					bool fg = n == SGR_FG_256;
 					if (fg) {
-						screen_set_fg_ext(color);
+						screen_set_fg(color);
 					} else  {
-						screen_set_bg_ext(color);
+						screen_set_bg(color);
 					}
 				}
 				else {
@@ -664,7 +664,8 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 3) {
 			// DECCOLM 132 column mode - not implemented due to RAM demands
-			ansi_noimpl("132col");
+			// XXX 132col
+			// ansi_noimpl("132col");
 
 			// DECCOLM side effects as per
 			// https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/deccolm-cls.html
@@ -688,7 +689,7 @@ do_csi_set_private_option(CSI_Data *opts)
 			// Key auto-repeat
 			// We don't implement this currently, but it could be added
 			// - discard repeated keypress events between keydown and keyup.
-			ansi_noimpl("Auto-repeat toggle");
+			// XXX auto repeat toggle
 		}
 		else if (n == 9 || (n >= 1000 && n <= 1006) || n == 1015) {
 			// 9 - X10 tracking
@@ -708,7 +709,7 @@ do_csi_set_private_option(CSI_Data *opts)
 			else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
 			else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
 
-			dbg("Mouse mode=%d, enc=%d, foctr=%d",
+			ansi_dbg("Mouse mode=%d, enc=%d, foctr=%d",
 				mouse_tracking.mode,
 				mouse_tracking.encoding,
 				mouse_tracking.focus_tracking);
@@ -722,7 +723,7 @@ do_csi_set_private_option(CSI_Data *opts)
 		else if (n == 40) {
 			// allow/disallow 80->132 mode
 			// not implemented because of RAM demands
-			ansi_noimpl("132col enable");
+			// ansi_noimpl("132col enable");
 		}
 		else if (n == 45) {
 			// reverse wrap-around
@@ -756,7 +757,7 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 2004) {
 			// Bracketed paste mode
-			ansi_noimpl("Bracketed paste");
+			screen_set_bracketed_paste(yn);
 		}
 		else if (n == 800) { // ESPTerm: Toggle display of buttons
 			termconf_live.show_buttons = yn;

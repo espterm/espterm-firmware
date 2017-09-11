@@ -40,6 +40,9 @@ apars_handle_osc(char *buffer)
 			// Window title (or "icon name" in Xterm)
 			screen_set_title(buffer);
 		}
+		else if (n == 4) {
+			// XXX setting RGB color, ignore
+		}
 		else if (n == 9) {
 			// iTerm2-style "growl" notifications
 			buffer--;

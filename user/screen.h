@@ -238,10 +238,6 @@ typedef uint8_t Color; // 0-16
 void screen_set_fg(Color color);
 /** Set cursor background coloor */
 void screen_set_bg(Color color);
-/** Set cursor foreground color, extended */
-void screen_set_fg_ext(u16 color);
-/** Set cursor background coloor, extended */
-void screen_set_bg_ext(u16 color);
 /** Enable/disable attrs by bitmask */
 void screen_set_sgr(u8 attrs, bool ena);
 /** Set the inverse attribute */
@@ -265,6 +261,8 @@ void screen_set_reverse_video(bool reverse);
 void screen_save_private_opt(int n);
 /** Restore DECOPT */
 void screen_restore_private_opt(int n);
+/** Set bracketed paste */
+void screen_set_bracketed_paste(bool ena);
 
 // --- Charset ---
 
