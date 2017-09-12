@@ -37,15 +37,16 @@
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define TERMCONF_SIZE 300
+#define TERMCONF_VERSION 5
 
 #define TERM_BTN_LEN 10
 #define TERM_BTN_MSG_LEN 10
 #define TERM_TITLE_LEN 64
 #define TERM_BTN_COUNT 5
 
-#define SCR_DEF_DISPLAY_TOUT_MS 10
-#define SCR_DEF_DISPLAY_COOLDOWN_MS 30
-#define SCR_DEF_PARSER_TOUT_MS 10
+#define SCR_DEF_DISPLAY_TOUT_MS 12
+#define SCR_DEF_DISPLAY_COOLDOWN_MS 35
+#define SCR_DEF_PARSER_TOUT_MS 0
 #define SCR_DEF_FN_ALT_MODE true // true - SS3 codes, easier to parse & for xterm compatibility
 #define SCR_DEF_WIDTH 26
 #define SCR_DEF_HEIGHT 10
@@ -54,9 +55,24 @@
 /** Maximum screen size (determines size of the static data array) */
 #define MAX_SCREEN_SIZE (80*25)
 
-#define TERMCONF_VERSION 3
+enum CursorShape {
+	CURSOR_BLOCK_BL = 0,
+	CURSOR_DEFAULT  = 1, // this is translated to a user configured style
+	CURSOR_BLOCK = 2,
+	CURSOR_UNDERLINE_BL = 3,
+	CURSOR_UNDERLINE = 4,
+	CURSOR_BAR_BL = 5,
+	CURSOR_BAR = 6,
+};
+
+#define SCR_DEF_SHOW_BUTTONS 0
+#define SCR_DEF_SHOW_MENU 1
+#define SCR_DEF_CURSOR_SHAPE CURSOR_BLOCK_BL
+#define SCR_DEF_CRLF 0
+#define SCR_DEF_ALLFN 0
 
 // --- Persistent Settings ---
+#define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
 
 typedef struct {
 	u32 width;
@@ -75,6 +91,9 @@ typedef struct {
 	bool show_buttons;
 	bool show_config_links;
 	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
+	enum CursorShape cursor_shape;
+	bool crlf_mode;
+	bool want_all_fn;
 } TerminalConfigBundle;
 
 // Live config
@@ -84,7 +103,7 @@ extern TerminalConfigBundle * const termconf;
  * Transient live config with no persist, can be modified via esc sequences.
  * terminal_apply_settings() copies termconf to this struct, erasing old scratch changes
  */
-extern TerminalConfigBundle termconf_scratch;
+extern TerminalConfigBundle termconf_live;
 
 enum MTM {
 	MTM_NONE = 0,
@@ -173,6 +192,10 @@ void screen_scroll_down(unsigned int lines);
 
 // --- Cursor control ---
 
+/** Set cursor shape */
+void screen_cursor_shape(enum CursorShape shape);
+/** Toggle cursor blink (modifies shape) */
+void screen_cursor_blink(bool blink);
 /** Set cursor position */
 void screen_cursor_set(int y, int x);
 /** Read cursor pos to given vars */
@@ -196,6 +219,8 @@ void screen_set_insert_mode(bool insert);
 void screen_set_newline_mode(bool nlm);
 /** Enable auto wrap */
 void screen_wrap_enable(bool enable);
+/** Enable reverse wrap-around */
+void screen_reverse_wrap_enable(bool enable);
 /** Set scrolling region */
 void screen_set_scrolling_region(int from, int to);
 /** Enable or disable origin remap to top left of scrolling region */
@@ -212,6 +237,7 @@ typedef uint8_t Color; // 0-16
 #define ATTR_BLINK (1<<4)
 #define ATTR_FRAKTUR (1<<5)
 #define ATTR_STRIKE (1<<6)
+#define ATTR_OVERLINE (1<<7)
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);
@@ -221,6 +247,8 @@ void screen_set_bg(Color color);
 void screen_set_sgr(u8 attrs, bool ena);
 /** Set the inverse attribute */
 void screen_set_sgr_inverse(bool ena);
+/** Conceal style */
+void screen_set_sgr_conceal(bool ena);
 /** Reset cursor attribs */
 void screen_reset_sgr(void);
 
@@ -234,6 +262,12 @@ void screen_set_numpad_alt_mode(bool app_mode);
 void screen_set_cursors_alt_mode(bool app_mode);
 /** Set reverse video mode */
 void screen_set_reverse_video(bool reverse);
+/** Save DECOPT */
+void screen_save_private_opt(int n);
+/** Restore DECOPT */
+void screen_restore_private_opt(int n);
+/** Set bracketed paste */
+void screen_set_bracketed_paste(bool ena);
 
 // --- Charset ---
 
@@ -270,6 +304,12 @@ void screen_putchar(const char *ch);
  * (DEC alignment test mode)
  */
 void screen_fill_with_E(void);
+
+/**
+ * Repeat last graphic character
+ * @param count
+ */
+void screen_repeat_last_character(int count);
 
 // --- Queries ---
 

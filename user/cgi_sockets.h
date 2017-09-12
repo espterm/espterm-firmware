@@ -12,6 +12,9 @@ void notify_empty_txbuf(void);
 
 void send_beep(void);
 
+/** open pop-up notification */
+void notify_growl(char *msg);
+
 // defined in the makefile
 #if DEBUG_INPUT
 #define ws_warn warn

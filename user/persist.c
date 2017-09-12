@@ -16,36 +16,36 @@ PersistBlock persist;
 static void ICACHE_FLASH_ATTR
 apply_live_settings(void)
 {
-	dbg("[Persist] Applying live settings...");
+	persist_dbg("[Persist] Applying live settings...");
 
-	dbg("[Persist] > system");
+	persist_dbg("[Persist] > system");
 	sysconf_apply_settings();
 
-	dbg("[Persist] > wifi");
+	persist_dbg("[Persist] > wifi");
 	wifimgr_apply_settings();
 
-	dbg("[Persist] > terminal");
+	persist_dbg("[Persist] > terminal");
 	terminal_apply_settings();
 
-	dbg("[Persist] Live settings applied.");
+	persist_dbg("[Persist] Live settings applied.");
 	// ...
 }
 
 static void ICACHE_FLASH_ATTR
 restore_live_settings_to_hard_defaults(void)
 {
-	dbg("[Persist] Restore to hard defaults...");
+	persist_dbg("[Persist] Restore to hard defaults...");
 
-	dbg("[Persist] > system");
+	persist_dbg("[Persist] > system");
 	sysconf_restore_defaults();
 
-	dbg("[Persist] > wifi");
+	persist_dbg("[Persist] > wifi");
 	wifimgr_restore_defaults();
 
-	dbg("[Persist] > terminal");
+	persist_dbg("[Persist] > terminal");
 	terminal_restore_defaults();
 
-	dbg("[Persist] Restored to hard defaults.");
+	persist_dbg("[Persist] Restored to hard defaults.");
 	// ...
 }
 
@@ -103,14 +103,14 @@ compute_checksum(AppConfigBundle *bundle)
 void ICACHE_FLASH_ATTR
 persist_load(void)
 {
-	info("[Persist] Loading stored settings from FLASH...");
+	persist_info("[Persist] Loading stored settings from FLASH...");
 
-	dbg("AppConfigBundle memory map:");
-	dbg("> WiFiConfigBundle      at %4d (error %2d)", wconf_at, wconf_at - 0);
-	dbg("> SystemConfigBundle    at %4d (error %2d)", sconf_at, sconf_at - WIFICONF_SIZE);
-	dbg("> TerminalConfigBundle  at %4d (error %2d)", tconf_at, tconf_at - WIFICONF_SIZE - SYSCONF_SIZE);
-	dbg("> Checksum              at %4d (error %2d)", cksum_at, cksum_at - (APPCONF_SIZE - 4));
-	dbg("> Total size = %d bytes (error %d)", sizeof(AppConfigBundle), APPCONF_SIZE - sizeof(AppConfigBundle));
+	persist_dbg("AppConfigBundle memory map:");
+	persist_dbg("> WiFiConfigBundle      at %4d (error %2d)", wconf_at, wconf_at - 0);
+	persist_dbg("> SystemConfigBundle    at %4d (error %2d)", sconf_at, sconf_at - WIFICONF_SIZE);
+	persist_dbg("> TerminalConfigBundle  at %4d (error %2d)", tconf_at, tconf_at - WIFICONF_SIZE - SYSCONF_SIZE);
+	persist_dbg("> Checksum              at %4d (error %2d)", cksum_at, cksum_at - (APPCONF_SIZE - 4));
+	persist_dbg("> Total size = %d bytes (error %d)", sizeof(AppConfigBundle), APPCONF_SIZE - sizeof(AppConfigBundle));
 
 	bool hard_reset = false;
 
@@ -124,7 +124,7 @@ persist_load(void)
 		error("[Persist] Checksum verification: FAILED");
 		hard_reset = true;
 	} else {
-		info("[Persist] Checksum verification: PASSED");
+		persist_info("[Persist] Checksum verification: PASSED");
 	}
 
 	if (hard_reset) {
@@ -142,13 +142,13 @@ persist_load(void)
 		apply_live_settings();
 	}
 
-	info("[Persist] All settings loaded and applied.");
+	persist_info("[Persist] All settings loaded and applied.");
 }
 
 void ICACHE_FLASH_ATTR
 persist_store(void)
 {
-	info("[Persist] Storing all settings to FLASH...");
+	persist_info("[Persist] Storing all settings to FLASH...");
 
 	// Update checksums before write
 	persist.current.checksum = compute_checksum(&persist.current);
@@ -157,7 +157,7 @@ persist_store(void)
 	if (!system_param_save_with_protect(PERSIST_SECTOR_ID, &persist, sizeof(PersistBlock))) {
 		error("[Persist] Store to flash failed!");
 	}
-	info("[Persist] All settings persisted.");
+	persist_info("[Persist] All settings persisted.");
 }
 
 /**
@@ -166,13 +166,13 @@ persist_store(void)
 void ICACHE_FLASH_ATTR
 persist_load_hard_default(void)
 {
-	info("[Persist] Restoring live settings to hard defaults...");
+	persist_info("[Persist] Restoring live settings to hard defaults...");
 
 	// Set live config to default values
 	restore_live_settings_to_hard_defaults();
 	persist_store();
 
-	info("[Persist] Settings restored to hard defaults.");
+	persist_info("[Persist] Settings restored to hard defaults.");
 
 	apply_live_settings(); // apply
 }
@@ -183,13 +183,13 @@ persist_load_hard_default(void)
 void ICACHE_FLASH_ATTR
 persist_restore_default(void)
 {
-	info("[Persist] Restoring live settings to stored defaults...");
+	persist_info("[Persist] Restoring live settings to stored defaults...");
 
 	memcpy(&persist.current, &persist.defaults, sizeof(AppConfigBundle));
 	apply_live_settings();
 	persist_store();
 
-	info("[Persist] Settings restored to stored defaults.");
+	persist_info("[Persist] Settings restored to stored defaults.");
 }
 
 /**
@@ -198,11 +198,11 @@ persist_restore_default(void)
 void ICACHE_FLASH_ATTR
 persist_set_as_default(void)
 {
-	info("[Persist] Storing live settings as defaults..");
+	persist_info("[Persist] Storing live settings as defaults..");
 
 	// current -> defaults
 	memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
 	persist_store();
 
-	info("[Persist] Default settings updated.");
+	persist_info("[Persist] Default settings updated.");
 }

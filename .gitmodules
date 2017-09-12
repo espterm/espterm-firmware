@@ -1,3 +1,7 @@
 [submodule "libesphttpd"]
 	path = libesphttpd
 	url = git@github.com:MightyPork/libesphttpd.git
+[submodule "front-end"]
+	path = front-end
+	url = git@github.com:espterm/espterm-front-end.git
+	branch = master

@@ -19,6 +19,7 @@ Cgi/template routines for the /wifi url.
 #include "wifimgr.h"
 #include "persist.h"
 #include "helpers.h"
+#include "cgi_logging.h"
 
 #define SET_REDIR_SUC "/cfg/wifi"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
@@ -116,7 +117,7 @@ void ICACHE_FLASH_ATTR wifiScanDoneCb(void *arg, STATUS status)
 {
 	int n;
 	struct bss_info *bss_link = (struct bss_info *) arg;
-	dbg("wifiScanDoneCb %d", status);
+	cgi_dbg("wifiScanDoneCb %d", status);
 	if (status != OK) {
 		cgiWifiAps.scanInProgress = 0;
 		return;
@@ -141,7 +142,7 @@ void ICACHE_FLASH_ATTR wifiScanDoneCb(void *arg, STATUS status)
 		return;
 	}
 	cgiWifiAps.noAps = n;
-	info("Scan done: found %d APs", n);
+	cgi_info("Scan done: found %d APs", n);
 
 	// Copy access point data to the static struct
 	n = 0;
@@ -288,7 +289,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiConnStatus(HttpdConnData *connData)
 	}
 
 	STATION_STATUS st = wifi_station_get_connect_status();
-	dbg("CONN STATE = %d", st);
+	cgi_dbg("CONN STATE = %d", st);
 	switch(st) {
 		case STATION_IDLE:
 			sprintf(buff, "{\"status\": \"idle\"}"); // unclear when this is used
@@ -360,18 +361,18 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	// ---- WiFi opmode ----
 
 	if (GET_ARG("opmode")) {
-		dbg("Setting WiFi opmode to: %s", buff);
+		cgi_dbg("Setting WiFi opmode to: %s", buff);
 		int mode = atoi(buff);
 		if (mode > NULL_MODE && mode < MAX_MODE) {
 			wificonf->opmode = (WIFI_MODE) mode;
 		} else {
-			warn("Bad opmode value \"%s\"", buff);
+			cgi_warn("Bad opmode value \"%s\"", buff);
 			redir_url += sprintf(redir_url, "opmode,");
 		}
 	}
 
 	if (GET_ARG("ap_enable")) {
-		dbg("Enable AP: %s", buff);
+		cgi_dbg("Enable AP: %s", buff);
 		int enable = atoi(buff);
 
 		if (enable) {
@@ -382,7 +383,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	}
 
 	if (GET_ARG("sta_enable")) {
-		dbg("Enable STA: %s", buff);
+		cgi_dbg("Enable STA: %s", buff);
 		int enable = atoi(buff);
 
 		if (enable) {
@@ -396,7 +397,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	// ---- AP transmit power ----
 
 	if (GET_ARG("tpw")) {
-		dbg("Setting AP power to: %s", buff);
+		cgi_dbg("Setting AP power to: %s", buff);
 		int tpw = atoi(buff);
 		if (tpw >= 0 && tpw <= 82) { // 0 actually isn't 0 but quite low. 82 is very strong
 			if (wificonf->tpw != tpw) {
@@ -404,7 +405,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("tpw %s out of allowed range 0-82.", buff);
+			cgi_warn("tpw %s out of allowed range 0-82.", buff);
 			redir_url += sprintf(redir_url, "tpw,");
 		}
 	}
@@ -412,7 +413,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	// ---- AP channel (applies in AP-only mode) ----
 
 	if (GET_ARG("ap_channel")) {
-		info("ap_channel = %s", buff);
+		cgi_info("ap_channel = %s", buff);
 		int channel = atoi(buff);
 		if (channel > 0 && channel < 15) {
 			if (wificonf->ap_channel != channel) {
@@ -420,7 +421,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad channel value \"%s\", allowed 1-14", buff);
+			cgi_warn("Bad channel value \"%s\", allowed 1-14", buff);
 			redir_url += sprintf(redir_url, "ap_channel,");
 		}
 	}
@@ -439,12 +440,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 
 		if (strlen(buff) > 0) {
 			if (!streq(wificonf->ap_ssid, buff)) {
-				info("Setting SSID to \"%s\"", buff);
+				cgi_info("Setting SSID to \"%s\"", buff);
 				strncpy_safe(wificonf->ap_ssid, buff, SSID_LEN);
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad SSID len.");
+			cgi_warn("Bad SSID len.");
 			redir_url += sprintf(redir_url, "ap_ssid,");
 		}
 	}
@@ -456,12 +457,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		// but it may lock them out.
 		if (strlen(buff) == 0 || (strlen(buff) >= 8 && strlen(buff) < PASSWORD_LEN-1)) {
 			if (!streq(wificonf->ap_password, buff)) {
-				info("Setting AP password to \"%s\"", buff);
+				cgi_info("Setting AP password to \"%s\"", buff);
 				strncpy_safe(wificonf->ap_password, buff, PASSWORD_LEN);
 				wifi_change_flags.ap = true;
 			}
 		} else {
-			warn("Bad password len.");
+			cgi_warn("Bad password len.");
 			redir_url += sprintf(redir_url, "ap_password,");
 		}
 	}
@@ -469,7 +470,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	// ---- Hide AP network (do not announce) ----
 
 	if (GET_ARG("ap_hidden")) {
-		dbg("AP hidden = %s", buff);
+		cgi_dbg("AP hidden = %s", buff);
 		int hidden = atoi(buff);
 		if (hidden != wificonf->ap_hidden) {
 			wificonf->ap_hidden = (hidden != 0);
@@ -482,7 +483,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	if (GET_ARG("sta_ssid")) {
 		if (!streq(wificonf->sta_ssid, buff)) {
 			// No verification needed, at worst it fails to connect
-			info("Setting station SSID to: \"%s\"", buff);
+			cgi_info("Setting station SSID to: \"%s\"", buff);
 			strncpy_safe(wificonf->sta_ssid, buff, SSID_LEN);
 			wifi_change_flags.sta = true;
 			sta_ssid_pw_changed = true;
@@ -494,7 +495,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	if (GET_ARG("sta_password")) {
 		if (!streq(wificonf->sta_password, buff)) {
 			// No verification needed, at worst it fails to connect
-			info("Setting station password to: \"%s\"", buff);
+			cgi_info("Setting station password to: \"%s\"", buff);
 			strncpy_safe(wificonf->sta_password, buff, PASSWORD_LEN);
 			wifi_change_flags.sta = true;
 			sta_ssid_pw_changed = true;
@@ -503,7 +504,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
-		info("Set WiFi params - success, applying in 2000 ms");
+		cgi_info("Set WiFi params - success, applying in 2000 ms");
 
 		// Settings are applied only if all was OK
 		//
@@ -523,14 +524,14 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 			&& wificonf->sta_ssid[0] != 0) {
 			// User wants to connect
 
-			info("User wants to connect to SSID, redirecting to ConnStatus page.");
+			cgi_info("User wants to connect to SSID, redirecting to ConnStatus page.");
 			httpdRedirect(connData, "/cfg/wifi/connecting");
 		}
 		else {
 			httpdRedirect(connData, SET_REDIR_SUC);
 		}
 	} else {
-		warn("Some WiFi settings did not validate, asking for correction");
+		cgi_warn("Some WiFi settings did not validate, asking for correction");
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}

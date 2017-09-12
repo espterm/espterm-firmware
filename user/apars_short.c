@@ -139,7 +139,7 @@ void ICACHE_FLASH_ATTR apars_handle_short_cmd(char c)
 			break;
 
 		case 'F': // bottom left
-			screen_cursor_set(termconf_scratch.height-1, 0);
+			screen_cursor_set(termconf_live.height-1, 0);
 			break;
 
 		case 'D': // move cursor down, scroll screen up if needed

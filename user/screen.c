@@ -7,17 +7,18 @@
 #include "apars_logging.h"
 #include "jstring.h"
 #include "character_sets.h"
+#include "utf8.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
-TerminalConfigBundle termconf_scratch;
+TerminalConfigBundle termconf_live;
 
 MouseTrackingConfig mouse_tracking;
 
 // forward declare
 static void utf8_remap(char* out, char g, char charset);
 
-#define W termconf_scratch.width
-#define H termconf_scratch.height
+#define W termconf_live.width
+#define H termconf_live.height
 
 /**
  * Highest permissible value of the color attribute
@@ -27,10 +28,10 @@ static void utf8_remap(char* out, char g, char charset);
 /**
  * Screen cell data type (16 bits)
  */
-typedef struct __attribute__((packed)){
-	char c[4]; // space for a full unicode character
-	Color fg : 4;
-	Color bg : 4;
+typedef struct __attribute__((packed)) {
+	UnicodeCacheRef symbol : 8;
+	Color fg;
+	Color bg;
 	u8 attrs;
 } Cell;
 
@@ -40,21 +41,17 @@ typedef struct __attribute__((packed)){
 static Cell screen[MAX_SCREEN_SIZE];
 
 
-#define TABSTOP_WORDS 5
-/**
- * Tab stops bitmap
- */
-static u32 tab_stops[TABSTOP_WORDS];
 
+#define TABSTOP_WORDS 5
 /**
  * Screen state structure
  */
 static struct {
 	bool numpad_alt_mode;  //!< DECNKM - Numpad Application Mode
 	bool cursors_alt_mode; //!< DECCKM - Cursors Application mode
+	bool bracketed_paste;
 
-	bool newline_mode; //!< LNM - CR automatically sends LF
-	bool reverse;      //!< DECSCNM - Reverse video
+	bool reverse_video;            //!< DECSCNM - Reverse video
 
 	bool insert_mode;    //!< IRM - Insert mode (move rest of the line to the right)
 	bool cursor_visible; //!< DECTCEM - Cursor visible
@@ -62,14 +59,17 @@ static struct {
 	// Vertical margin bounds (inclusive start/end of scrolling region)
 	int vm0;
 	int vm1;
+
+	u32 tab_stops[TABSTOP_WORDS]; // tab stops bitmap
+	char last_char[4];
 } scr;
 
 #define R0 scr.vm0
 #define R1 scr.vm1
 #define RH (scr.vm1 - scr.vm0 + 1)
 // horizontal edges - will be useful if horizontal margin is implemented
-#define C0 0
-#define C1 (W-1)
+//#define C0 0
+//#define C1 (W-1)
 
 typedef struct {
 	/* Cursor position */
@@ -79,6 +79,7 @@ typedef struct {
 
 	/* SGR */
 	bool inverse; //!< not in attrs bc it's applied server-side (not sent to browser)
+	bool conceal;  //!< similar to inverse, causes all to be replaced by SP
 	u8 attrs;
 	Color fg;     //!< Foreground color for writing
 	Color bg;     //!< Background color for writing
@@ -92,6 +93,7 @@ typedef struct {
 
 	/** Options saved with cursor */
 	bool auto_wrap;      //!< DECAWM - Wrapping when EOL
+	bool reverse_wrap; //!< Reverse-wraparound Mode. DECSET 45
 	bool origin_mode;    //!< DECOM - absolute positioning is relative to vertical margins
 } CursorTypeDef;
 
@@ -105,6 +107,36 @@ static CursorTypeDef cursor;
  */
 static CursorTypeDef cursor_sav;
 bool cursor_saved = false;
+
+/** This structure holds old state when switching to an alternate buffer */
+static struct {
+	bool alternate_active;
+	char title[TERM_TITLE_LEN];
+	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
+	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
+	u32 width;
+	u32 height;
+	int vm0;
+	int vm1;
+	u32 tab_stops[TABSTOP_WORDS];
+} state_backup;
+
+/** options backup (save/restore) */
+static struct {
+	bool cursors_alt_mode;
+	bool reverse_video;
+	bool origin_mode;
+	bool auto_wrap;
+	enum MTM mouse_tracking;
+	enum MTE mouse_encoding;
+	bool focus_tracking;
+	bool cursor_blink;
+	bool cursor_visible;
+	bool reverse_wrap;
+	bool bracketed_paste;
+	bool show_buttons;
+	bool show_config_links;
+} opt_backup;
 
 /**
  * This is used to prevent premature change notifications
@@ -151,9 +183,12 @@ terminal_restore_defaults(void)
 	termconf->fn_alt_mode = SCR_DEF_FN_ALT_MODE;
 	termconf->config_version = TERMCONF_VERSION;
 	termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
-	termconf->loopback = 0;
-	termconf->show_buttons = 1;
-	termconf->show_config_links = 1;
+	termconf->loopback = false;
+	termconf->show_buttons = SCR_DEF_SHOW_BUTTONS;
+	termconf->show_config_links = SCR_DEF_SHOW_MENU;
+	termconf->cursor_shape = SCR_DEF_CURSOR_SHAPE;
+	termconf->crlf_mode = SCR_DEF_CRLF;
+	termconf->want_all_fn = SCR_DEF_ALLFN;
 }
 
 /**
@@ -174,14 +209,14 @@ terminal_apply_settings_noclear(void)
 
 	// Migrate to v1
 	if (termconf->config_version < 1) {
-		dbg("termconf: Updating to version 1");
+		persist_dbg("termconf: Updating to version 1");
 		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
 		changed = 1;
 	}
 
 	// Migrate to v2
 	if (termconf->config_version < 2) {
-		dbg("termconf: Updating to version 2");
+		persist_dbg("termconf: Updating to version 2");
 		termconf->loopback = 0;
 		termconf->show_config_links = 1;
 		termconf->show_buttons = 1;
@@ -190,10 +225,25 @@ terminal_apply_settings_noclear(void)
 
 	// Migrate to v3
 	if (termconf->config_version < 3) {
-		dbg("termconf: Updating to version 3");
+		persist_dbg("termconf: Updating to version 3");
 		for(int i=1; i <= TERM_BTN_COUNT; i++) {
 			sprintf(termconf->btn_msg[i-1], "%c", i);
 		}
+		changed = 1;
+	}
+
+	// Migrate to v4
+	if (termconf->config_version < 4) {
+		persist_dbg("termconf: Updating to version 4");
+		termconf->cursor_shape = CURSOR_BLOCK_BL;
+		termconf->crlf_mode = false;
+		changed = 1;
+	}
+
+	// Migrate to v5
+	if (termconf->config_version < 4) {
+		persist_dbg("termconf: Updating to version 5");
+		termconf->want_all_fn = 0;
 		changed = 1;
 	}
 
@@ -209,13 +259,13 @@ terminal_apply_settings_noclear(void)
 		changed = 1;
 	}
 
-	memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+	memcpy(&termconf_live, termconf, sizeof(TerminalConfigBundle));
 	if (W*H > MAX_SCREEN_SIZE) {
 		error("BAD SCREEN SIZE: %d rows x %d cols", H, W);
 		error("reverting terminal settings to default");
 		terminal_restore_defaults();
 		changed = true;
-		memcpy(&termconf_scratch, termconf, sizeof(TerminalConfigBundle));
+		memcpy(&termconf_live, termconf, sizeof(TerminalConfigBundle));
 		screen_init();
 	}
 
@@ -233,9 +283,18 @@ terminal_apply_settings_noclear(void)
 void ICACHE_FLASH_ATTR
 screen_init(void)
 {
-	dbg("Screen buffer size = %d bytes", sizeof(screen));
+	if(DEBUG_HEAP) dbg("Screen buffer size = %d bytes", sizeof(screen));
 
 	NOTIFY_LOCK();
+	Cell sample;
+	sample.symbol = ' ';
+	sample.fg = termconf->default_fg;
+	sample.bg = termconf->default_bg;
+	sample.attrs = 0;
+	for (unsigned int i = 0; i < MAX_SCREEN_SIZE; i++) {
+		memcpy(&screen[i], &sample, sizeof(Cell));
+	}
+
 	screen_reset();
 	NOTIFY_DONE();
 }
@@ -258,15 +317,26 @@ cursor_reset(void)
 }
 
 /**
- * Reset the cursor position & colors
+ * Reset the screen - called by ESC c
  */
 static void ICACHE_FLASH_ATTR
-decopt_reset(void)
+screen_reset_on_resize(void)
 {
-	scr.cursor_visible = true;
-	scr.insert_mode = false;
-	cursor.origin_mode = false;
-	cursor.auto_wrap = true;
+	ansi_dbg("Screen partial reset due to resize");
+	NOTIFY_LOCK();
+
+	cursor.x = 0;
+	cursor.y = 0;
+	cursor.hanging = false;
+
+	scr.vm0 = 0;
+	scr.vm1 = H-1;
+
+	// size is left unchanged
+	screen_clear(CLEAR_ALL);
+	unicode_cache_clear();
+
+	NOTIFY_DONE();
 }
 
 /**
@@ -275,10 +345,11 @@ decopt_reset(void)
 void ICACHE_FLASH_ATTR
 screen_reset_sgr(void)
 {
-	cursor.fg = termconf_scratch.default_fg;
-	cursor.bg = termconf_scratch.default_bg;
+	cursor.fg = termconf->default_fg;
+	cursor.bg = termconf->default_bg;
 	cursor.attrs = 0;
 	cursor.inverse = false;
+	cursor.conceal = false;
 }
 
 /**
@@ -287,18 +358,29 @@ screen_reset_sgr(void)
 void ICACHE_FLASH_ATTR
 screen_reset(void)
 {
+	ansi_dbg("Screen reset.");
 	NOTIFY_LOCK();
 
 	cursor_reset();
-	decopt_reset();
+	unicode_cache_clear();
+
+	// DECopts
+	scr.cursor_visible = true;
+	scr.insert_mode = false;
+	cursor.origin_mode = false;
+	cursor.auto_wrap = true;
+	cursor.reverse_wrap = false;
+	termconf_live.cursor_shape = termconf->cursor_shape;
 
 	scr.numpad_alt_mode = false;
 	scr.cursors_alt_mode = false;
-	scr.newline_mode = false;
-	scr.reverse = false;
+	termconf_live.crlf_mode = termconf->crlf_mode;
+	scr.reverse_video = false;
 
 	scr.vm0 = 0;
 	scr.vm1 = H-1;
+
+	state_backup.alternate_active = false;
 
 	mouse_tracking.encoding = MTE_SIMPLE;
 	mouse_tracking.focus_tracking = false;
@@ -307,12 +389,25 @@ screen_reset(void)
 	// size is left unchanged
 	screen_clear(CLEAR_ALL);
 
-	screen_clear_all_tabs();
-
 	// Set initial tabstops
 	for (int i = 0; i < TABSTOP_WORDS; i++) {
-		tab_stops[i] = 0x80808080;
+		scr.tab_stops[i] = 0x80808080;
 	}
+
+	// initial values in the save buffer in case of receiving restore without storing first
+	opt_backup.cursors_alt_mode = scr.cursors_alt_mode;
+	opt_backup.reverse_video = scr.reverse_video;
+	opt_backup.origin_mode = cursor.origin_mode;
+	opt_backup.auto_wrap = cursor.auto_wrap;
+	opt_backup.mouse_tracking = mouse_tracking.mode;
+	opt_backup.mouse_encoding = mouse_tracking.encoding;
+	opt_backup.focus_tracking = mouse_tracking.focus_tracking;
+	opt_backup.cursor_blink = CURSOR_BLINKS(termconf_live.cursor_shape);
+	opt_backup.cursor_visible = scr.cursor_visible;
+	opt_backup.reverse_wrap = cursor.reverse_wrap;
+	opt_backup.bracketed_paste = scr.bracketed_paste;
+	opt_backup.show_buttons = termconf_live.show_buttons;
+	opt_backup.show_config_links = termconf_live.show_config_links;
 
 	NOTIFY_DONE();
 }
@@ -325,7 +420,42 @@ screen_reset(void)
 void ICACHE_FLASH_ATTR
 screen_swap_state(bool alternate)
 {
-	// TODO impl - backup/restore title, size, global attributes (not SGR)
+	if (alternate == state_backup.alternate_active) {
+		ansi_warn("No swap, already alternate = %d", alternate);
+		return; // nothing to do
+	}
+
+	if (alternate) {
+		ansi_dbg("Swap to alternate");
+		// store old state
+		memcpy(state_backup.title, termconf_live.title, TERM_TITLE_LEN);
+		memcpy(state_backup.btn, termconf_live.btn, sizeof(termconf_live.btn));
+		memcpy(state_backup.btn_msg, termconf_live.btn_msg, sizeof(termconf_live.btn_msg));
+		memcpy(state_backup.tab_stops, scr.tab_stops, sizeof(scr.tab_stops));
+		state_backup.vm0 = scr.vm0;
+		state_backup.vm1 = scr.vm1;
+		// remember old size. may have to resize when returning
+		state_backup.width = W;
+		state_backup.height = H;
+		// TODO backup screen content (if this is ever possible)
+	}
+	else {
+		ansi_dbg("Unswap from alternate");
+		NOTIFY_LOCK();
+		memcpy(termconf_live.title, state_backup.title, TERM_TITLE_LEN);
+		memcpy(termconf_live.btn, state_backup.btn, sizeof(termconf_live.btn));
+		memcpy(termconf_live.btn_msg, state_backup.btn_msg, sizeof(termconf_live.btn_msg));
+		memcpy(scr.tab_stops, state_backup.tab_stops, sizeof(scr.tab_stops));
+		scr.vm0 = state_backup.vm0;
+		scr.vm1 = state_backup.vm1;
+		// this may clear the screen as a side effect if size changed
+		screen_resize(state_backup.height, state_backup.width);
+		// TODO restore screen content (if this is ever possible)
+		NOTIFY_DONE();
+		screen_notifyChange(CHANGE_LABELS);
+	}
+
+	state_backup.alternate_active = alternate;
 }
 
 //endregion
@@ -335,19 +465,19 @@ screen_swap_state(bool alternate)
 void ICACHE_FLASH_ATTR
 screen_clear_all_tabs(void)
 {
-	memset(tab_stops, 0, sizeof(tab_stops));
+	memset(scr.tab_stops, 0, sizeof(scr.tab_stops));
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_tab(void)
 {
-	tab_stops[cursor.x/32] |= (1<<(cursor.x%32));
+	scr.tab_stops[cursor.x/32] |= (1<<(cursor.x%32));
 }
 
 void ICACHE_FLASH_ATTR
 screen_clear_tab(void)
 {
-	tab_stops[cursor.x/32] &= ~(1<<(cursor.x%32));
+	scr.tab_stops[cursor.x/32] &= ~(1<<(cursor.x%32));
 }
 
 /**
@@ -365,7 +495,7 @@ next_tab_stop(void)
 	int offs = (cursor.x+1)%32;
 	int cp = cursor.x;
 	while (idx < TABSTOP_WORDS) {
-		u32 w = tab_stops[idx];
+		u32 w = scr.tab_stops[idx];
 		w >>= offs;
 		for(;offs<32;offs++) {
 			cp++;
@@ -395,7 +525,7 @@ prev_tab_stop(void)
 	int offs = (cursor.x-1)%32;
 	int cp = cursor.x;
 	while (idx >= 0) {
-		u32 w = tab_stops[idx];
+		u32 w = scr.tab_stops[idx];
 		w <<= 31-offs;
 		if (w == 0) {
 			cp -= cp%32;
@@ -462,15 +592,14 @@ clear_range(unsigned int from, unsigned int to)
 	Color bg = (cursor.inverse) ? cursor.fg : cursor.bg;
 
 	Cell sample;
-	sample.c[0] = ' ';
-	sample.c[1] = 0;
-	sample.c[2] = 0;
-	sample.c[3] = 0;
+	sample.symbol = ' ';
 	sample.fg = fg;
 	sample.bg = bg;
 	sample.attrs = 0;
 
 	for (unsigned int i = from; i <= to; i++) {
+		UnicodeCacheRef symbol = screen[i].symbol;
+		if (IS_UNICODE_CACHE_REF(symbol)) unicode_cache_remove(symbol);
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
 }
@@ -535,10 +664,14 @@ screen_clear_in_line(unsigned int count)
 	}
 }
 
-void screen_insert_lines(unsigned int lines)
+void ICACHE_FLASH_ATTR
+screen_insert_lines(unsigned int lines)
 {
 	if (!cursor_inside_region()) return; // can't insert if not inside region
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
+
 	// shift the following lines
 	int targetStart = cursor.y + lines;
 	if (targetStart > R1) {
@@ -559,10 +692,13 @@ void screen_insert_lines(unsigned int lines)
 	NOTIFY_DONE();
 }
 
-void screen_delete_lines(unsigned int lines)
+void ICACHE_FLASH_ATTR
+screen_delete_lines(unsigned int lines)
 {
 	if (!cursor_inside_region()) return; // can't delete if not inside region
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
 
 	// shift lines up
 	int targetEnd = R1 - lines - 1;
@@ -580,9 +716,13 @@ void screen_delete_lines(unsigned int lines)
 	NOTIFY_DONE();
 }
 
-void screen_insert_characters(unsigned int count)
+void ICACHE_FLASH_ATTR
+screen_insert_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
+
 	int targetStart = cursor.x + count;
 	if (targetStart >= W) {
 		targetStart = W-1;
@@ -597,9 +737,12 @@ void screen_insert_characters(unsigned int count)
 	NOTIFY_DONE();
 }
 
-void screen_delete_characters(unsigned int count)
+void ICACHE_FLASH_ATTR
+screen_delete_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
 	int targetEnd = W - count;
 	if (targetEnd > cursor.x) {
 		// do the moving
@@ -627,12 +770,9 @@ screen_fill_with_E(void)
 	screen_reset(); // based on observation from xterm
 
 	Cell sample;
-	sample.c[0] = 'E';
-	sample.c[1] = 0;
-	sample.c[2] = 0;
-	sample.c[3] = 0;
-	sample.fg = termconf_scratch.default_fg;
-	sample.bg = termconf_scratch.default_bg;
+	sample.symbol = 'E';
+	sample.fg = termconf->default_fg;
+	sample.bg = termconf->default_bg;
 	sample.attrs = 0;
 
 	for (unsigned int i = 0; i <= W*H-1; i++) {
@@ -650,29 +790,30 @@ screen_fill_with_E(void)
 void ICACHE_FLASH_ATTR
 screen_resize(int rows, int cols)
 {
-	NOTIFY_LOCK();
 	// sanitize
 	if (cols < 1 || rows < 1) {
-		error("Screen size must be positive");
-		goto done;
+		error("Bad size: %d x %d", cols, rows);
+		return;
 	}
 
 	if (cols * rows > MAX_SCREEN_SIZE) {
-		error("Max screen size exceeded");
-		goto done;
+		error("Too big size: %d x %d", cols, rows);
+		return;
 	}
 
+	if (W == cols && H == rows) return; // Do nothing
+
+	NOTIFY_LOCK();
 	W = cols;
 	H = rows;
-	screen_reset();
-	done:
+	screen_reset_on_resize();
 	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_title(const char *title)
 {
-	strncpy(termconf_scratch.title, title, TERM_TITLE_LEN);
+	strncpy(termconf_live.title, title, TERM_TITLE_LEN);
 	screen_notifyChange(CHANGE_LABELS);
 }
 
@@ -684,7 +825,7 @@ screen_set_title(const char *title)
 void ICACHE_FLASH_ATTR
 screen_set_button_text(int num, const char *text)
 {
-	strncpy(termconf_scratch.btn[num-1], text, TERM_BTN_LEN);
+	strncpy(termconf_live.btn[num-1], text, TERM_BTN_LEN);
 	screen_notifyChange(CHANGE_LABELS);
 }
 
@@ -704,6 +845,8 @@ screen_scroll_up(unsigned int lines)
 	if (lines == 0) {
 		goto done;
 	}
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
 
 	int y;
 	for (y = R0; y <= R1 - lines; y++) {
@@ -727,6 +870,8 @@ screen_scroll_down(unsigned int lines)
 		clear_range(R0*W, (R1+1)*W-1);
 		goto done;
 	}
+
+	// FIXME remove cleared & overwritten cells from unicode cache!
 
 	// bad cmd
 	if (lines == 0) {
@@ -765,6 +910,33 @@ screen_set_scrolling_region(int from, int to)
 //endregion
 
 //region --- Cursor manipulation ---
+
+/** set cursor type */
+void ICACHE_FLASH_ATTR
+screen_cursor_shape(enum CursorShape shape)
+{
+	NOTIFY_LOCK();
+	if (shape == CURSOR_DEFAULT) shape = termconf->cursor_shape;
+	termconf_live.cursor_shape = shape;
+	NOTIFY_DONE();
+}
+
+/** set cursor blink option */
+void ICACHE_FLASH_ATTR
+screen_cursor_blink(bool blink)
+{
+	NOTIFY_LOCK();
+	if (blink) {
+		if (termconf_live.cursor_shape == CURSOR_BLOCK) termconf_live.cursor_shape = CURSOR_BLOCK_BL;
+		if (termconf_live.cursor_shape == CURSOR_BAR) termconf_live.cursor_shape = CURSOR_BAR_BL;
+		if (termconf_live.cursor_shape == CURSOR_UNDERLINE) termconf_live.cursor_shape = CURSOR_UNDERLINE_BL;
+	} else {
+		if (termconf_live.cursor_shape == CURSOR_BLOCK_BL) termconf_live.cursor_shape = CURSOR_BLOCK;
+		if (termconf_live.cursor_shape == CURSOR_BAR_BL) termconf_live.cursor_shape = CURSOR_BAR;
+		if (termconf_live.cursor_shape == CURSOR_UNDERLINE_BL) termconf_live.cursor_shape = CURSOR_UNDERLINE;
+	}
+	NOTIFY_DONE();
+}
 
 /**
  * Set cursor position
@@ -849,7 +1021,34 @@ screen_cursor_move(int dy, int dx, bool scroll)
 	cursor.x += dx;
 	cursor.y += dy;
 	if (cursor.x >= (int)W) cursor.x = W - 1;
-	if (cursor.x < (int)0) cursor.x = 0;
+	if (cursor.x < (int)0) {
+		if (cursor.auto_wrap && cursor.reverse_wrap) {
+			// this is mimicking a behavior from xterm that allows any number of steps backwards with reverse wraparound enabled
+			int steps = -cursor.x;
+			if(steps > W*H) steps = W*H; // avoid something stupid causing infinite loop here
+			for(;steps>0;steps--) {
+				if (cursor.x > 0) {
+					// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
+					cursor.hanging = false;
+					cursor.x--;
+				}
+				else {
+					if (cursor.y > 0) {
+						// end of previous line
+						cursor.y--;
+						cursor.x = W - 1;
+					}
+					else {
+						// end of screen, end of line (wrap around)
+						cursor.y = R1;
+						cursor.x = W - 1;
+					}
+				}
+			}
+		} else {
+			cursor.x = 0;
+		}
+	}
 
 	if (cursor.y < R0) {
 		if (was_inside) {
@@ -890,6 +1089,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 void ICACHE_FLASH_ATTR
 screen_cursor_save(bool withAttrs)
 {
+	(void)withAttrs;
 	// always save with attribs
 	memcpy(&cursor_sav, &cursor, sizeof(CursorTypeDef));
 	cursor_saved = true;
@@ -959,12 +1159,20 @@ screen_wrap_enable(bool enable)
 }
 
 /**
+ * Enable reverse wraparound
+ */
+void ICACHE_FLASH_ATTR
+screen_reverse_wrap_enable(bool enable)
+{
+	cursor.reverse_wrap = enable;
+}
+
+/**
  * Set cursor foreground color
  */
 void ICACHE_FLASH_ATTR
 screen_set_fg(Color color)
 {
-	if (color > COLOR_MAX) color = COLOR_MAX;
 	cursor.fg = color;
 }
 
@@ -974,7 +1182,6 @@ screen_set_fg(Color color)
 void ICACHE_FLASH_ATTR
 screen_set_bg(Color color)
 {
-	if (color > COLOR_MAX) color = COLOR_MAX;
 	cursor.bg = color;
 }
 
@@ -993,6 +1200,12 @@ void ICACHE_FLASH_ATTR
 screen_set_sgr_inverse(bool ena)
 {
 	cursor.inverse = ena;
+}
+
+void ICACHE_FLASH_ATTR
+screen_set_sgr_conceal(bool ena)
+{
+	cursor.conceal = ena;
 }
 
 void ICACHE_FLASH_ATTR
@@ -1035,14 +1248,24 @@ void ICACHE_FLASH_ATTR
 screen_set_reverse_video(bool reverse)
 {
 	NOTIFY_LOCK();
-	scr.reverse = reverse;
+	scr.reverse_video = reverse;
+	NOTIFY_DONE();
+}
+
+void ICACHE_FLASH_ATTR
+screen_set_bracketed_paste(bool ena)
+{
+	NOTIFY_LOCK();
+	scr.bracketed_paste = ena;
 	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_newline_mode(bool nlm)
 {
-	scr.newline_mode = nlm;
+	NOTIFY_LOCK();
+	termconf_live.crlf_mode = nlm;
+	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
@@ -1050,6 +1273,79 @@ screen_set_origin_mode(bool region_origin)
 {
 	cursor.origin_mode = region_origin;
 	screen_cursor_set(0, 0);
+}
+
+static void ICACHE_FLASH_ATTR
+do_save_private_opt(int n, bool save)
+{
+#define SAVE_RESTORE(sf, of) do { if (save) sf=(of); else of=(sf); } while(0)
+	switch (n) {
+		case 1:
+			SAVE_RESTORE(opt_backup.cursors_alt_mode, scr.cursors_alt_mode);
+			break;
+		case 5:
+			SAVE_RESTORE(opt_backup.reverse_video, scr.reverse_video);
+			break;
+		case 6:
+			SAVE_RESTORE(opt_backup.origin_mode, cursor.origin_mode);
+			break;
+		case 7:
+			SAVE_RESTORE(opt_backup.auto_wrap, cursor.auto_wrap);
+			break;
+		case 9:
+		case 1000:
+		case 1001: // hilite, not implemented
+		case 1002:
+		case 1003:
+			SAVE_RESTORE(opt_backup.mouse_tracking, mouse_tracking.mode);
+			break;
+		case 1004:
+			SAVE_RESTORE(opt_backup.focus_tracking, mouse_tracking.focus_tracking);
+			break;
+		case 1005:
+		case 1006:
+		case 1015:
+			SAVE_RESTORE(opt_backup.mouse_encoding, mouse_tracking.encoding);
+			break;
+		case 12: // cursor blink
+			if (save) {
+				opt_backup.cursor_blink = CURSOR_BLINKS(termconf_live.cursor_shape);
+			} else {
+				screen_cursor_blink(opt_backup.cursor_blink);
+			}
+			break;
+		case 25:
+			SAVE_RESTORE(opt_backup.cursor_visible, scr.cursor_visible);
+			break;
+		case 45:
+			SAVE_RESTORE(opt_backup.reverse_wrap, cursor.reverse_wrap);
+			break;
+		case 2004:
+			SAVE_RESTORE(opt_backup.bracketed_paste, scr.bracketed_paste);
+			break;
+		case 800:
+			SAVE_RESTORE(opt_backup.show_buttons, termconf_live.show_buttons);
+			break;
+		case 801:
+			SAVE_RESTORE(opt_backup.show_config_links, termconf_live.show_config_links);
+			break;
+		default:
+			ansi_warn("Cannot store ?%d", n);
+	}
+}
+
+void ICACHE_FLASH_ATTR
+screen_save_private_opt(int n)
+{
+	do_save_private_opt(n, true);
+}
+
+void ICACHE_FLASH_ATTR
+screen_restore_private_opt(int n)
+{
+	NOTIFY_LOCK();
+	do_save_private_opt(n, false);
+	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
@@ -1066,53 +1362,17 @@ screen_report_sgr(char *buffer)
 	if (cursor.inverse) buffer += sprintf(buffer, ";%d", SGR_INVERSE);
 	if (cursor.fg != termconf->default_fg) buffer += sprintf(buffer, ";%d", ((cursor.fg > 7) ? SGR_FG_BRT_START : SGR_FG_START) + (cursor.fg&7));
 	if (cursor.bg != termconf->default_bg) buffer += sprintf(buffer, ";%d", ((cursor.bg > 7) ? SGR_BG_BRT_START : SGR_BG_START) + (cursor.bg&7));
+	(void)buffer;
 }
 
 //endregion
 
 //region --- Printing ---
 
-/**
- * Set a character in the cursor color, move to right with wrap.
- */
-void ICACHE_FLASH_ATTR
-screen_putchar(const char *ch)
+static const char* ICACHE_FLASH_ATTR
+putchar_graphic(const char *ch)
 {
-	NOTIFY_LOCK();
-
-	// clear "hanging" flag if not possible
-	clear_invalid_hanging();
-
-	// Special treatment for CRLF
-	switch (ch[0]) {
-		case CR:
-			screen_cursor_set_x(0);
-			goto done;
-
-		case LF:
-			screen_cursor_move(1, 0, true); // can scroll
-			if (scr.newline_mode) {
-				// like CR
-				screen_cursor_set_x(0);
-			}
-			goto done;
-
-		case BS:
-			if (cursor.x > 0) {
-				// backspace should go to col 79 if "hanging" after 80 (as if it never actually left the 80th col)
-				cursor.hanging = false;
-				cursor.x--;
-			}
-			// we should not wrap around, and backspace should not even clear the cell (verified in xterm)
-			goto done;
-
-		default:
-			if (ch[0] < SP) {
-				// Discard
-				warn("Ignoring control char %d", (int)ch[0]);
-				goto done;
-			}
-	}
+	static char buf[4];
 
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
@@ -1137,13 +1397,12 @@ screen_putchar(const char *ch)
 	if (cursor.x < W-1 && scr.insert_mode) screen_insert_characters(1);
 
 	if (ch[1] == 0 && ch[0] <= 0x7f) {
-		// we have len=1 and ASCII
-		utf8_remap(c->c, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		// we have len=1 and ASCII, can be re-mapped using a table
+		utf8_remap(buf, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		ch = buf;
 	}
-	else {
-		// copy unicode char
-		strncpy(c->c, ch, 4);
-	}
+	unicode_cache_remove(c->symbol);
+	c->symbol = unicode_cache_add((const u8 *)ch);
 
 	if (cursor.inverse) {
 		c->fg = cursor.bg;
@@ -1161,7 +1420,80 @@ screen_putchar(const char *ch)
 		cursor.x = W - 1;
 	}
 
+	return ch;
+}
+
+/**
+ * Set a character in the cursor color, move to right with wrap.
+ */
+void ICACHE_FLASH_ATTR
+screen_putchar(const char *ch)
+{
+	NOTIFY_LOCK();
+
+	// clear "hanging" flag if not possible
+	clear_invalid_hanging();
+
+	if (cursor.conceal) {
+		ch = " ";
+	}
+
+	// Special treatment for CRLF
+	switch (ch[0]) {
+		case DEL:
+			goto done;
+
+		case CR:
+			screen_cursor_set_x(0);
+			goto done;
+
+		case LF:
+			screen_cursor_move(1, 0, true); // can scroll
+			goto done;
+
+		case BS:
+			screen_cursor_move(0, -1, false);
+			// we should not wrap around, and backspace should not even clear the cell (verified in xterm)
+			goto done;
+
+		default:
+			if (ch[0] < SP) {
+				// Discard
+				warn("Ignoring control char %d", (int)ch[0]);
+				goto done;
+			}
+	}
+
+	const char *result = putchar_graphic(ch);
+
+	// Remember the resulting character
+	// If we re-mapped ASCII to high UTF, the following Repeat command will
+	// not have to call the remap function repeatedly.
+	strncpy(scr.last_char, result, 4);
+
 	done:
+	NOTIFY_DONE();
+}
+
+/**
+ * Repeat last graphic character
+ * @param count
+ */
+void ICACHE_FLASH_ATTR
+screen_repeat_last_character(int count)
+{
+	NOTIFY_LOCK();
+	if (scr.last_char[0]==0) {
+		scr.last_char[0] = ' ';
+		scr.last_char[1] = 0;
+	}
+
+	if (count > W*H) count = W*H;
+
+	while (count > 0) {
+		putchar_graphic(scr.last_char);
+		count--;
+	}
 	NOTIFY_DONE();
 }
 
@@ -1193,10 +1525,7 @@ utf8_remap(char *out, char g, char charset)
 			break;
 
 		case CS_A_UKASCII: /* UK, replaces # with GBP */
-			if ((g >= CODEPAGE_A_BEGIN) && (g <= CODEPAGE_A_END)) {
-				n = codepage_A[g - CODEPAGE_A_BEGIN];
-				if (n) utf = n;
-			}
+			if (g == '#') utf = 0x20a4; // £
 			break;
 
 		default:
@@ -1205,28 +1534,7 @@ utf8_remap(char *out, char g, char charset)
 			break;
 	}
 
-	// Encode to UTF-8
-	if (utf > 0x7F) {
-		// formulas taken from: https://gist.github.com/yamamushi/5823402
-		if ((utf >= 0x80) && (utf <= 0x07FF)) {
-			// 2-byte unicode
-			out[0] = (char) ((utf >> 0x06) ^ 0xC0);
-			out[1] = (char) (((utf ^ 0xFFC0) | 0x80) & ~0x40);
-			out[2]=0;
-		}
-		else {
-			// 3-byte unicode
-			out[0] = (char) (((utf ^ 0xFC0FFF) >> 0x0C) | 0xE0);
-			out[1] = (char) ((((utf ^ 0xFFF03F) >> 0x06) | 0x80) & ~0x40);
-			out[2] = (char) (((utf ^ 0xFFFC0) | 0x80) & ~0x40);
-			out[3]=0;
-		}
-		// Missing 4-byte formulas :(
-	} else {
-		// low ASCII
-		out[0] = (char) utf;
-		out[1] = 0;
-	}
+	utf8_encode(out, utf);
 }
 //endregion
 
@@ -1236,7 +1544,9 @@ struct ScreenSerializeState {
 	Color lastFg;
 	Color lastBg;
 	bool lastAttrs;
+	UnicodeCacheRef lastSymbol;
 	char lastChar[4];
+	u8 lastCharLen;
 	int index;
 };
 
@@ -1248,14 +1558,15 @@ struct ScreenSerializeState {
 void ICACHE_FLASH_ATTR
 screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
 {
+	(void)buf_len;
 	// let's just assume it's long enough - called with the huge websocket buffer
 	sprintf(buffer, "T%s\x01%s\x01%s\x01%s\x01%s\x01%s", // use 0x01 as separator
-			termconf_scratch.title,
-			termconf_scratch.btn[0],
-			termconf_scratch.btn[1],
-			termconf_scratch.btn[2],
-			termconf_scratch.btn[3],
-			termconf_scratch.btn[4]
+			termconf_live.title,
+			termconf_live.btn[0],
+			termconf_live.btn[1],
+			termconf_live.btn[2],
+			termconf_live.btn[3],
+			termconf_live.btn[4]
 	);
 }
 
@@ -1282,16 +1593,38 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	}
 
 	Cell *cell, *cell0;
-	WordB2 w1, w2, w3, w4, w5;
+	WordB2 w1;
 	WordB3 lw1;
 
-	size_t remain = buf_len; int used = 0;
+	size_t remain = buf_len;
 	char *bb = buffer;
 
-	// Ideally we'd use snprintf here!
-#define bufprint(fmt, ...) do { \
-			used = sprintf(bb, fmt, ##__VA_ARGS__); \
-			if(used>0) { bb += used; remain -= used; } \
+#define bufput_c(c) do { \
+			*bb = (char)c; bb++; \
+			remain--; \
+		} while(0)
+
+#define bufput_2B(n) do { \
+			encode2B((u16) n, &w1); \
+			bufput_c(w1.lsb); \
+			bufput_c(w1.msb); \
+		} while(0)
+
+#define bufput_3B(n) do { \
+			encode3B((u32) n, &lw1); \
+			bufput_c(lw1.lsb); \
+			bufput_c(lw1.msb); \
+			bufput_c(lw1.xsb); \
+		} while(0)
+
+#define bufput_t2B(t, n) do { \
+			bufput_c(t); \
+			bufput_2B(n); \
+		} while(0)
+
+#define bufput_t3B(t, n) do { \
+			bufput_c(t); \
+			bufput_3B(n); \
 		} while(0)
 
 	if (ss == NULL) {
@@ -1300,28 +1633,38 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		ss->lastBg = 0;
 		ss->lastFg = 0;
 		ss->lastAttrs = 0;
-		memset(ss->lastChar, 0, 4); // this ensures the first char is never "repeat"
+		ss->lastCharLen = 0;
+		ss->lastSymbol = 32;
+		strncpy(ss->lastChar, " ", 4);
 
-		encode2B((u16) H, &w1);
-		encode2B((u16) W, &w2);
-		encode2B((u16) cursor.y, &w3);
-		encode2B((u16) cursor.x, &w4);
-		encode2B((u16) (
-					 (scr.cursor_visible ? 1<<0 : 0) |
-					 (cursor.hanging ? 1<<1 : 0) |
-					 (scr.cursors_alt_mode ? 1<<2 : 0) |
-					 (scr.numpad_alt_mode ? 1<<3 : 0) |
-					 (termconf->fn_alt_mode ? 1<<4 : 0) |
-					 ((mouse_tracking.mode>MTM_NONE) ? 1<<5 : 0) | // disables context menu
-					 ((mouse_tracking.mode>=MTM_NORMAL) ? 1<<6 : 0) | // disables selecting
-					 (termconf_scratch.show_buttons ? 1<<7 : 0) |
-					 (termconf_scratch.show_config_links ? 1<<8 : 0)
-				 )
-			, &w5);
-
+		bufput_c('S');
 		// H W X Y Attribs
-		bufprint("S%c%c%c%c%c%c%c%c%c%c", w1.lsb, w1.msb, w2.lsb, w2.msb, w3.lsb, w3.msb, w4.lsb, w4.msb, w5.lsb, w5.msb);
+		bufput_2B(H);
+		bufput_2B(W);
+		bufput_2B(cursor.y);
+		bufput_2B(cursor.x);
+		// 3B has 18 free bits
+		bufput_3B(
+			(scr.cursor_visible << 0) |
+			(cursor.hanging << 1) |
+			(scr.cursors_alt_mode << 2) |
+			(scr.numpad_alt_mode << 3) |
+			(termconf_live.fn_alt_mode << 4) |
+			((mouse_tracking.mode>MTM_NONE) << 5) | // disables context menu
+			((mouse_tracking.mode>=MTM_NORMAL) << 6) | // disables selecting
+			(termconf_live.show_buttons << 7) |
+			(termconf_live.show_config_links << 8) |
+			((termconf_live.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
+		    (termconf_live.crlf_mode << 12) |
+			(scr.bracketed_paste << 13)
+	    );
 	}
+
+#define SEQ_TAG_REPEAT '\x02'
+#define SEQ_TAG_COLORS '\x03'
+#define SEQ_TAG_ATTRS '\x04'
+#define SEQ_TAG_FG '\x05'
+#define SEQ_TAG_BG '\x06'
 
 	int i = ss->index;
 	while(i < W*H && remain > 12) {
@@ -1333,7 +1676,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			   && cell->fg == ss->lastFg
 			   && cell->bg == ss->lastBg
 			   && cell->attrs == ss->lastAttrs
-			   && strneq(cell->c, ss->lastChar, 4)) {
+			   && cell->symbol == ss->lastSymbol) {
 			// Repeat
 			repCnt++;
 			cell = &screen[++i];
@@ -1342,11 +1685,13 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		if (repCnt == 0) {
 			// No repeat
 			bool changeAttrs = cell0->attrs != ss->lastAttrs;
-			bool changeColors = (cell0->fg != ss->lastFg || cell0->bg != ss->lastBg);
+			bool changeFg = cell0->fg != ss->lastFg;
+			bool changeBg = cell0->bg != ss->lastBg;
+			bool changeColors = changeFg && changeBg;
 			Color fg, bg;
 
 			// Reverse fg and bg if we're in global reverse mode
-			if (! scr.reverse) {
+			if (! scr.reverse_video) {
 				fg = cell0->fg;
 				bg = cell0->bg;
 			}
@@ -1355,42 +1700,56 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 				bg = cell0->fg;
 			}
 
-			if (!changeAttrs && changeColors) {
-				encode2B(fg | (bg<<4), &w1);
-				bufprint("\x03%c%c", w1.lsb, w1.msb);
+			if (changeColors) {
+				bufput_t3B(SEQ_TAG_COLORS, bg<<8 | fg);
 			}
-			else if (changeAttrs && !changeColors) {
-				// attrs only
-				encode2B(cell0->attrs, &w1);
-				bufprint("\x04%c%c", w1.lsb, w1.msb);
+			else if (changeFg) {
+				bufput_t2B(SEQ_TAG_FG, fg);
 			}
-			else if (changeAttrs && changeColors) {
-				// colors and attrs
-				encode3B((u32) (fg | (bg<<4) | (cell0->attrs<<8)), &lw1);
-				bufprint("\x01%c%c%c", lw1.lsb, lw1.msb, lw1.xsb);
+			else if (changeBg) {
+				bufput_t2B(SEQ_TAG_BG, bg);
+			}
+
+			if (changeAttrs) {
+				bufput_t2B(SEQ_TAG_ATTRS, cell0->attrs);
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
 			char c;
-			int j = 0;
-			while ((c = cell->c[j++]) != 0 && j < 4) {
-				bufprint("%c", c);
+			ss->lastCharLen = 0;
+			unicode_cache_retrieve(cell->symbol, (u8 *) ss->lastChar);
+			for(int j=0; j<4; j++) {
+				c = ss->lastChar[j];
+				if(!c) break;
+				bufput_c(c);
+				ss->lastCharLen++;
 			}
 
 			ss->lastFg = cell0->fg;
 			ss->lastBg = cell0->bg;
 			ss->lastAttrs = cell0->attrs;
-			memcpy(ss->lastChar, cell0->c, 4);
+			ss->lastSymbol = cell0->symbol;
 
 			i++;
 		} else {
-			// Repeat count
-			encode2B((u16) repCnt, &w1);
-			bufprint("\x02%c%c", w1.lsb, w1.msb);
+			// last character was repeated repCnt times
+			int savings = ss->lastCharLen*repCnt;
+			if (savings > 3) {
+				// Repeat count
+				bufput_t2B(SEQ_TAG_REPEAT, repCnt);
+			} else {
+				// repeat it manually
+				for(int k = 0; k < repCnt; k++) {
+					for (int j = 0; j < ss->lastCharLen; j++) {
+						bufput_c(ss->lastChar[j]);
+					}
+				}
+			}
 		}
 	}
 
 	ss->index = i;
+	bufput_c('\0'); // terminate the string
 
 	if (i < W*H-1) {
 		return HTTPD_CGI_MORE;

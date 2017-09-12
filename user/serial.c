@@ -4,7 +4,7 @@
 #include "ansi_parser.h"
 #include "syscfg.h"
 
-#define LOGBUF_SIZE 2048
+#define LOGBUF_SIZE 512
 static char logbuf[LOGBUF_SIZE];
 static u32 lb_nw = 1;
 static u32 lb_ls = 0;
@@ -18,9 +18,10 @@ static void buf_putc(char c)
 	}
 }
 
-static void buf_pop(void *unused)
+static void ICACHE_FLASH_ATTR
+buf_pop(void *unused)
 {
-	u32 quantity = 32;
+	u32 quantity = 16;
 	u32 old_ls;
 	while (quantity > 0) {
 		// stop when done
@@ -30,7 +31,7 @@ static void buf_pop(void *unused)
 		lb_ls++;
 		if (lb_ls >= LOGBUF_SIZE) lb_ls = 0;
 
-		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 1000)) {
+		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 5)) {
 			quantity--;
 		} else {
 			// try another time

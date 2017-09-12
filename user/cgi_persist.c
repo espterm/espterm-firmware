@@ -6,6 +6,7 @@ Cgi/template routines for configuring non-wifi settings
 #include "cgi_persist.h"
 #include "persist.h"
 #include "helpers.h"
+#include "cgi_logging.h"
 
 #define SET_REDIR_SUC "/cfg/admin"
 
@@ -29,9 +30,9 @@ cgiPersistWriteDefaults(HttpdConnData *connData)
 
 	// width and height must always go together so we can do max size validation
 	if (GET_ARG("pw")) {
-		dbg("Entered password for admin: %s", buff);
+		cgi_dbg("Entered password for admin: %s", buff);
 		if (verify_admin_pw(buff)) {
-			dbg("pw is OK");
+			cgi_dbg("pw is OK");
 
 			persist_set_as_default();
 

@@ -110,8 +110,6 @@ set(SOURCE_FILES
         user/serial.h
         user/routes.c
         user/routes.h
-        user/uart_asyncdrv.c-
-        user/uart_asyncdrv.h-
         user/cgi_main.c
         user/cgi_main.h
         user/cgi_sockets.c
@@ -141,7 +139,7 @@ set(SOURCE_FILES
         user/apars_osc.c
         user/apars_osc.h
         user/apars_dcs.c
-        user/apars_dcs.h user/uart_buffer.c user/uart_buffer.h user/jstring.c user/jstring.h user/character_sets.h)
+        user/apars_dcs.h user/uart_buffer.c user/uart_buffer.h user/jstring.c user/jstring.h user/character_sets.h user/utf8.h user/utf8.c user/cgi_logging.h)
 
 include_directories(include)
 include_directories(user)
@@ -155,6 +153,7 @@ include_directories(esp_iot_sdk_v1.5.2/include)
 add_definitions(
         -D__ets__
         -DICACHE_FLASH
+        -DUSE_OPTIMIZE_PRINTF=1
         -DHTTPD_MAX_CONNECTIONS=5
         -DHTTPD_STACKSIZE=1000
         -DICACHE_FLASH_ATTR=

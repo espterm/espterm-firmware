@@ -18,7 +18,7 @@ GZIP_COMPRESSION = yes
 # This option works only when GZIP_COMPRESSION is set to "yes"
 # http://yui.github.io/yuicompressor/
 #Disabled by default.
-COMPRESS_W_YUI = yes
+COMPRESS_W_YUI = no
 
 YUI-COMPRESSOR = /usr/bin/yui-compressor
 
@@ -44,14 +44,20 @@ ADMIN_PASSWORD = "19738426"
 GLOBAL_CFLAGS = \
     -DDEBUG_ROUTER=0 \
     -DDEBUG_CAPTDNS=0 \
-    -DDEBUG_HTTP=1 \
+    -DDEBUG_HTTP=0 \
     -DDEBUG_ESPFS=0 \
+    -DDEBUG_PERSIST=0 \
+    -DDEBUG_UTFCACHE=0 \
+    -DDEBUG_CGI=0 \
+    -DDEBUG_WIFI=0 \
     -DDEBUG_WS=0 \
     -DDEBUG_ANSI=1 \
     -DDEBUG_ANSI_NOIMPL=1 \
+    -DDEBUG_INPUT=0 \
+    -DDEBUG_HEAP=1 \
+    -DDEBUG_MALLOC=0 \
     -DHTTPD_MAX_BACKLOG_SIZE=8192 \
     -DHTTPD_MAX_HEAD_LEN=1024 \
     -DHTTPD_MAX_POST_LEN=512 \
-    -DDEBUG_INPUT=0 \
-    -DDEBUG_HEAP=1 \
-    -DDEBUG_MALLOC=0
+    -mforce-l32 \
+    -DUSE_OPTIMIZE_PRINTF=1

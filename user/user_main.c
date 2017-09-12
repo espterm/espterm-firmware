@@ -64,12 +64,12 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 	if (diff == 0) {
 		if (cnt == 5) {
 			// only every 5 secs if no change
-			dbg("Free heap: %d bytes", heap);
+			dbg("FH: %d", heap);
 			cnt = 0;
 		}
 	} else {
 		// report change
-		dbg("Free heap: %d bytes (%s%d)", heap, cc, diff);
+		dbg("FH: %d (%s%d)", heap, cc, diff);
 		cnt = 0;
 	}
 
@@ -79,13 +79,14 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 
 // Deferred init
 static void user_start(void *unused);
+static void user_start2(void *unused);
+
+static ETSTimer userStartTimer;
+static ETSTimer prHeapTimer;
 
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
 void ICACHE_FLASH_ATTR user_init(void)
 {
-	static ETSTimer userStartTimer;
-	static ETSTimer prHeapTimer;
-
 	serialInitBase();
 
 	// Prevent WiFi starting and connecting by default
@@ -113,25 +114,21 @@ void ICACHE_FLASH_ATTR user_init(void)
 
 #if DEBUG_HEAP
 	// Heap use timer & blink
-	os_timer_disarm(&prHeapTimer);
-	os_timer_setfn(&prHeapTimer, prHeapTimerCb, NULL);
-	os_timer_arm(&prHeapTimer, 1000, 1);
+	TIMER_START(&prHeapTimer, prHeapTimerCb, 1000, 1);
 #endif
 
 	// do later (some functions do not work if called from user_init)
-	os_timer_disarm(&userStartTimer);
-	os_timer_setfn(&userStartTimer, user_start, NULL);
-	os_timer_arm(&userStartTimer, 10, 0);
+	TIMER_START(&userStartTimer, user_start, 10, 0);
 }
 
-static void user_start(void *unused)
+
+static void ICACHE_FLASH_ATTR user_start(void *unused)
 {
 	// Load and apply stored settings, or defaults if stored settings are invalid
 	persist_load();
 
 	captdnsInit();
 	httpdInit(routes, 80);
-	screen_init();
 
 	// Print the CANCEL character to indicate the module has restarted
 	// Critically important for client application if any kind of screen persistence / content re-use is needed

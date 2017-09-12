@@ -48,28 +48,28 @@ wifimgr_restore_defaults(void)
 static void ICACHE_FLASH_ATTR
 configure_station(void)
 {
-	info("[WiFi] Configuring Station mode...");
+	wifi_info("[WiFi] Configuring Station mode...");
 	struct station_config conf;
 	strcpy((char *) conf.ssid, (char *) wificonf->sta_ssid);
 	strcpy((char *) conf.password, (char *) wificonf->sta_password);
-	dbg("[WiFi] Connecting to \"%s\", password \"%s\"", conf.ssid, conf.password);
+	wifi_dbg("[WiFi] Connecting to \"%s\"%s password", conf.ssid, conf.password[0]!=0?" using saved":", no");
 	conf.bssid_set = 0;
 	conf.bssid[0] = 0;
 	wifi_station_disconnect();
 	wifi_station_set_config_current(&conf);
 
 	if (wificonf->sta_dhcp_enable) {
-		dbg("[WiFi] Starting DHCP...");
+		wifi_dbg("[WiFi] Starting DHCP...");
 		if (!wifi_station_dhcpc_start()) {
 			error("[WiFi] DHCP failed to start!");
 			return;
 		}
 	}
 	else {
-		info("[WiFi] Setting up static IP...");
-		dbg("[WiFi] Client.ip   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
-		dbg("[WiFi] Client.mask = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
-		dbg("[WiFi] Client.gw   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
+		wifi_info("[WiFi] Setting up static IP...");
+		wifi_dbg("[WiFi] Client.ip   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
+		wifi_dbg("[WiFi] Client.mask = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
+		wifi_dbg("[WiFi] Client.gw   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
 
 		wifi_station_dhcpc_stop();
 		// Load static IP config
@@ -79,7 +79,7 @@ configure_station(void)
 		}
 	}
 
-	info("[WiFi] Trying to connect to AP...");
+	wifi_info("[WiFi] Trying to connect to AP...");
 	wifi_station_connect();
 }
 
@@ -88,7 +88,7 @@ configure_ap(void)
 {
 	bool suc;
 
-	info("[WiFi] Configuring SoftAP mode...");
+	wifi_info("[WiFi] Configuring SoftAP mode...");
 	// AP is enabled
 	struct softap_config conf;
 	conf.channel = wificonf->ap_channel;
@@ -110,10 +110,10 @@ configure_ap(void)
 	}
 
 	// Set IP
-	info("[WiFi] Configuring SoftAP local IP...");
-	dbg("[WiFi] SoftAP.ip   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.ip.addr));
-	dbg("[WiFi] SoftAP.mask = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.netmask.addr));
-	dbg("[WiFi] SoftAP.gw   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.gw.addr));
+	wifi_info("[WiFi] Configuring SoftAP local IP...");
+	wifi_dbg("[WiFi] SoftAP.ip   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.ip.addr));
+	wifi_dbg("[WiFi] SoftAP.mask = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.netmask.addr));
+	wifi_dbg("[WiFi] SoftAP.gw   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.gw.addr));
 
 	wifi_softap_dhcps_stop();
 
@@ -123,10 +123,10 @@ configure_ap(void)
 		return;
 	}
 
-	info("[WiFi] Configuring SoftAP DHCP server...");
-	dbg("[WiFi] DHCP.start = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
-	dbg("[WiFi] DHCP.end   = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
-	dbg("[WiFi] DHCP.lease = %d minutes", wificonf->ap_dhcp_time);
+	wifi_info("[WiFi] Configuring SoftAP DHCP server...");
+	wifi_dbg("[WiFi] DHCP.start = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
+	wifi_dbg("[WiFi] DHCP.end   = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
+	wifi_dbg("[WiFi] DHCP.lease = %d minutes", wificonf->ap_dhcp_time);
 
 	if (!wifi_softap_set_dhcps_lease(&wificonf->ap_dhcp_range)) {
 		error("[WiFi] DHCP address range set fail!");
@@ -154,7 +154,7 @@ configure_ap(void)
 void ICACHE_FLASH_ATTR
 wifimgr_apply_settings(void)
 {
-	info("[WiFi] Initializing...");
+	wifi_info("[WiFi] Initializing...");
 
 	// !!! Update to current version !!!
 
@@ -190,5 +190,5 @@ wifimgr_apply_settings(void)
 	wifi_change_flags.ap = false;
 	wifi_change_flags.sta = false;
 
-	info("[WiFi] WiFi settings applied.");
+	wifi_info("[WiFi] WiFi settings applied.");
 }

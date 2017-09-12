@@ -34,6 +34,7 @@ typedef struct {
 // Disambiguations
 static inline void switch_csi_Plain(CSI_Data *opts);
 static inline void switch_csi_NoLeadInterBang(CSI_Data *opts);
+static inline void switch_csi_NoLeadInterSpace(CSI_Data *opts);
 static inline void switch_csi_LeadGreater(CSI_Data *opts);
 static inline void switch_csi_LeadQuest(CSI_Data *opts);
 static inline void switch_csi_LeadEquals(CSI_Data *opts);
@@ -48,7 +49,8 @@ static inline void do_csi_set_private_option(CSI_Data *opts);
 /**
  * Show warning and dump context for invalid CSI
  */
-static void warn_bad_csi(void)
+static void ICACHE_FLASH_ATTR
+warn_bad_csi(void)
 {
 	ansi_noimpl_r("Unknown CSI");
 	apars_show_context();
@@ -112,9 +114,9 @@ apars_handle_csi(char leadchar, const int *params, int count, char interchar, ch
 //					switch_csi_NoLeadInterDollar(opts);
 //					break;
 
-//				case ' ':
-//					switch_csi_NoLeadInterSpace(opts);
-//					break;
+				case ' ':
+					switch_csi_NoLeadInterSpace(&opts);
+					break;
 
 //				case ',':
 //					switch_csi_NoLeadInterComma(opts);
@@ -242,8 +244,7 @@ switch_csi_Plain(CSI_Data *opts)
 			break;
 
 		case 'b':
-			// TODO repeat preceding graphic character n1 times
-			ansi_noimpl("Repeat char");
+			screen_repeat_last_character(n1);
 			return;
 
 			// Set X
@@ -410,6 +411,36 @@ switch_csi_NoLeadInterBang(CSI_Data *opts)
 
 
 /**
+ * CSI none Pm SP key
+ */
+static inline void  ICACHE_FLASH_ATTR
+switch_csi_NoLeadInterSpace(CSI_Data *opts)
+{
+	int n;
+	switch(opts->key) {
+		case 'q':
+			// DECSCUSR
+			// CSI Ps SP q
+			//		Set cursor style (DECSCUSR, VT520).
+			//		Ps = 0  -> blinking block.
+			//		Ps = 1  -> blinking block (default).
+			//		Ps = 2  -> steady block.
+			//		Ps = 3  -> blinking underline.
+			//		Ps = 4  -> steady underline.
+			//		Ps = 5  -> blinking bar (xterm).
+			//		Ps = 6  -> steady bar (xterm).
+			n = opts->n[0];
+			if (n > 6) n = 1; // use default if bad value set
+			screen_cursor_shape((enum CursorShape) n);
+			break;
+
+		default:
+			warn_bad_csi();
+	}
+}
+
+
+/**
  * CSI > Pm inter key
  */
 static inline void ICACHE_FLASH_ATTR
@@ -456,27 +487,32 @@ switch_csi_LeadEquals(CSI_Data *opts)
 static inline void  ICACHE_FLASH_ATTR
 switch_csi_LeadQuest(CSI_Data *opts)
 {
+	int n = 0;
 	switch(opts->key) {
 		case 's':
 			// Save private attributes
-			ansi_noimpl("Save private attrs");
-			apars_show_context(); // TODO priv attr s/r
+			for (int i = 0; i < opts->count; i++) {
+				n = opts->n[i];
+				screen_save_private_opt(n);
+			}
 			break;
 
 		case 'r':
 			// Restore private attributes
-			ansi_noimpl("Restore private attrs");
-			apars_show_context(); // TODO priv attr s/r
+			for (int i = 0; i < opts->count; i++) {
+				n = opts->n[i];
+				screen_restore_private_opt(n);
+			}
 			break;
 
 		case 'J': // Erase screen selectively
 			// TODO selective erase
-			ansi_noimpl("Selective screen erase");
+			switch_csi_Plain(opts); // ignore the ?, do normal erase
 			break;
 
 		case 'K': // Erase line selectively
 			// TODO selective erase
-			ansi_noimpl("Selective line erase");
+			switch_csi_Plain(opts); // ignore the ?, do normal erase
 			break;
 
 		case 'l':
@@ -511,8 +547,36 @@ do_csi_sgr(CSI_Data *opts)
 			// -- set color --
 		else if (n >= SGR_FG_START && n <= SGR_FG_END) screen_set_fg((Color) (n - SGR_FG_START)); // ANSI normal fg
 		else if (n >= SGR_BG_START && n <= SGR_BG_END) screen_set_bg((Color) (n - SGR_BG_START)); // ANSI normal bg
-		else if (n == SGR_FG_DEFAULT) screen_set_fg(termconf_scratch.default_fg); // default fg
-		else if (n == SGR_BG_DEFAULT) screen_set_bg(termconf_scratch.default_bg); // default bg
+			//  AIX bright colors --
+		else if (n >= SGR_FG_BRT_START && n <= SGR_FG_BRT_END) screen_set_fg((Color) ((n - SGR_FG_BRT_START) + 8)); // AIX bright fg
+		else if (n >= SGR_BG_BRT_START && n <= SGR_BG_BRT_END) screen_set_bg((Color) ((n - SGR_BG_BRT_START) + 8)); // AIX bright bg
+			// reset color
+		else if (n == SGR_FG_DEFAULT) screen_set_fg(termconf_live.default_fg); // default fg
+		else if (n == SGR_BG_DEFAULT) screen_set_bg(termconf_live.default_bg); // default bg
+			// 256 colors
+		else if (n == SGR_FG_256 || n == SGR_BG_256) {
+			if (i < count-2) {
+				if (opts->n[i + 1] == 5) {
+					u8 color = (u8) opts->n[i + 2];
+					bool fg = n == SGR_FG_256;
+					if (fg) {
+						screen_set_fg(color);
+					} else  {
+						screen_set_bg(color);
+					}
+				}
+				else {
+					ansi_warn("SGR syntax err");
+					apars_show_context();
+					break; // abandon further
+				}
+				i += 2;
+			} else {
+				ansi_warn("SGR syntax err");
+				apars_show_context();
+				break; // abandon further
+			}
+		}
 			// -- set attr --
 		else if (n == SGR_BOLD) screen_set_sgr(ATTR_BOLD, 1);
 		else if (n == SGR_FAINT) screen_set_sgr(ATTR_FAINT, 1);
@@ -522,17 +586,18 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_STRIKE) screen_set_sgr(ATTR_STRIKE, 1);
 		else if (n == SGR_FRAKTUR) screen_set_sgr(ATTR_FRAKTUR, 1);
 		else if (n == SGR_INVERSE) screen_set_sgr_inverse(1);
+		else if (n == SGR_CONCEAL) screen_set_sgr_conceal(1);
+		else if (n == SGR_OVERLINE) screen_set_sgr(ATTR_OVERLINE, 1);
 			// -- clear attr --
-		else if (n == SGR_OFF(SGR_BOLD)) screen_set_sgr(ATTR_BOLD, 0); // can also mean "Double Underline"
-		else if (n == SGR_OFF(SGR_FAINT)) screen_set_sgr(ATTR_FAINT | ATTR_BOLD, 0); // "normal"
-		else if (n == SGR_OFF(SGR_ITALIC)) screen_set_sgr(ATTR_ITALIC | ATTR_FRAKTUR, 0); // there is no dedicated OFF code for Fraktur
-		else if (n == SGR_OFF(SGR_UNDERLINE)) screen_set_sgr(ATTR_UNDERLINE, 0);
-		else if (n == SGR_OFF(SGR_BLINK)) screen_set_sgr(ATTR_BLINK, 0);
-		else if (n == SGR_OFF(SGR_STRIKE)) screen_set_sgr(ATTR_STRIKE, 0);
-		else if (n == SGR_OFF(SGR_INVERSE)) screen_set_sgr_inverse(0);
-			// -- AIX bright colors --
-		else if (n >= SGR_FG_BRT_START && n <= SGR_FG_BRT_END) screen_set_fg((Color) ((n - SGR_FG_BRT_START) + 8)); // AIX bright fg
-		else if (n >= SGR_BG_BRT_START && n <= SGR_BG_BRT_END) screen_set_bg((Color) ((n - SGR_BG_BRT_START) + 8)); // AIX bright bg
+		else if (n == SGR_NO_BOLD) screen_set_sgr(ATTR_BOLD, 0); // can also mean "Double Underline"
+		else if (n == SGR_NO_BOLD_FAINT) screen_set_sgr(ATTR_FAINT | ATTR_BOLD, 0); // "normal"
+		else if (n == SGR_NO_ITALIC_FRACTUR) screen_set_sgr(ATTR_ITALIC | ATTR_FRAKTUR, 0); // there is no dedicated OFF code for Fraktur
+		else if (n == SGR_NO_UNDERLINE) screen_set_sgr(ATTR_UNDERLINE, 0);
+		else if (n == SGR_NO_BLINK) screen_set_sgr(ATTR_BLINK, 0);
+		else if (n == SGR_NO_STRIKE) screen_set_sgr(ATTR_STRIKE, 0);
+		else if (n == SGR_NO_INVERSE) screen_set_sgr_inverse(0);
+		else if (n == SGR_NO_CONCEAL) screen_set_sgr_conceal(0);
+		else if (n == SGR_NO_OVERLINE) screen_set_sgr(ATTR_OVERLINE, 0);
 		else {
 			ansi_noimpl("SGR %d", n);
 		}
@@ -557,7 +622,7 @@ do_csi_set_option(CSI_Data *opts)
 		}
 		else if (n == 12) {
 			// SRM is inverted, according to vt510 manual
-			termconf_scratch.loopback = !yn;
+			termconf_live.loopback = !yn;
 		}
 		else if (n == 20) {
 			screen_set_newline_mode(yn);
@@ -599,7 +664,8 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 3) {
 			// DECCOLM 132 column mode - not implemented due to RAM demands
-			ansi_noimpl("132col");
+			// XXX 132col
+			// ansi_noimpl("132col");
 
 			// DECCOLM side effects as per
 			// https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/deccolm-cls.html
@@ -623,7 +689,7 @@ do_csi_set_private_option(CSI_Data *opts)
 			// Key auto-repeat
 			// We don't implement this currently, but it could be added
 			// - discard repeated keypress events between keydown and keyup.
-			ansi_noimpl("Auto-repeat toggle");
+			// XXX auto repeat toggle
 		}
 		else if (n == 9 || (n >= 1000 && n <= 1006) || n == 1015) {
 			// 9 - X10 tracking
@@ -643,23 +709,25 @@ do_csi_set_private_option(CSI_Data *opts)
 			else if (n == 1006) mouse_tracking.encoding = yn ? MTE_SGR : MTE_SIMPLE;
 			else if (n == 1015) mouse_tracking.encoding = yn ? MTE_URXVT : MTE_SIMPLE;
 
-			dbg("Mouse mode=%d, enc=%d, foctr=%d",
+			ansi_dbg("Mouse mode=%d, enc=%d, foctr=%d",
 				mouse_tracking.mode,
 				mouse_tracking.encoding,
 				mouse_tracking.focus_tracking);
 		}
 		else if (n == 12) {
-			// TODO Cursor blink on/off
-			ansi_noimpl("Cursor blink toggle");
+			screen_cursor_blink(yn);
+		}
+		else if (n == 25) {
+			screen_set_cursor_visible(yn);
 		}
 		else if (n == 40) {
 			// allow/disallow 80->132 mode
 			// not implemented because of RAM demands
-			ansi_noimpl("132col enable");
+			// ansi_noimpl("132col enable");
 		}
 		else if (n == 45) {
 			// reverse wrap-around
-			ansi_noimpl("Reverse Wraparound");
+			screen_reverse_wrap_enable(yn);
 		}
 		else if (n == 69) {
 			// horizontal margins
@@ -672,12 +740,7 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 1048) {
 			// same as DECSC - save/restore cursor with attributes
-			if (yn) {
-				screen_cursor_save(true);
-			}
-			else {
-				screen_cursor_restore(true);
-			}
+			screen_cursor_save(yn);
 		}
 		else if (n == 1049) {
 			// save/restore cursor and screen and clear it
@@ -694,17 +757,14 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 2004) {
 			// Bracketed paste mode
-			ansi_noimpl("Bracketed paste");
-		}
-		else if (n == 25) {
-			screen_set_cursor_visible(yn);
+			screen_set_bracketed_paste(yn);
 		}
 		else if (n == 800) { // ESPTerm: Toggle display of buttons
-			termconf_scratch.show_buttons = yn;
+			termconf_live.show_buttons = yn;
 			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
 		}
 		else if (n == 801) { // ESPTerm: Toggle display of config links
-			termconf_scratch.show_config_links = yn;
+			termconf_live.show_config_links = yn;
 			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
 		}
 		else {
@@ -729,14 +789,14 @@ do_csi_xterm_screen_cmd(CSI_Data *opts)
 
 		case 18: // Report the size of the text area in characters.
 		case 19: // Report the size of the screen in characters.
-			sprintf(resp_buf, "\033[8;%d;%dt", termconf_scratch.height, termconf_scratch.width);
+			sprintf(resp_buf, "\033[8;%d;%dt", termconf_live.height, termconf_live.width);
 			apars_respond(resp_buf);
 			break;
 
 		case 20: // Report icon
 		case 21: // Report title
 			apars_respond("\033]l");
-			apars_respond(termconf_scratch.title);
+			apars_respond(termconf_live.title);
 			apars_respond("\033\\");
 			break;
 
@@ -748,7 +808,7 @@ do_csi_xterm_screen_cmd(CSI_Data *opts)
 			break;
 
 		case 24: // Set Height only
-			screen_resize(opts->n[1], termconf_scratch.width);
+			screen_resize(opts->n[1], termconf_live.width);
 			break;
 
 		default:
@@ -760,7 +820,7 @@ do_csi_xterm_screen_cmd(CSI_Data *opts)
 
 // data tables for the DECREPTPARM command response
 struct DECREPTPARM_parity { int parity; const char * msg; };
-static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] = {
+static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] ESP_CONST_DATA = {
 	{PARITY_NONE, "1"},
 	{PARITY_ODD, "4"},
 	{PARITY_EVEN, "5"},
@@ -768,7 +828,7 @@ static const struct DECREPTPARM_parity DECREPTPARM_parity_arr[] = {
 };
 
 struct DECREPTPARM_baud { int baud; const char * msg; };
-static const struct DECREPTPARM_baud DECREPTPARM_baud_arr[] = {
+static const struct DECREPTPARM_baud DECREPTPARM_baud_arr[] ESP_CONST_DATA = {
 	{BIT_RATE_300, "48"},
 	{BIT_RATE_600, "56"},
 	{BIT_RATE_1200, "64"},

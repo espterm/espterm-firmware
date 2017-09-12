@@ -5,7 +5,7 @@
 ![Photo][photo-hw]<br>
 *Fig 1: Breadboard adapter developed for ESPTerm*
 
-Version 1.0.0 **passes most of VTTEST test cases** (from the main menu and some Xterm specific), making it 
+As of release 1.0, ESPTerm **passes most of VTTEST test cases** (from the main menu and some Xterm specific), making it 
 functionally comparable to eg. gnome-terminal, terminator, konsole, GtkTerm or PuTTY. 
 ESPTerm is **capable of running Midnight Commander** through agetty, **including full
 mouse support**, provided agetty is made to believe it's Xterm, which shows ESPTerm is sufficiently well
@@ -27,23 +27,24 @@ You can try the web user interface here: [espterm.github.io][demo-term]
 
 The demo is almost identical to the real thing, except, of course, it doesn't do much without the
 emulator backend that runs on the ESP8266. The web version will be updated to match this repository
- after each minor release.
+after each minor release (and sometimes in between for testing; the version currently being show-cased
+can be read on the About page of the demo).
 
 ## Main features
 
 - **Almost complete VT102 emulation** with some extras from Xterm, eg.
-  - Screen size up to 80x25
+  - Screen size up to 80x25 (the limit can be modified when compiling from source)
   - All standard text styles and 16 colors supported
   - Full UTF-8 support, alternate character sets
   - Standard mouse tracking modes
   - You can dynamically set screen title, button labels...
-- **Web Interface**
+- **Web Terminal Interface**
   - Real-time screen update via WebSocket
-  - Button to open keyboard on Android
-  - 5 buttons under the screen for quick commands
-  - Text file upload tool with configurable delays and line endings
+  - Mouse and keyboard input, works also on mobile
+  - 5 optional buttons for quick commands
+  - Text file upload tool with adjustable delays and line endings
   - *Built-in help page* ([demo][demo-help]) with basic troubleshooting and command reference
-- **Robust WiFi configuration interface** (Demo: [WiFi][demo-wifi], [network][demo-network] config)
+- **User-friendly comprehensive WiFi configuration** (Demo: [WiFi][demo-wifi], [network][demo-network] config)
   - Static IP, DHCP, channel selection, power
   - SSID search utility for finding your existing network
 
@@ -121,8 +122,7 @@ and changes required by the project.
   ```
 - Install Ragel if you wish to make modifications to the ANSI sequence parser. 
   If not, comment out its call in `build_parser.sh`. The `.rl` file is the actual source, the `.c` is generated.
-- Install Ruby and then the `sass` package with `gem install sass` (or try some other implementation, such as 
-  `sassc`)
+- Install dependencies of the front-end submodule (`yarn install` in the front-end folder, installed PHP)
 - Make sure your `esphttpdconfig.mk` is set up properly - link to the SDK etc.
 
 The IoT SDK is now included in the project due to problems with obtaining the correct version and patching it.
@@ -131,24 +131,23 @@ than welcome!
 
 ### Web resources
 
-The web resources are in `html_orig`. To prepare for a build, run `build_web.sh`, which packs them and 
-copies over to `html`. The compression and minification is handled by scripts in libesphttpd, specifically,
-it runs yuicompressor on js and css and gzip or heatshrink on the other files. The `html` folder is 
-then embedded in the firmware image.
+The web resources are in the `front-end` git submodule. To prepare the web resources for a build,
+run `make web`. The resulting files are copied to `html/`. The `html/` folder is then embedded in the firmware image.
 
 It's kind of tricky to develop the web resources locally; you might want to try the "split image" 
 Makefile option, then you can flash just the html portion with `make htmlflash`. I haven't tried this.
 
-For local development, use the `server.sh` script in `html_orig`. It's possible to talk to API of a running 
-ESP8266 from here, if you configure `_env.php` with its IP.
+For local development, use the `server.sh` script in `html_orig` (more details in the front-end repo's readme).
+It's possible to talk to the API endpoints of a running ESP8266 from a page served by your local server
+if you configure `_env.php` with its IP.
 
 ### Flashing
 
-The Makefile should automatically build the parser and web resources for you when you run `make`. 
-Sometimes it does not, particularly with `make -B`. Try just plain `make`. You can always run those 
-build scripts manually, too.
+The Makefile should automatically build the parser and web resources for you when you run `make`.
+The web resources are normally no re-built, because the build process is quite slow. To manually rebuild them,
+run `make web` before `make`.
 
-To flash, just run `make flash`. 
+To flash, just run `make flash`. It will use parameters you setup in the `esphttpdconfig.mk` file.
 
 [releases]: https://github.com/MightyPork/esp-vt100-firmware/releases
 [httpdlib]: https://github.com/MightyPork/libesphttpd

@@ -5,6 +5,7 @@
 #ifndef ESP_VT100_FIRMWARE_APARS_STRING_H
 #define ESP_VT100_FIRMWARE_APARS_STRING_H
 
-void apars_handle_string_cmd(char leadchar, const char *buffer);
+// not const char so some edits can be made when processing
+void apars_handle_string_cmd(char leadchar, char *buffer);
 
 #endif //ESP_VT100_FIRMWARE_APARS_STRING_H

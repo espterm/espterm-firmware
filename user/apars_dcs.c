@@ -47,12 +47,12 @@ apars_handle_dcs(const char *buffer)
 		}
 		else if (buffer[2] == 'r') {
 			// DECSTBM - Query scrolling region
-			sprintf(buf, "\033P1$r%d;%dr\033\\", 1, termconf_scratch.height); // 1-80 TODO real extent of scrolling region
+			sprintf(buf, "\033P1$r%d;%dr\033\\", 1, termconf_live.height); // 1-80 TODO real extent of scrolling region
 			apars_respond(buf);
 		}
 		else if (buffer[2] == 's') {
 			// DECSLRM - Query horizontal margins
-			sprintf(buf, "\033P1$r%d;%ds\033\\", 1, termconf_scratch.width); // Can erase - TODO real extent of horiz margins if implemented
+			sprintf(buf, "\033P1$r%d;%ds\033\\", 1, termconf_live.width); // Can erase - TODO real extent of horiz margins if implemented
 			apars_respond(buf);
 		}
 		else if (buffer[2] == 'm') {

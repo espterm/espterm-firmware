@@ -65,4 +65,14 @@ void persist_restore_default(void);
 void persist_set_as_default(void);
 void persist_store(void);
 
+#if DEBUG_PERSIST
+#define persist_warn warn
+#define persist_dbg dbg
+#define persist_info info
+#else
+#define persist_warn(fmt, ...)
+#define persist_dbg(fmt, ...)
+#define persist_info(fmt, ...)
+#endif
+
 #endif //ESP_VT100_FIRMWARE_PERSIST_H

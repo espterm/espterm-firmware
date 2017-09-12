@@ -62,7 +62,8 @@ UART_AsyncBufferInit(uint32 buf_size)
  * @param pdata - data src
  * @param data_len - data len
  */
-static void UART_WriteToAsyncBuffer(struct UartBuffer *pCur, const char *pdata, uint16 data_len)
+static void ICACHE_FLASH_ATTR
+UART_WriteToAsyncBuffer(struct UartBuffer *pCur, const char *pdata, uint16 data_len)
 {
 	if (data_len == 0) return;
 

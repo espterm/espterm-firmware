@@ -22,7 +22,7 @@ static int wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, 
 /**
  * Application routes
  */
-HttpdBuiltInUrl routes[] = {
+const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	// redirect func for the captive portal
 	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp-terminal.ap"),
 
@@ -32,7 +32,6 @@ HttpdBuiltInUrl routes[] = {
 	ROUTE_FILE("/help/?", "/help.html"),
 
 	// --- Sockets ---
-	ROUTE_CGI("/term/init", cgiTermInitialImage),
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),
 
 	// --- System control ---

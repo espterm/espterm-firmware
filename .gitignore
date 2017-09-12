@@ -11,6 +11,7 @@ espfs/espfstest/espfstest
 html_compressed/
 ldscript_memspecific.ld
 eagle.app.sym
+node_modules
 
 # Garbage added by CLion
 .idea/
