@@ -23,7 +23,7 @@ foreach ($pieces as $piece) {
   }
 }
 
-if ($argv[1]) {
+if (isset($argv[1])) {
   $key = $argv[1];
   uasort($table, function($a, $b) use ($key) {
     $av = $a[$key] ?? 0;

@@ -4,9 +4,7 @@ echo "-- Preparing WWW files --"
 
 [[ -e html ]] && rm -r html
 
-cd front-end
-ESP_PROD=1 sh ./build.sh
-cd ..
+ESP_PROD=1 front-end/build.sh
 
 echo "Copying from submodule..."
 
