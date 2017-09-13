@@ -47,6 +47,16 @@ can be read on the About page of the demo).
 - **User-friendly comprehensive WiFi configuration** (Demo: [WiFi][demo-wifi], [network][demo-network] config)
   - Static IP, DHCP, channel selection, power
   - SSID search utility for finding your existing network
+  
+## Bugs? Ideas?
+
+To ask any questions or discuss new features you'd like to see added, it's best to use 
+the **[ESPTerm Dev mailing list](https://groups.google.com/forum/#!forum/espterm-dev)**
+
+Subscribe to the mailing list to also receive new release announcements.
+
+If you found a bug (that happens alot!), please submit it to our [bug tracker](https://github.com/espterm/espterm-firmware/issues).
+We also use it to track planned ideas. If you don't want to create a GitHub account for that, just send it to the mailing list.
 
 ## Running ESPTerm
 
