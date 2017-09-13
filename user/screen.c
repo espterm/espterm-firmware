@@ -1684,10 +1684,10 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 		if (repCnt == 0) {
 			// No repeat
-			bool changeAttrs = cell0->attrs != ss->lastAttrs;
+			bool changeAttrs = cell0->attrs != ss->lastAttrs || i==0;
 			bool changeFg = cell0->fg != ss->lastFg;
 			bool changeBg = cell0->bg != ss->lastBg;
-			bool changeColors = changeFg && changeBg;
+			bool changeColors = (changeFg && changeBg) || i==0;
 			Color fg, bg;
 
 			// Reverse fg and bg if we're in global reverse mode
