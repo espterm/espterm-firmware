@@ -223,7 +223,7 @@ void ICACHE_FLASH_ATTR sendMouseAction(char evt, int y, int x, int button, u8 mo
 		sprintf(buf, "\x1b[<%d;%d;%d%c", eventcode, x, y, (evt == 'p'||(evt=='m'&&button>0)) ? 'M' : 'm');
 	}
 	else if (mte == MTE_URXVT) {
-		sprintf(buf, "\x1b[%d;%d;%dM", (u8)(32+eventcode), (u8)(32+x), (u8)(32+y));
+		sprintf(buf, "\x1b[%d;%d;%dM", (u8)(32+eventcode), (u8)(x), (u8)(y));
 	}
 
 	UART_SendAsync(buf, -1);
