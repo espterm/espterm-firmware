@@ -17,13 +17,13 @@ void notify_growl(char *msg);
 
 // defined in the makefile
 #if DEBUG_INPUT
-#define ws_warn warn
-#define ws_dbg dbg
-#define ws_info info
+#define inp_warn warn
+#define inp_dbg dbg
+#define inp_info info
 #else
-#define ws_warn(...)
-#define ws_dbg(...)
-#define ws_info(...)
+#define inp_warn(...)
+#define inp_dbg(...)
+#define inp_info(...)
 #endif
 
 #endif //CGI_SOCKETS_H

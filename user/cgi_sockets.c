@@ -235,7 +235,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 	// Add terminator if missing (seems to randomly happen)
 	data[len] = 0;
 
-	ws_dbg("Sock RX str: %s, len %d", data, len);
+	inp_dbg("Sock RX str: %s, len %d", data, len);
 
 	int y, x, m, b;
 	u8 btnNum;
@@ -271,7 +271,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 
 		case 'i':
 			// requests initial load
-			ws_dbg("Client requests initial load");
+			inp_dbg("Client requests initial load");
 			notifyContentTimCb(ws);
 			break;
 
@@ -290,7 +290,7 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 			break;
 
 		default:
-			ws_warn("Bad command.");
+			inp_warn("Bad command.");
 	}
 }
 
@@ -307,7 +307,7 @@ void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 /** Socket connected for updates */
 void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 {
-	ws_info("Socket connected to "URL_WS_UPDATE);
+	inp_info("Socket connected to "URL_WS_UPDATE);
 	ws->recvCb = updateSockRx;
 
 	TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 1);
