@@ -54,7 +54,7 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 		tplSend(connData, __DATE__, -1);
 	}
 	else if (streq(token, "time")) {
-		tplSend(connData, __TIME__, -1);
+		tplSend(connData, __TIME__" "__TIMEZONE__, -1);
 	}
 	else if (streq(token, "vers_httpd")) {
 		tplSend(connData, httpdGetVersion(), -1);

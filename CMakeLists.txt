@@ -160,6 +160,8 @@ add_definitions(
         -DICACHE_RODATA_ATTR=
         -DFLAG_GZIP=2
         -DADMIN_PASSWORD="asdf"
+        -DGIT_HASH_BACKEND="asdf"
+        -DGIT_HASH_FRONTEND="asdf"
         -DGIT_HASH="blabla"
         -DDEBUG_HEAP=1
         -DDEBUG_MALLOC=1
