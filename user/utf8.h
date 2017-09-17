@@ -8,7 +8,7 @@
 #include <c_types.h>
 
 // 160 is maximum possible
-#define UNICODE_CACHE_SIZE 100
+#define UNICODE_CACHE_SIZE 160
 
 typedef u8 UnicodeCacheRef;
 #define IS_UNICODE_CACHE_REF(c) ((c) < 32 || (c) >= 127)

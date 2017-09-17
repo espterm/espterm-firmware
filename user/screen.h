@@ -65,11 +65,11 @@ enum CursorShape {
 	CURSOR_BAR = 6,
 };
 
-#define SCR_DEF_SHOW_BUTTONS 0
+#define SCR_DEF_SHOW_BUTTONS 1
 #define SCR_DEF_SHOW_MENU 1
 #define SCR_DEF_CURSOR_SHAPE CURSOR_BLOCK_BL
-#define SCR_DEF_CRLF 0
-#define SCR_DEF_ALLFN 0
+#define SCR_DEF_CRLF 0  // enter sends CRLF
+#define SCR_DEF_ALLFN 0 // capture F5 etc
 
 // --- Persistent Settings ---
 #define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
