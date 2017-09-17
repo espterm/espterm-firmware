@@ -173,7 +173,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	if (GET_ARG("theme")) {
 		cgi_dbg("Screen color theme: %s", buff);
 		n = atoi(buff);
-		if (n >= 0 && n <= 5) { // ALWAYS ADJUST WHEN ADDING NEW THEME!
+		if (n >= 0) {
 			termconf->theme = (u8) n;
 			// this can't be notified, page must reload.
 		} else {
