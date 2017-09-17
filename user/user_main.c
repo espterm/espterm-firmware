@@ -79,7 +79,6 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 
 // Deferred init
 static void user_start(void *unused);
-static void user_start2(void *unused);
 
 static ETSTimer userStartTimer;
 static ETSTimer prHeapTimer;
@@ -120,7 +119,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 	// do later (some functions do not work if called from user_init)
 	TIMER_START(&userStartTimer, user_start, 10, 0);
 }
-
 
 static void ICACHE_FLASH_ATTR user_start(void *unused)
 {

@@ -8,7 +8,6 @@
 #include "ansi_parser.h"
 #include "jstring.h"
 #include "uart_driver.h"
-#include "cgi_logging.h"
 
 // Heartbeat interval in ms
 #define HB_TIME 1000
@@ -17,15 +16,20 @@
 // Must be less than httpd sendbuf
 #define SOCK_BUF_LEN 2000
 
+// flags for screen update timeouts
 volatile bool notify_available = true;
 volatile bool notify_cooldown = false;
 
+/** True if we sent XOFF to browser to stop uploading,
+ * and we have to tell it we're ready again */
 volatile bool browser_wants_xon = false;
 
 static ETSTimer notifyContentTim;
 static ETSTimer notifyLabelsTim;
 static ETSTimer notifyCooldownTim;
 static ETSTimer heartbeatTim;
+
+volatile int active_clients = 0;
 
 // we're trying to do a kind of mutex here, without the actual primitives
 // this might glitch, very rarely.
@@ -115,6 +119,8 @@ notifyLabelsTimCb(void *arg)
 void ICACHE_FLASH_ATTR
 send_beep(void)
 {
+	if (active_clients == 0) return;
+
 	// here's some potential for a race error with the other broadcast functions :C
 	cgiWebsockBroadcast(URL_WS_UPDATE, "B", 1, 0);
 }
@@ -124,6 +130,8 @@ send_beep(void)
 void ICACHE_FLASH_ATTR
 notify_growl(char *msg)
 {
+	if (active_clients == 0) return;
+
 	// TODO via timer...
 	// here's some potential for a race error with the other broadcast functions :C
 	cgiWebsockBroadcast(URL_WS_UPDATE, msg, (int) strlen(msg), 0);
@@ -137,8 +145,9 @@ notify_growl(char *msg)
  */
 void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 {
-	// this is not the most ideal/cleanest implementation
-	// PRs are welcome for a nicer update "queue" solution
+	if (active_clients == 0) return;
+
+	// this is probably not needed here - ensure timeout is not 0
 	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 
 	// NOTE: the timers are restarted if already running
@@ -297,10 +306,25 @@ void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int flags)
 /** Send a heartbeat msg */
 void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 {
-	if (notify_available) {
+	if (notify_available && active_clients > 0) {
 		// Heartbeat packet - indicate we're still connected
 		// JS reloads the page if heartbeat is lost for a couple seconds
 		cgiWebsockBroadcast(URL_WS_UPDATE, ".", 1, 0);
+	}
+}
+
+void ICACHE_FLASH_ATTR closeSockCb(Websock *ws)
+{
+	active_clients--;
+	if (active_clients <= 0) {
+		active_clients = 0;
+
+		if (mouse_tracking.focus_tracking) {
+			UART_SendAsync("\x1b[O", 3);
+		}
+
+		// stop the timer
+		os_timer_disarm(&heartbeatTim);
 	}
 }
 
@@ -309,8 +333,17 @@ void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 {
 	inp_info("Socket connected to "URL_WS_UPDATE);
 	ws->recvCb = updateSockRx;
+	ws->closeCb = closeSockCb;
 
-	TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 1);
+	if (active_clients == 0) {
+		if (mouse_tracking.focus_tracking) {
+			UART_SendAsync("\x1b[I", 3);
+		}
+
+		TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 1);
+	}
+
+	active_clients++;
 }
 
 ETSTimer xonTim;
