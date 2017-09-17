@@ -99,7 +99,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	banner_info("Firmware (c) Ondrej Hruska, 2017");
 	banner_info(TERMINAL_GITHUB_REPO);
 	banner_info("");
-	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__);
+	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__ " " __TIMEZONE__);
 	printf("\r\n");
 
 	ioInit();

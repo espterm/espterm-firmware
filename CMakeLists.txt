@@ -163,6 +163,7 @@ add_definitions(
         -DGIT_HASH="blabla"
         -DDEBUG_HEAP=1
         -DDEBUG_MALLOC=1
+        -D__TIMEZONE__="UTC"
         -DESPFS_HEATSHRINK)
 
 add_executable(ESPTerm ${SOURCE_FILES})
