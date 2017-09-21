@@ -78,7 +78,8 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiPing(HttpdConnData *connData)
 httpd_cgi_state ICACHE_FLASH_ATTR
 cgiSystemCfgSetParams(HttpdConnData *connData)
 {
-	char buff[50];
+	char buff[65];
+	char buff2[65];
 	char redir_url_buf[100];
 
 	char *redir_url = redir_url_buf;
@@ -138,6 +139,80 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		}
 	}
 
+	if (GET_ARG("security")) {
+		cgi_dbg("*** Security config! ***");
+
+		if (GET_ARG("pw")) {
+			if (streq(buff, persist.admin.pw)) {
+				// authenticated OK
+				do {
+					if (GET_ARG("pwlock")) {
+						cgi_dbg("pwlock: %s", buff);
+						int pwlock = atoi(buff);
+						if (pwlock >= 0 && pwlock < PWLOCK_MAX) {
+							sysconf->pwlock = (enum pwlock) pwlock;
+						}
+						else {
+							cgi_warn("Bad pwlock %s", buff);
+							redir_url += sprintf(redir_url, "pwlock,");
+							break;
+						}
+					}
+
+					if (GET_ARG("access_pw")) {
+						cgi_dbg("access_pw: %s", buff);
+
+						strcpy(buff2, buff);
+						if (GET_ARG("access_pw2")) {
+							cgi_dbg("access_pw2: %s", buff);
+
+							if (streq(buff, buff2)) {
+								cgi_dbg("Changing access PW!!!");
+								strncpy(sysconf->access_pw, buff, 64);
+							} else {
+								cgi_warn("Bad repeated access_pw %s", buff);
+								redir_url += sprintf(redir_url, "access_pw2,");
+							}
+						} else {
+							cgi_warn("Missing access_pw %s", buff);
+							redir_url += sprintf(redir_url, "access_pw2,");
+						}
+
+						break; // access pw and admin pw are in separate forms
+					}
+
+					if (GET_ARG("admin_pw")) {
+						cgi_dbg("admin_pw: %s", buff);
+
+						strcpy(buff2, buff);
+						if (GET_ARG("admin_pw2")) {
+							cgi_dbg("admin_pw2: %s", buff);
+
+							if (streq(buff, buff2)) {
+								cgi_dbg("Changing admin PW!!!");
+								strncpy(persist.admin.pw, buff, 64);
+							} else {
+								cgi_warn("Bad repeated admin_pw %s", buff);
+								redir_url += sprintf(redir_url, "admin_pw2,");
+							}
+						} else {
+							cgi_warn("Missing admin_pw %s", buff);
+							redir_url += sprintf(redir_url, "admin_pw2,");
+						}
+
+						break;
+					}
+				} while(0);
+			} else {
+				warn("Bad admin pw!");
+				redir_url += sprintf(redir_url, "pw,");
+			}
+		} else {
+			warn("Missing admin pw!");
+			redir_url += sprintf(redir_url, "pw,");
+		}
+	}
+
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
 		cgi_info("Set system params - success, saving...");
@@ -176,6 +251,9 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "uart_stopbits")) {
 		sprintf(buff, "%d", sysconf->uart_stopbits);
+	}
+	else if (streq(token, "pwlock")) {
+		sprintf(buff, "%d", sysconf->pwlock);
 	}
 
 	tplSend(connData, buff, -1);

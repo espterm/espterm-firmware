@@ -18,6 +18,7 @@ enum pwlock {
 	PWLOCK_SETTINGS_ALL = 2,
 	PWLOCK_MENUS = 3,
 	PWLOCK_ALL = 4,
+	PWLOCK_MAX = 5,
 };
 
 typedef struct {
