@@ -9,7 +9,7 @@
 
 // Size designed for the wifi config structure
 // Must be constant to avoid corrupting user config after upgrade
-#define SYSCONF_SIZE 200
+#define SYSCONF_SIZE 300
 #define SYSCONF_VERSION 1
 
 enum pwlock {

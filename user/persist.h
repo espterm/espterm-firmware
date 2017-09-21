@@ -16,7 +16,7 @@
 
 // Changing this could be used to force-erase the config area
 // after a firmware upgrade
-#define CHECKSUM_SALT 4
+#define CHECKSUM_SALT 5
 
 #define APPCONF_SIZE 1900
 
