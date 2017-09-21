@@ -97,19 +97,27 @@ compute_checksum(AppConfigBundle *bundle)
 	return calculateCRC32((uint8_t *) bundle, sizeof(AppConfigBundle) - 4);
 }
 
+static void ICACHE_FLASH_ATTR
+set_admin_block_defaults(void)
+{
+	persist_info("[Persist] Initing admin config block");
+	strcpy(persist.admin.pw, STR(ADMIN_PASSWORD));
+	persist.admin.version = ADMINCONF_VERSION;
+}
+
 /**
  * Load, verify and apply persistent config
  */
 void ICACHE_FLASH_ATTR
 persist_load(void)
 {
-	persist_info("[Persist] Loading stored settings from FLASH...");
+	persist_info("[Persist] Loading settings from FLASH...");
 
-	persist_dbg("AppConfigBundle memory map:");
-	persist_dbg("> WiFiConfigBundle      at %4d (error %2d)", wconf_at, wconf_at - 0);
-	persist_dbg("> SystemConfigBundle    at %4d (error %2d)", sconf_at, sconf_at - WIFICONF_SIZE);
-	persist_dbg("> TerminalConfigBundle  at %4d (error %2d)", tconf_at, tconf_at - WIFICONF_SIZE - SYSCONF_SIZE);
-	persist_dbg("> Checksum              at %4d (error %2d)", cksum_at, cksum_at - (APPCONF_SIZE - 4));
+	persist_dbg("Persist memory map:");
+	persist_dbg("> wifi  at %4d (error %2d)", wconf_at, wconf_at - 0);
+	persist_dbg("> sys   at %4d (error %2d)", sconf_at, sconf_at - WIFICONF_SIZE);
+	persist_dbg("> term  at %4d (error %2d)", tconf_at, tconf_at - WIFICONF_SIZE - SYSCONF_SIZE);
+	persist_dbg("> cksum at %4d (error %2d)", cksum_at, cksum_at - (APPCONF_SIZE - 4));
 	persist_dbg("> Total size = %d bytes (error %d)", sizeof(AppConfigBundle), APPCONF_SIZE - sizeof(AppConfigBundle));
 
 	bool hard_reset = false;
@@ -120,7 +128,8 @@ persist_load(void)
 	// Verify checksums
 	if (hard_reset ||
 		(compute_checksum(&persist.defaults) != persist.defaults.checksum) ||
-		(compute_checksum(&persist.current) != persist.current.checksum)) {
+		(compute_checksum(&persist.current) != persist.current.checksum) ||
+		(persist.admin.version != 0 && (calculateCRC32((uint8_t *) &persist.admin, sizeof(AdminConfigBlock) - 4) != persist.admin.checksum))) {
 		error("[Persist] Checksum verification: FAILED");
 		hard_reset = true;
 	} else {
@@ -135,10 +144,18 @@ persist_load(void)
 
 		// write them also as defaults
 		memcpy(&persist.defaults, &persist.current, sizeof(AppConfigBundle));
+
+		// reset admin pw
+		set_admin_block_defaults();
 		persist_store();
 
 		// this also stores them to flash and applies to modules
 	} else {
+		if (persist.admin.version == 0) {
+			set_admin_block_defaults();
+			persist_store();
+		}
+
 		apply_live_settings();
 	}
 
@@ -153,6 +170,7 @@ persist_store(void)
 	// Update checksums before write
 	persist.current.checksum = compute_checksum(&persist.current);
 	persist.defaults.checksum = compute_checksum(&persist.defaults);
+	persist.admin.checksum = calculateCRC32((uint8_t *) &persist.admin, sizeof(AdminConfigBlock) - 4);
 
 	if (!system_param_save_with_protect(PERSIST_SECTOR_ID, &persist, sizeof(PersistBlock))) {
 		error("[Persist] Store to flash failed!");
