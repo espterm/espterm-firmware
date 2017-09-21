@@ -213,6 +213,8 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		}
 	}
 
+	(void)redir_url;
+
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
 		cgi_info("Set system params - success, saving...");
