@@ -12,7 +12,17 @@ SystemConfigBundle * const sysconf = &persist.current.sysconf;
 void ICACHE_FLASH_ATTR
 sysconf_apply_settings(void)
 {
-	// !!! Update to current version !!!
+	bool changed = false;
+	if (sysconf->config_version < 1) {
+		dbg("Upgrading syscfg to v 1");
+		changed = true;
+		sysconf->access_pw[0] = 0;
+		sysconf->pwlock = PWLOCK_NONE;
+	}
+
+	if (changed) {
+		persist_store();
+	}
 
 	serialInit();
 }
