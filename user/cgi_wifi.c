@@ -355,6 +355,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		return HTTPD_CGI_DONE;
 	}
 
+	WiFiConfigBundle *wificonf_backup = malloc(sizeof(WiFiConfigBundle));
+	WiFiConfChangeFlags *wcf_backup = malloc(sizeof(WiFiConfChangeFlags));
+	memcpy(wificonf_backup, wificonf, sizeof(WiFiConfigBundle));
+	memcpy(wcf_backup, &wifi_change_flags, sizeof(WiFiConfChangeFlags));
+
 	bool sta_turned_on = false;
 	bool sta_ssid_pw_changed = false;
 
@@ -502,6 +507,8 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		}
 	}
 
+	(void)redir_url;
+
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
 		cgi_info("Set WiFi params - success, applying in 2000 ms");
@@ -532,9 +539,16 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 		}
 	} else {
 		cgi_warn("Some WiFi settings did not validate, asking for correction");
+
+		memcpy(wificonf, wificonf_backup, sizeof(WiFiConfigBundle));
+		memcpy(&wifi_change_flags, wcf_backup, sizeof(WiFiConfChangeFlags));
+
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}
+
+	free(wificonf_backup);
+	free(wcf_backup);
 	return HTTPD_CGI_DONE;
 }
 

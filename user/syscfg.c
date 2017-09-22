@@ -20,6 +20,8 @@ sysconf_apply_settings(void)
 		sysconf->pwlock = PWLOCK_NONE;
 	}
 
+	sysconf->config_version = SYSCONF_VERSION;
+
 	if (changed) {
 		persist_store();
 	}

@@ -41,6 +41,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 		return HTTPD_CGI_DONE;
 	}
 
+	WiFiConfigBundle *wificonf_backup = malloc(sizeof(WiFiConfigBundle));
+	WiFiConfChangeFlags *wcf_backup = malloc(sizeof(WiFiConfChangeFlags));
+	memcpy(wificonf_backup, wificonf, sizeof(WiFiConfigBundle));
+	memcpy(wcf_backup, &wifi_change_flags, sizeof(WiFiConfChangeFlags));
+
 	// ---- AP DHCP server lease time ----
 
 	if (GET_ARG("ap_dhcp_time")) {
@@ -192,9 +197,16 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 		httpdRedirect(connData, SET_REDIR_SUC);
 	} else {
 		cgi_warn("Some WiFi settings did not validate, asking for correction");
+
+		memcpy(wificonf, wificonf_backup, sizeof(WiFiConfigBundle));
+		memcpy(&wifi_change_flags, wcf_backup, sizeof(WiFiConfChangeFlags));
+
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}
+
+	free(wificonf_backup);
+	free(wcf_backup);
 	return HTTPD_CGI_DONE;
 }
 

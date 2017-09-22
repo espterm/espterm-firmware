@@ -39,7 +39,7 @@ OUTPUT_TYPE = combined
 ESP_SPI_FLASH_SIZE_K = 1024
 
 # Admin password, used to store settings to flash as defaults
-ADMIN_PASSWORD = "19738426"
+ADMIN_PASSWORD = "adminpw"
 
 GLOBAL_CFLAGS = \
     -DDEBUG_ROUTER=0 \
@@ -48,7 +48,7 @@ GLOBAL_CFLAGS = \
     -DDEBUG_ESPFS=0 \
     -DDEBUG_PERSIST=1 \
     -DDEBUG_UTFCACHE=0 \
-    -DDEBUG_CGI=0 \
+    -DDEBUG_CGI=1 \
     -DDEBUG_WIFI=0 \
     -DDEBUG_WS=0 \
     -DDEBUG_ANSI=0 \
