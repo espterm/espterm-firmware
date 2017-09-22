@@ -13,6 +13,7 @@
 #include "cgi_term_cfg.h"
 #include "cgi_persist.h"
 #include "syscfg.h"
+#include "persist.h"
 
 /**
  * Password for WiFi config
@@ -20,8 +21,13 @@
 static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
 {
 	if (no == 0) {
-		os_strcpy(user, "admin");
+		os_strcpy(user, sysconf->access_name);
 		os_strcpy(pass, sysconf->access_pw);
+		return 1;
+	}
+	if (no == 1) {
+		os_strcpy(user, "admin");
+		os_strcpy(pass, persist.admin.pw);
 		return 1;
 	}
 	return 0;
@@ -30,6 +36,8 @@ static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *u
 httpd_cgi_state ICACHE_FLASH_ATTR cgiOptionalPwLock(HttpdConnData *connData)
 {
 	bool protect = false;
+
+	http_dbg("Route, %s, pwlock=%d", connData->url, sysconf->pwlock);
 
 	switch (sysconf->pwlock) {
 		case PWLOCK_ALL:
@@ -63,12 +71,17 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiOptionalPwLock(HttpdConnData *connData)
 		if (strstarts(connData->url, "/system/cls")) protect = true;
 	}
 
-	if (sysconf->access_pw[0] == 0) protect = false;
+	if (sysconf->access_pw[0] == 0) {
+		http_dbg("Access PW is nil, no protection.");
+		protect = false;
+	}
 
 	if (protect) {
+		http_dbg("Page is protected!");
 		connData->cgiArg = wifiPassFn;
 		return authBasic(connData);
 	} else {
+		http_dbg("Not protected");
 		return HTTPD_CGI_NOTFOUND;
 	}
 }

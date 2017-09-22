@@ -101,7 +101,7 @@ static void ICACHE_FLASH_ATTR
 set_admin_block_defaults(void)
 {
 	persist_info("[Persist] Initing admin config block");
-	strcpy(persist.admin.pw, STR(ADMIN_PASSWORD));
+	strcpy(persist.admin.pw, DEFAULT_ADMIN_PW);
 	persist.admin.version = ADMINCONF_VERSION;
 }
 

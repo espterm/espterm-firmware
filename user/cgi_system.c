@@ -139,9 +139,27 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 					break;
 				}
 
-				cgi_dbg("Changing access PW!!!");
+				if (strlen(buff) >= 64) {
+					cgi_warn("Too long access_pw %s", buff);
+					redir_url += sprintf(redir_url, "access_pw,");
+					break;
+				}
+
+				cgi_dbg("Changing access PW!");
 				strncpy(sysconf->access_pw, buff, 64);
 			}
+		}
+
+		if (GET_ARG("access_name")) {
+			cgi_dbg("access_name: %s", buff);
+
+			if (!strlen(buff) || strlen(buff) >= 32) {
+				cgi_warn("Too long access_name %s", buff);
+				redir_url += sprintf(redir_url, "access_name,");
+				break;
+			}
+
+			strncpy(sysconf->access_name, buff, 32);
 		}
 
 		if (GET_ARG("admin_pw")) {
@@ -161,7 +179,13 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 					break;
 				}
 
-				cgi_dbg("Changing admin PW!!!");
+				if (strlen(buff) >= 64) {
+					cgi_warn("Too long admin_pw %s", buff);
+					redir_url += sprintf(redir_url, "admin_pw,");
+					break;
+				}
+
+				cgi_dbg("Changing admin PW!");
 				strncpy(persist.admin.pw, buff, 64);
 			}
 		}
@@ -209,6 +233,10 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 
 	if (streq(token, "pwlock")) {
 		sprintf(buff, "%d", sysconf->pwlock);
+	}
+
+	if (streq(token, "access_name")) {
+		sprintf(buff, "%s", sysconf->access_name);
 	}
 
 	tplSend(connData, buff, -1);

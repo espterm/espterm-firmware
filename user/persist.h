@@ -14,6 +14,8 @@
 #include "screen.h"
 #include "syscfg.h"
 
+#define DEFAULT_ADMIN_PW "adminpw"
+
 // Changing this could be used to force-erase the config area
 // after a firmware upgrade
 #define CHECKSUM_SALT 5

@@ -15,9 +15,16 @@ sysconf_apply_settings(void)
 	bool changed = false;
 	if (sysconf->config_version < 1) {
 		dbg("Upgrading syscfg to v 1");
-		changed = true;
 		sysconf->access_pw[0] = 0;
 		sysconf->pwlock = PWLOCK_NONE;
+		changed = true;
+	}
+
+	if (sysconf->config_version < 2) {
+		dbg("Upgrading syscfg to v 2");
+		strcpy(sysconf->access_pw, DEF_ACCESS_PW);
+		strcpy(sysconf->access_name, DEF_ACCESS_NAME);
+		changed = true;
 	}
 
 	sysconf->config_version = SYSCONF_VERSION;
