@@ -8,6 +8,7 @@
 #include "jstring.h"
 #include "character_sets.h"
 #include "utf8.h"
+#include "uart_buffer.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_live;
@@ -1565,58 +1566,46 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	}
 
 	Cell *cell, *cell0;
-	WordB2 w1;
-	WordB3 lw1;
 
+	u8 nbytes;
 	size_t remain = buf_len;
 	char *bb = buffer;
 
 #define bufput_c(c) do { \
-			*bb = (char)c; bb++; \
+			*bb = (char)(c); \
+			bb++; \
 			remain--; \
 		} while(0)
 
-#define bufput_2B(n) do { \
-			encode2B((u16) n, &w1); \
-			bufput_c(w1.lsb); \
-			bufput_c(w1.msb); \
-		} while(0)
+#define bufput_utf8(num) do { \
+		nbytes = utf8_encode(bb, (num)+1); \
+		bb += nbytes; \
+		remain -= nbytes; \
+	} while(0)
 
-#define bufput_3B(n) do { \
-			encode3B((u32) n, &lw1); \
-			bufput_c(lw1.lsb); \
-			bufput_c(lw1.msb); \
-			bufput_c(lw1.xsb); \
-		} while(0)
-
-#define bufput_t2B(t, n) do { \
-			bufput_c(t); \
-			bufput_2B(n); \
-		} while(0)
-
-#define bufput_t3B(t, n) do { \
-			bufput_c(t); \
-			bufput_3B(n); \
-		} while(0)
+#define bufput_t_utf8(t, num) do { \
+		bufput_c((t)); \
+		bufput_utf8((num)); \
+	} while(0)
 
 	if (ss == NULL) {
 		*data = ss = malloc(sizeof(struct ScreenSerializeState));
 		ss->index = 0;
-		ss->lastBg = 0;
-		ss->lastFg = 0;
-		ss->lastAttrs = 0;
+		ss->lastBg = 0xFF;
+		ss->lastFg = 0xFF;
+		ss->lastAttrs = 0xFFFF;
 		ss->lastCharLen = 0;
-		ss->lastSymbol = 32;
+		ss->lastSymbol = 0;
 		strncpy(ss->lastChar, " ", 4);
 
 		bufput_c('S');
 		// H W X Y Attribs
-		bufput_2B(H);
-		bufput_2B(W);
-		bufput_2B(cursor.y);
-		bufput_2B(cursor.x);
+		bufput_utf8(H);
+		bufput_utf8(W);
+		bufput_utf8(cursor.y);
+		bufput_utf8(cursor.x);
 		// 3B has 18 free bits
-		bufput_3B(
+		bufput_utf8(
 			(scr.cursor_visible << 0) |
 			(cursor.hanging << 1) |
 			(scr.cursors_alt_mode << 2) |
@@ -1656,7 +1645,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		}
 
 		if (repCnt == 0) {
-			// No repeat
+			// No repeat - first occurrence
 			bool changeAttrs = cell0->attrs != ss->lastAttrs;
 			bool changeFg = cell0->fg != ss->lastFg;
 			bool changeBg = cell0->bg != ss->lastBg;
@@ -1668,17 +1657,17 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			bg = cell0->bg;
 
 			if (changeColors) {
-				bufput_t3B(SEQ_TAG_COLORS, bg<<8 | fg);
+				bufput_t_utf8(SEQ_TAG_COLORS, bg<<8 | fg);
 			}
 			else if (changeFg) {
-				bufput_t2B(SEQ_TAG_FG, fg);
+				bufput_t_utf8(SEQ_TAG_FG, fg);
 			}
 			else if (changeBg) {
-				bufput_t2B(SEQ_TAG_BG, bg);
+				bufput_t_utf8(SEQ_TAG_BG, bg);
 			}
 
 			if (changeAttrs) {
-				bufput_t3B(SEQ_TAG_ATTRS, cell0->attrs);
+				bufput_t_utf8(SEQ_TAG_ATTRS, cell0->attrs);
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
@@ -1703,7 +1692,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			int savings = ss->lastCharLen*repCnt;
 			if (savings > 3) {
 				// Repeat count
-				bufput_t2B(SEQ_TAG_REPEAT, repCnt);
+				bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
 			} else {
 				// repeat it manually
 				for(int k = 0; k < repCnt; k++) {
@@ -1717,6 +1706,14 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 
 	ss->index = i;
 	bufput_c('\0'); // terminate the string
+
+#if 0
+	printf("MSG: ");
+	for (int j=0;j<bb-buffer;j++) {
+		printf("%02X ", buffer[j]);
+	}
+	printf("\n");
+#endif
 
 	if (i < W*H-1) {
 		return HTTPD_CGI_MORE;
