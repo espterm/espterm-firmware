@@ -10,7 +10,7 @@
 // Size designed for the wifi config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define SYSCONF_SIZE 300
-#define SYSCONF_VERSION 2
+#define SYSCONF_VERSION 0
 
 #define DEF_ACCESS_PW "1234"
 #define DEF_ACCESS_NAME "espterm"

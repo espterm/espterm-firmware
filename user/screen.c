@@ -21,18 +21,13 @@ static void utf8_remap(char* out, char g, char charset);
 #define H termconf_live.height
 
 /**
- * Highest permissible value of the color attribute
- */
-#define COLOR_MAX 15
-
-/**
  * Screen cell data type (16 bits)
  */
 typedef struct __attribute__((packed)) {
 	UnicodeCacheRef symbol : 8;
 	Color fg;
 	Color bg;
-	u8 attrs;
+	CellAttrs attrs;
 } Cell;
 
 /**
@@ -78,9 +73,9 @@ typedef struct {
 	bool hanging; //!< xenl state - cursor half-wrapped
 
 	/* SGR */
-	bool inverse; //!< not in attrs bc it's applied server-side (not sent to browser)
-	bool conceal;  //!< similar to inverse, causes all to be replaced by SP
-	u8 attrs;
+	bool inverse; //!< not in attrs bc it's applied immediately when writing the cell
+	bool conceal; //!< similar to inverse, causes all to be replaced by SP
+	u16 attrs;
 	Color fg;     //!< Foreground color for writing
 	Color bg;     //!< Background color for writing
 
@@ -207,45 +202,12 @@ terminal_apply_settings_noclear(void)
 {
 	bool changed = false;
 
-	// Migrate to v1
-	if (termconf->config_version < 1) {
-		persist_dbg("termconf: Updating to version 1");
-		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
-		changed = 1;
-	}
-
-	// Migrate to v2
-	if (termconf->config_version < 2) {
-		persist_dbg("termconf: Updating to version 2");
-		termconf->loopback = 0;
-		termconf->show_config_links = 1;
-		termconf->show_buttons = 1;
-		changed = 1;
-	}
-
-	// Migrate to v3
-	if (termconf->config_version < 3) {
-		persist_dbg("termconf: Updating to version 3");
-		for(int i=1; i <= TERM_BTN_COUNT; i++) {
-			sprintf(termconf->btn_msg[i-1], "%c", i);
-		}
-		changed = 1;
-	}
-
-	// Migrate to v4
-	if (termconf->config_version < 4) {
-		persist_dbg("termconf: Updating to version 4");
-		termconf->cursor_shape = CURSOR_BLOCK_BL;
-		termconf->crlf_mode = false;
-		changed = 1;
-	}
-
-	// Migrate to v5
-	if (termconf->config_version < 4) {
-		persist_dbg("termconf: Updating to version 5");
-		termconf->want_all_fn = 0;
-		changed = 1;
-	}
+//	// Migrate to v1
+//	if (termconf->config_version < 1) {
+//		persist_dbg("termconf: Updating to version %d", 1);
+//		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
+//		changed = 1;
+//	}
 
 	termconf->config_version = TERMCONF_VERSION;
 
@@ -288,9 +250,9 @@ screen_init(void)
 	NOTIFY_LOCK();
 	Cell sample;
 	sample.symbol = ' ';
-	sample.fg = termconf->default_fg;
-	sample.bg = termconf->default_bg;
-	sample.attrs = 0;
+	sample.fg = 0;
+	sample.bg = 0;
+	sample.attrs = 0; // use default colors
 	for (unsigned int i = 0; i < MAX_SCREEN_SIZE; i++) {
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
@@ -345,10 +307,9 @@ screen_reset_on_resize(void)
 void ICACHE_FLASH_ATTR
 screen_reset_sgr(void)
 {
-	cursor.fg = termconf->default_fg;
-	cursor.bg = termconf->default_bg;
+	cursor.fg = 0;
+	cursor.bg = 0;
 	cursor.attrs = 0;
-	cursor.inverse = false;
 	cursor.conceal = false;
 }
 
@@ -588,14 +549,13 @@ static void ICACHE_FLASH_ATTR
 clear_range(unsigned int from, unsigned int to)
 {
 	if (to >= W*H) to = W*H-1;
-	Color fg = (cursor.inverse) ? cursor.bg : cursor.fg;
-	Color bg = (cursor.inverse) ? cursor.fg : cursor.bg;
 
 	Cell sample;
 	sample.symbol = ' ';
-	sample.fg = fg;
-	sample.bg = bg;
-	sample.attrs = 0;
+	sample.fg = cursor.fg;
+	sample.bg = cursor.bg;
+	// we discard all attributes except color-set flags
+	sample.attrs = (CellAttrs) (cursor.attrs & (ATTR_FG | ATTR_BG));
 
 	for (unsigned int i = from; i <= to; i++) {
 		UnicodeCacheRef symbol = screen[i].symbol;
@@ -771,8 +731,8 @@ screen_fill_with_E(void)
 
 	Cell sample;
 	sample.symbol = 'E';
-	sample.fg = termconf->default_fg;
-	sample.bg = termconf->default_bg;
+	sample.fg = 0;
+	sample.bg = 0;
 	sample.attrs = 0;
 
 	for (unsigned int i = 0; i <= W*H-1; i++) {
@@ -1174,6 +1134,7 @@ void ICACHE_FLASH_ATTR
 screen_set_fg(Color color)
 {
 	cursor.fg = color;
+	cursor.attrs |= ATTR_FG;
 }
 
 /**
@@ -1183,10 +1144,31 @@ void ICACHE_FLASH_ATTR
 screen_set_bg(Color color)
 {
 	cursor.bg = color;
+	cursor.attrs |= ATTR_BG;
+}
+
+/**
+ * Set cursor foreground color to default
+ */
+void ICACHE_FLASH_ATTR
+screen_set_default_fg(void)
+{
+	cursor.fg = 0;
+	cursor.attrs &= ~ATTR_FG;
+}
+
+/**
+ * Set cursor background color to default
+ */
+void ICACHE_FLASH_ATTR
+screen_set_default_bg(void)
+{
+	cursor.bg = 0;
+	cursor.attrs &= ~ATTR_BG;
 }
 
 void ICACHE_FLASH_ATTR
-screen_set_sgr(u8 attrs, bool ena)
+screen_set_sgr(CellAttrs attrs, bool ena)
 {
 	if (ena) {
 		cursor.attrs |= attrs;
@@ -1194,12 +1176,6 @@ screen_set_sgr(u8 attrs, bool ena)
 	else {
 		cursor.attrs &= ~attrs;
 	}
-}
-
-void ICACHE_FLASH_ATTR
-screen_set_sgr_inverse(bool ena)
-{
-	cursor.inverse = ena;
 }
 
 void ICACHE_FLASH_ATTR
@@ -1359,9 +1335,11 @@ screen_report_sgr(char *buffer)
 	if (cursor.attrs & ATTR_BLINK) buffer += sprintf(buffer, ";%d", SGR_BLINK);
 	if (cursor.attrs & ATTR_FRAKTUR) buffer += sprintf(buffer, ";%d", SGR_FRAKTUR);
 	if (cursor.attrs & ATTR_STRIKE) buffer += sprintf(buffer, ";%d", SGR_STRIKE);
-	if (cursor.inverse) buffer += sprintf(buffer, ";%d", SGR_INVERSE);
-	if (cursor.fg != termconf->default_fg) buffer += sprintf(buffer, ";%d", ((cursor.fg > 7) ? SGR_FG_BRT_START : SGR_FG_START) + (cursor.fg&7));
-	if (cursor.bg != termconf->default_bg) buffer += sprintf(buffer, ";%d", ((cursor.bg > 7) ? SGR_BG_BRT_START : SGR_BG_START) + (cursor.bg&7));
+	if (cursor.attrs & ATTR_INVERSE) buffer += sprintf(buffer, ";%d", SGR_INVERSE);
+	if (cursor.attrs & ATTR_FG)
+		buffer += sprintf(buffer, ";%d", ((cursor.fg > 7) ? SGR_FG_BRT_START : SGR_FG_START) + (cursor.fg&7));
+	if (cursor.attrs & ATTR_BG)
+		buffer += sprintf(buffer, ";%d", ((cursor.bg > 7) ? SGR_BG_BRT_START : SGR_BG_START) + (cursor.bg&7));
 	(void)buffer;
 }
 
@@ -1403,14 +1381,8 @@ putchar_graphic(const char *ch)
 	}
 	unicode_cache_remove(c->symbol);
 	c->symbol = unicode_cache_add((const u8 *)ch);
-
-	if (cursor.inverse) {
-		c->fg = cursor.bg;
-		c->bg = cursor.fg;
-	} else {
-		c->fg = cursor.fg;
-		c->bg = cursor.bg;
-	}
+	c->fg = cursor.fg;
+	c->bg = cursor.bg;
 	c->attrs = cursor.attrs;
 
 	cursor.x++;
@@ -1543,7 +1515,7 @@ utf8_remap(char *out, char g, char charset)
 struct ScreenSerializeState {
 	Color lastFg;
 	Color lastBg;
-	bool lastAttrs;
+	CellAttrs lastAttrs;
 	UnicodeCacheRef lastSymbol;
 	char lastChar[4];
 	u8 lastCharLen;
@@ -1656,7 +1628,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			(termconf_live.show_config_links << 8) |
 			((termconf_live.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
 		    (termconf_live.crlf_mode << 12) |
-			(scr.bracketed_paste << 13)
+			(scr.bracketed_paste << 13) |
+			(scr.reverse_video << 14)
 	    );
 	}
 
@@ -1691,14 +1664,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			Color fg, bg;
 
 			// Reverse fg and bg if we're in global reverse mode
-			if (! scr.reverse_video) {
-				fg = cell0->fg;
-				bg = cell0->bg;
-			}
-			else {
-				fg = cell0->bg;
-				bg = cell0->fg;
-			}
+			fg = cell0->fg;
+			bg = cell0->bg;
 
 			if (changeColors) {
 				bufput_t3B(SEQ_TAG_COLORS, bg<<8 | fg);
@@ -1711,7 +1678,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			}
 
 			if (changeAttrs) {
-				bufput_t2B(SEQ_TAG_ATTRS, cell0->attrs);
+				bufput_t3B(SEQ_TAG_ATTRS, cell0->attrs);
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes

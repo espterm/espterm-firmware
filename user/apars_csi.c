@@ -551,31 +551,27 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n >= SGR_FG_BRT_START && n <= SGR_FG_BRT_END) screen_set_fg((Color) ((n - SGR_FG_BRT_START) + 8)); // AIX bright fg
 		else if (n >= SGR_BG_BRT_START && n <= SGR_BG_BRT_END) screen_set_bg((Color) ((n - SGR_BG_BRT_START) + 8)); // AIX bright bg
 			// reset color
-		else if (n == SGR_FG_DEFAULT) screen_set_fg(termconf_live.default_fg); // default fg
-		else if (n == SGR_BG_DEFAULT) screen_set_bg(termconf_live.default_bg); // default bg
+		else if (n == SGR_FG_DEFAULT) screen_set_default_fg();
+		else if (n == SGR_BG_DEFAULT) screen_set_default_bg();
 			// 256 colors
 		else if (n == SGR_FG_256 || n == SGR_BG_256) {
-			if (i < count-2) {
-				if (opts->n[i + 1] == 5) {
-					u8 color = (u8) opts->n[i + 2];
-					bool fg = n == SGR_FG_256;
-					if (fg) {
-						screen_set_fg(color);
-					} else  {
-						screen_set_bg(color);
-					}
-				}
-				else {
-					ansi_warn("SGR syntax err");
-					apars_show_context();
-					break; // abandon further
-				}
-				i += 2;
-			} else {
+			if (i >= count-2) {
 				ansi_warn("SGR syntax err");
 				apars_show_context();
 				break; // abandon further
 			}
+
+			if (opts->n[i + 1] != 5) {
+				ansi_warn("SGR syntax err");
+				apars_show_context();
+				break; // abandon further
+			}
+
+			u8 color = (u8) opts->n[i + 2];
+			bool fg = n == SGR_FG_256;
+			if (fg) screen_set_fg(color);
+			else screen_set_bg(color);
+			i += 2;
 		}
 			// -- set attr --
 		else if (n == SGR_BOLD) screen_set_sgr(ATTR_BOLD, 1);
@@ -585,7 +581,7 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_BLINK || n == SGR_BLINK_FAST) screen_set_sgr(ATTR_BLINK, 1); // 6 - rapid blink, not supported
 		else if (n == SGR_STRIKE) screen_set_sgr(ATTR_STRIKE, 1);
 		else if (n == SGR_FRAKTUR) screen_set_sgr(ATTR_FRAKTUR, 1);
-		else if (n == SGR_INVERSE) screen_set_sgr_inverse(1);
+		else if (n == SGR_INVERSE) screen_set_sgr(ATTR_INVERSE, 1);
 		else if (n == SGR_CONCEAL) screen_set_sgr_conceal(1);
 		else if (n == SGR_OVERLINE) screen_set_sgr(ATTR_OVERLINE, 1);
 			// -- clear attr --
@@ -595,7 +591,7 @@ do_csi_sgr(CSI_Data *opts)
 		else if (n == SGR_NO_UNDERLINE) screen_set_sgr(ATTR_UNDERLINE, 0);
 		else if (n == SGR_NO_BLINK) screen_set_sgr(ATTR_BLINK, 0);
 		else if (n == SGR_NO_STRIKE) screen_set_sgr(ATTR_STRIKE, 0);
-		else if (n == SGR_NO_INVERSE) screen_set_sgr_inverse(0);
+		else if (n == SGR_NO_INVERSE) screen_set_sgr(ATTR_INVERSE, 0);
 		else if (n == SGR_NO_CONCEAL) screen_set_sgr_conceal(0);
 		else if (n == SGR_NO_OVERLINE) screen_set_sgr(ATTR_OVERLINE, 0);
 		else {
