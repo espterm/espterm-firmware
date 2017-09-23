@@ -4,8 +4,7 @@
 #include "ansi_parser.h"
 #include "syscfg.h"
 
-#define LOGBUF_SIZE 512
-static char logbuf[LOGBUF_SIZE];
+static char logbuf[DEBUG_LOGBUF_SIZE];
 static u32 lb_nw = 1;
 static u32 lb_ls = 0;
 static ETSTimer flushLogTimer;
@@ -14,7 +13,7 @@ static void buf_putc(char c)
 {
 	if (lb_ls != lb_nw) {
 		logbuf[lb_nw++] = c;
-		if (lb_nw >= LOGBUF_SIZE) lb_nw = 0;
+		if (lb_nw >= DEBUG_LOGBUF_SIZE) lb_nw = 0;
 	}
 }
 
@@ -25,11 +24,11 @@ buf_pop(void *unused)
 	u32 old_ls;
 	while (quantity > 0) {
 		// stop when done
-		if ((lb_ls == lb_nw-1) || (lb_ls == LOGBUF_SIZE-1 && lb_nw == 0)) break;
+		if ((lb_ls == lb_nw-1) || (lb_ls == DEBUG_LOGBUF_SIZE-1 && lb_nw == 0)) break;
 
 		old_ls = lb_ls;
 		lb_ls++;
-		if (lb_ls >= LOGBUF_SIZE) lb_ls = 0;
+		if (lb_ls >= DEBUG_LOGBUF_SIZE) lb_ls = 0;
 
 		if (OK == UART_WriteCharCRLF(UART1, logbuf[lb_ls], 5)) {
 			quantity--;

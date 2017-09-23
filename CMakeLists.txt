@@ -153,6 +153,7 @@ include_directories(esp_iot_sdk_v1.5.2/include)
 add_definitions(
         -D__ets__
         -DICACHE_FLASH
+        -DDEBUG_LOGBUF_SIZE=2048
         -DUSE_OPTIMIZE_PRINTF=1
         -DHTTPD_MAX_CONNECTIONS=5
         -DHTTPD_STACKSIZE=1000

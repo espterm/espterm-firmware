@@ -38,9 +38,6 @@ OUTPUT_TYPE = combined
 # SPI flash size, in K
 ESP_SPI_FLASH_SIZE_K = 1024
 
-# Admin password, used to store settings to flash as defaults
-ADMIN_PASSWORD = "19738426"
-
 GLOBAL_CFLAGS = \
     -DDEBUG_ROUTER=0 \
     -DDEBUG_CAPTDNS=0 \
@@ -51,7 +48,7 @@ GLOBAL_CFLAGS = \
     -DDEBUG_CGI=0 \
     -DDEBUG_WIFI=0 \
     -DDEBUG_WS=0 \
-    -DDEBUG_ANSI=0 \
+    -DDEBUG_ANSI=1 \
     -DDEBUG_ANSI_NOIMPL=1 \
     -DDEBUG_INPUT=0 \
     -DDEBUG_HEAP=1 \
@@ -59,5 +56,6 @@ GLOBAL_CFLAGS = \
     -DHTTPD_MAX_BACKLOG_SIZE=8192 \
     -DHTTPD_MAX_HEAD_LEN=1024 \
     -DHTTPD_MAX_POST_LEN=512 \
+    -DDEBUG_LOGBUF_SIZE=1024 \
     -mforce-l32 \
     -DUSE_OPTIMIZE_PRINTF=1

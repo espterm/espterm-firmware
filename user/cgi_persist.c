@@ -13,9 +13,7 @@ Cgi/template routines for configuring non-wifi settings
 static bool ICACHE_FLASH_ATTR
 verify_admin_pw(const char *pw)
 {
-	// This is not really for security, but to prevent someone who
-	// shouldn't touch those settings from fucking it up.
-	return streq(pw, STR(ADMIN_PASSWORD)); // the PW comes from the makefile
+	return streq(pw, persist.admin.pw);
 }
 
 httpd_cgi_state ICACHE_FLASH_ATTR

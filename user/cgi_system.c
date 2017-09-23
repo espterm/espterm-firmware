@@ -78,7 +78,8 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiPing(HttpdConnData *connData)
 httpd_cgi_state ICACHE_FLASH_ATTR
 cgiSystemCfgSetParams(HttpdConnData *connData)
 {
-	char buff[50];
+	char buff[65];
+	char buff2[65];
 	char redir_url_buf[100];
 
 	char *redir_url = redir_url_buf;
@@ -90,53 +91,107 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		return HTTPD_CGI_DONE;
 	}
 
-	if (GET_ARG("uart_baud")) {
-		cgi_dbg("Baud rate: %s", buff);
-		int baud = atoi(buff);
-		if (baud == BIT_RATE_300 ||
-				baud == BIT_RATE_600 ||
-				baud == BIT_RATE_1200 ||
-				baud == BIT_RATE_2400 ||
-				baud == BIT_RATE_4800 ||
-				baud == BIT_RATE_9600 ||
-				baud == BIT_RATE_19200 ||
-				baud == BIT_RATE_38400 ||
-				baud == BIT_RATE_57600 ||
-				baud == BIT_RATE_74880 ||
-				baud == BIT_RATE_115200 ||
-				baud == BIT_RATE_230400 ||
-				baud == BIT_RATE_460800 ||
-				baud == BIT_RATE_921600 ||
-				baud == BIT_RATE_1843200 ||
-				baud == BIT_RATE_3686400) {
-			sysconf->uart_baudrate = (u32) baud;
-		} else {
-			cgi_warn("Bad baud rate %s", buff);
-			redir_url += sprintf(redir_url, "uart_baud,");
-		}
-	}
+	AdminConfigBlock *admin_backup = malloc(sizeof(AdminConfigBlock));
+	SystemConfigBundle *sysconf_backup = malloc(sizeof(SystemConfigBundle));
+	memcpy(admin_backup, &persist.admin, sizeof(AdminConfigBlock));
+	memcpy(sysconf_backup, sysconf, sizeof(SystemConfigBundle));
 
-	if (GET_ARG("uart_parity")) {
-		cgi_dbg("Parity: %s", buff);
-		int parity = atoi(buff);
-		if (parity >= 0 && parity <= 2) {
-			sysconf->uart_parity = (UartParityMode) parity;
-		} else {
-			cgi_warn("Bad parity %s", buff);
-			redir_url += sprintf(redir_url, "uart_parity,");
+	do {
+		if (!GET_ARG("pw")) {
+			warn("Missing admin pw!");
+			redir_url += sprintf(redir_url, "pw,");
+			break;
 		}
-	}
 
-	if (GET_ARG("uart_stopbits")) {
-		cgi_dbg("Stop bits: %s", buff);
-		int stopbits = atoi(buff);
-		if (stopbits >= 1 && stopbits <= 3) {
-			sysconf->uart_stopbits = (UartStopBitsNum) stopbits;
-		} else {
-			cgi_warn("Bad stopbits %s", buff);
-			redir_url += sprintf(redir_url, "uart_stopbits,");
+		if (!streq(buff, persist.admin.pw)) {
+			warn("Bad admin pw!");
+			redir_url += sprintf(redir_url, "pw,");
+			break;
 		}
-	}
+
+		// authenticated OK
+		if (GET_ARG("pwlock")) {
+			cgi_dbg("pwlock: %s", buff);
+			int pwlock = atoi(buff);
+			if (pwlock < 0 || pwlock >= PWLOCK_MAX) {
+				cgi_warn("Bad pwlock %s", buff);
+				redir_url += sprintf(redir_url, "pwlock,");
+				break;
+			}
+
+			sysconf->pwlock = (enum pwlock) pwlock;
+		}
+
+		if (GET_ARG("access_pw")) {
+			cgi_dbg("access_pw: %s", buff);
+
+			if (strlen(buff)) {
+				strcpy(buff2, buff);
+				if (!GET_ARG("access_pw2")) {
+					cgi_warn("Missing repeated access_pw %s", buff);
+					redir_url += sprintf(redir_url, "access_pw2,");
+					break;
+				}
+
+				if (!streq(buff, buff2)) {
+					cgi_warn("Bad repeated access_pw %s", buff);
+					redir_url += sprintf(redir_url, "access_pw2,");
+					break;
+				}
+
+				if (strlen(buff) >= 64) {
+					cgi_warn("Too long access_pw %s", buff);
+					redir_url += sprintf(redir_url, "access_pw,");
+					break;
+				}
+
+				cgi_dbg("Changing access PW!");
+				strncpy(sysconf->access_pw, buff, 64);
+			}
+		}
+
+		if (GET_ARG("access_name")) {
+			cgi_dbg("access_name: %s", buff);
+
+			if (!strlen(buff) || strlen(buff) >= 32) {
+				cgi_warn("Too long access_name %s", buff);
+				redir_url += sprintf(redir_url, "access_name,");
+				break;
+			}
+
+			strncpy(sysconf->access_name, buff, 32);
+		}
+
+		if (GET_ARG("admin_pw")) {
+			cgi_dbg("admin_pw: %s", buff);
+
+			if (strlen(buff)) {
+				strcpy(buff2, buff);
+				if (!GET_ARG("admin_pw2")) {
+					cgi_warn("Missing repeated admin_pw %s", buff);
+					redir_url += sprintf(redir_url, "admin_pw2,");
+					break;
+				}
+
+				if (!streq(buff, buff2)) {
+					cgi_warn("Bad repeated admin_pw %s", buff);
+					redir_url += sprintf(redir_url, "admin_pw2,");
+					break;
+				}
+
+				if (strlen(buff) >= 64) {
+					cgi_warn("Too long admin_pw %s", buff);
+					redir_url += sprintf(redir_url, "admin_pw,");
+					break;
+				}
+
+				cgi_dbg("Changing admin PW!");
+				strncpy(persist.admin.pw, buff, 64);
+			}
+		}
+	} while (0);
+
+	(void)redir_url;
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
@@ -148,9 +203,17 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		httpdRedirect(connData, SET_REDIR_SUC);
 	} else {
 		cgi_warn("Some settings did not validate, asking for correction");
+
+		// revert any possible changes
+		memcpy(&persist.admin, admin_backup, sizeof(AdminConfigBlock));
+		memcpy(sysconf, sysconf_backup, sizeof(SystemConfigBundle));
+
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}
+
+	free(admin_backup);
+	free(sysconf_backup);
 	return HTTPD_CGI_DONE;
 }
 
@@ -168,14 +231,12 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 
 	strcpy(buff, ""); // fallback
 
-	if (streq(token, "uart_baud")) {
-		sprintf(buff, "%d", sysconf->uart_baudrate);
+	if (streq(token, "pwlock")) {
+		sprintf(buff, "%d", sysconf->pwlock);
 	}
-	else if (streq(token, "uart_parity")) {
-		sprintf(buff, "%d", sysconf->uart_parity);
-	}
-	else if (streq(token, "uart_stopbits")) {
-		sprintf(buff, "%d", sysconf->uart_stopbits);
+
+	if (streq(token, "access_name")) {
+		sprintf(buff, "%s", sysconf->access_name);
 	}
 
 	tplSend(connData, buff, -1);
