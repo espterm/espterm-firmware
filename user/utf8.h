@@ -29,6 +29,14 @@ void unicode_cache_clear(void);
 UnicodeCacheRef unicode_cache_add(const u8 *bytes);
 
 /**
+ * Increment a reference
+ *
+ * @param ref - reference
+ * @return success
+ */
+bool unicode_cache_inc(UnicodeCacheRef ref);
+
+/**
  * Look up a code point in the cache by reference. Do not change the use counter.
  *
  * @param ref - reference obtained earlier using unicode_cache_add()

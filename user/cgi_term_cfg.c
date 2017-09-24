@@ -43,10 +43,10 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 	// width and height must always go together so we can do max size validation
 	if (GET_ARG("term_width")) {
-		cgi_dbg("Default screen width: %s", buff);
-		w = atoi(buff);
 		do {
-			if (w <= 1) {
+			cgi_dbg("Default screen width: %s", buff);
+			w = atoi(buff);
+			if (w < 1) {
 				cgi_warn("Bad width: \"%s\"", buff);
 				redir_url += sprintf(redir_url, "term_width,");
 				break;
@@ -61,7 +61,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 			cgi_dbg("Default screen height: %s", buff);
 			h = atoi(buff);
-			if (h <= 1) {
+			if (h < 1) {
 				cgi_warn("Bad height: \"%s\"", buff);
 				redir_url += sprintf(redir_url, "term_height,");
 				break;
