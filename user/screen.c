@@ -60,8 +60,8 @@ static struct {
 	char last_char[4];
 } scr;
 
-#define R0 scr.vm0
-#define R1 scr.vm1
+#define TOP scr.vm0
+#define BTM scr.vm1
 #define RH (scr.vm1 - scr.vm0 + 1)
 // horizontal edges - will be useful if horizontal margin is implemented
 //#define C0 0
@@ -154,7 +154,7 @@ static volatile int notifyLock = 0;
 									if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; \
 								} while(false)
 
-#define cursor_inside_region() (cursor.y >= R0 && cursor.y <= R1)
+#define cursor_inside_region() (cursor.y >= TOP && cursor.y <= BTM)
 
 //region --- Settings ---
 
@@ -547,7 +547,7 @@ screen_tab_reverse(int count)
  * Clear range, inclusive
  */
 static void ICACHE_FLASH_ATTR
-clear_range(unsigned int from, unsigned int to)
+clear_range_do(unsigned int from, unsigned int to, bool clear_utf)
 {
 	if (to >= W*H) to = W*H-1;
 
@@ -560,9 +560,67 @@ clear_range(unsigned int from, unsigned int to)
 
 	for (unsigned int i = from; i <= to; i++) {
 		UnicodeCacheRef symbol = screen[i].symbol;
-		if (IS_UNICODE_CACHE_REF(symbol)) unicode_cache_remove(symbol);
+		if (clear_utf && IS_UNICODE_CACHE_REF(symbol)) unicode_cache_remove(symbol);
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
+}
+
+/**
+ * Clear range, inclusive
+ */
+static inline void ICACHE_FLASH_ATTR
+clear_range_utf(unsigned int from, unsigned int to)
+{
+	clear_range_do(from, to, true);
+}
+
+/**
+ * Clear range, inclusive. Do not release utf characters
+ */
+static inline void ICACHE_FLASH_ATTR
+clear_range_noutf(unsigned int from, unsigned int to)
+{
+	clear_range_do(from, to, false);
+}
+
+static inline void ICACHE_FLASH_ATTR
+utf_free_cell(int row, int i)
+{
+	UnicodeCacheRef symbol = screen[row * W + i].symbol;
+	if (IS_UNICODE_CACHE_REF(symbol))
+		unicode_cache_remove(symbol);
+}
+
+static inline void ICACHE_FLASH_ATTR
+utf_free_row(int r)
+{
+	for (int i = 0; i < W; i++) {
+		utf_free_cell(r, i);
+	}
+}
+
+static inline void ICACHE_FLASH_ATTR
+copy_row(int dest, int src)
+{
+	memcpy(screen + dest * W, screen + src * W, sizeof(Cell) * W);
+}
+
+static inline void ICACHE_FLASH_ATTR
+copy_cell(int row, int dest_col, int src_col)
+{
+	memcpy(screen+row*W+dest_col, screen+row*W+src_col, sizeof(Cell));
+}
+
+static inline void ICACHE_FLASH_ATTR
+clear_row_noutf(int r)
+{
+	clear_range_noutf(r * W, (r + 1) * W - 1);
+}
+
+static inline void ICACHE_FLASH_ATTR
+clear_row_utf(int r)
+{
+	clear_range_utf(r * W, (r + 1) * W - 1);
 }
 
 /**
@@ -575,15 +633,15 @@ screen_clear(ClearMode mode)
 	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
-			clear_range(0, W * H - 1);
+			clear_range_utf(0, W * H - 1);
 			break;
 
 		case CLEAR_FROM_CURSOR:
-			clear_range((cursor.y * W) + cursor.x, W * H - 1);
+			clear_range_utf((cursor.y * W) + cursor.x, W * H - 1);
 			break;
 
 		case CLEAR_TO_CURSOR:
-			clear_range(0, (cursor.y * W) + cursor.x);
+			clear_range_utf(0, (cursor.y * W) + cursor.x);
 			break;
 	}
 	NOTIFY_DONE();
@@ -598,15 +656,15 @@ screen_clear_line(ClearMode mode)
 	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
-			clear_range(cursor.y * W, (cursor.y + 1) * W - 1);
+			clear_row_utf(cursor.y);
 			break;
 
 		case CLEAR_FROM_CURSOR:
-			clear_range(cursor.y * W + cursor.x, (cursor.y + 1) * W - 1);
+			clear_range_utf(cursor.y * W + cursor.x, (cursor.y + 1) * W - 1);
 			break;
 
 		case CLEAR_TO_CURSOR:
-			clear_range(cursor.y * W, cursor.y * W + cursor.x);
+			clear_range_utf(cursor.y * W, cursor.y * W + cursor.x);
 			break;
 	}
 	NOTIFY_DONE();
@@ -615,14 +673,13 @@ screen_clear_line(ClearMode mode)
 void ICACHE_FLASH_ATTR
 screen_clear_in_line(unsigned int count)
 {
+	NOTIFY_LOCK();
 	if (cursor.x + count >= W) {
 		screen_clear_line(CLEAR_FROM_CURSOR);
+	} else {
+		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + cursor.x + count - 1);
 	}
-	else {
-		NOTIFY_LOCK();
-		clear_range(cursor.y * W + cursor.x, cursor.y * W + cursor.x + count - 1);
-		NOTIFY_DONE();
-	}
+	NOTIFY_DONE();
 }
 
 void ICACHE_FLASH_ATTR
@@ -631,24 +688,23 @@ screen_insert_lines(unsigned int lines)
 	if (!cursor_inside_region()) return; // can't insert if not inside region
 	NOTIFY_LOCK();
 
-	// FIXME remove cleared & overwritten cells from unicode cache!
-
 	// shift the following lines
 	int targetStart = cursor.y + lines;
-	if (targetStart > R1) {
-		targetStart = R1-1;
+	if (targetStart > BTM) {
+		targetStart = BTM - 1;
 	} else {
 		// do the moving
-		for (int i = R1; i >= targetStart; i--) {
-			memcpy(screen+i*W, screen+(i-lines)*W, sizeof(Cell)*W);
+		for (int i = BTM; i >= targetStart; i--) {
+			utf_free_row(i); // release old characters
+			copy_row(i, i - lines);
 		}
 	}
 
 	// clear the first line
-	screen_clear_line(CLEAR_ALL);
+	clear_row_noutf(CLEAR_ALL);
 	// copy it to the rest of the cleared region
 	for (int i = cursor.y+1; i < targetStart; i++) {
-		memcpy(screen+i*W, screen+cursor.y*W, sizeof(Cell)*W);
+		copy_row(i, cursor.y);
 	}
 	NOTIFY_DONE();
 }
@@ -659,21 +715,21 @@ screen_delete_lines(unsigned int lines)
 	if (!cursor_inside_region()) return; // can't delete if not inside region
 	NOTIFY_LOCK();
 
-	// FIXME remove cleared & overwritten cells from unicode cache!
-
 	// shift lines up
-	int targetEnd = R1 - lines - 1;
+	int targetEnd = BTM - lines - 1;
 	if (targetEnd <= cursor.y) {
+		// clear the entire rest of the screen
 		targetEnd = cursor.y;
+		clear_range_utf(targetEnd * W, W * BTM);
 	} else {
-		// do the moving
+		// move some lines up, clear the rest
 		for (int i = cursor.y; i <= targetEnd; i++) {
-			memcpy(screen+i*W, screen+(i+lines)*W, sizeof(Cell)*W);
+			utf_free_row(i);
+			copy_row(i, i+lines);
 		}
+		clear_range_noutf(targetEnd*W, W*BTM);
 	}
 
-	// clear the rest
-	clear_range(targetEnd*W, W*R1);
 	NOTIFY_DONE();
 }
 
@@ -682,19 +738,21 @@ screen_insert_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
 
-	// FIXME remove cleared & overwritten cells from unicode cache!
+	// shove rest of the line to the right
 
 	int targetStart = cursor.x + count;
 	if (targetStart >= W) {
+		// all rest of line was cleared
 		targetStart = W-1;
+		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
 	} else {
 		// do the moving
 		for (int i = W-1; i >= targetStart; i--) {
-			memcpy(screen+cursor.y*W+i, screen+cursor.y*W+(i-count), sizeof(Cell));
+			utf_free_cell(cursor.y, i);
+			copy_cell(cursor.y, i, i - count);
 		}
+		clear_range_noutf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
 	}
-
-	clear_range(cursor.y*W+cursor.x, cursor.y*W+targetStart-1);
 	NOTIFY_DONE();
 }
 
@@ -703,21 +761,23 @@ screen_delete_characters(unsigned int count)
 {
 	NOTIFY_LOCK();
 
-	// FIXME remove cleared & overwritten cells from unicode cache!
-	int targetEnd = W - count;
-	if (targetEnd > cursor.x) {
-		// do the moving
-		for (int i = cursor.x; i <= targetEnd; i++) {
-			memcpy(screen+cursor.y*W+i, screen+cursor.y*W+(i+count), sizeof(Cell));
-		}
-	}
+	// pull rest of the line to the left
 
-	if (targetEnd <= cursor.x) {
+	int movedBlockEnd = W - count;
+	if (movedBlockEnd > cursor.x) {
+		// partial line delete / move
+
+		for (int i = cursor.x; i <= movedBlockEnd; i++) {
+			utf_free_cell(cursor.y, i);
+			copy_cell(cursor.y, i, i + count);
+		}
+		// clear original positions of the moved characters
+		clear_range_utf(cursor.y * W + (W - count), (cursor.y + 1) * W - 1);
+	} else {
+		// all rest was cleared
 		screen_clear_line(CLEAR_FROM_CURSOR);
 	}
-	else {
-		clear_range(cursor.y * W + (W - count), (cursor.y + 1) * W - 1);
-	}
+
 	NOTIFY_DONE();
 }
 //endregion
@@ -798,7 +858,8 @@ screen_scroll_up(unsigned int lines)
 {
 	NOTIFY_LOCK();
 	if (lines >= RH) {
-		clear_range(R0*W, (R1+1)*W-1);
+		// clear entire region
+		clear_range_utf(TOP * W, (BTM + 1) * W - 1);
 		goto done;
 	}
 
@@ -807,16 +868,15 @@ screen_scroll_up(unsigned int lines)
 		goto done;
 	}
 
-	// FIXME remove cleared & overwritten cells from unicode cache!
-
 	int y;
-	for (y = R0; y <= R1 - lines; y++) {
-		memcpy(screen + y * W, screen + (y + lines) * W, W * sizeof(Cell));
+	for (y = TOP; y <= BTM - lines; y++) {
+		utf_free_row(y);
+		copy_row(y, y+lines);
 	}
 
-	clear_range(y * W, (R1+1)*W-1);
+	clear_range_noutf(y * W, (BTM + 1) * W - 1);
 
-	done:
+done:
 	NOTIFY_DONE();
 }
 
@@ -828,11 +888,10 @@ screen_scroll_down(unsigned int lines)
 {
 	NOTIFY_LOCK();
 	if (lines >= RH) {
-		clear_range(R0*W, (R1+1)*W-1);
+		// clear entire region
+		clear_range_utf(TOP * W, (BTM + 1) * W - 1);
 		goto done;
 	}
-
-	// FIXME remove cleared & overwritten cells from unicode cache!
 
 	// bad cmd
 	if (lines == 0) {
@@ -840,12 +899,13 @@ screen_scroll_down(unsigned int lines)
 	}
 
 	int y;
-	for (y = R1; y >= R0+lines; y--) {
-		memcpy(screen + y * W, screen + (y - lines) * W, W * sizeof(Cell));
+	for (y = BTM; y >= TOP+lines; y--) {
+		utf_free_row(y);
+		copy_row(y, y-lines);
 	}
 
-	clear_range(R0*W, R0*W+ lines * W-1);
-	done:
+	clear_range_noutf(TOP * W, TOP * W + lines * W - 1);
+done:
 	NOTIFY_DONE();
 }
 
@@ -921,7 +981,7 @@ screen_cursor_get(int *y, int *x)
 	*y = cursor.y;
 
 	if (cursor.origin_mode) {
-		*y -= R0;
+		*y -= TOP;
 	}
 }
 
@@ -950,9 +1010,9 @@ screen_cursor_set_y(int y)
 {
 	NOTIFY_LOCK();
 	if (cursor.origin_mode) {
-		y += R0;
-		if (y > R1) y = R1;
-		if (y < R0) y = R0;
+		y += TOP;
+		if (y > BTM) y = BTM;
+		if (y < TOP) y = TOP;
 	} else {
 		if (y > H-1) y = H-1;
 		if (y < 0) y = 0;
@@ -1001,7 +1061,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 					}
 					else {
 						// end of screen, end of line (wrap around)
-						cursor.y = R1;
+						cursor.y = BTM;
 						cursor.x = W - 1;
 					}
 				}
@@ -1011,10 +1071,10 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		}
 	}
 
-	if (cursor.y < R0) {
+	if (cursor.y < TOP) {
 		if (was_inside) {
-			move = -(cursor.y - R0);
-			cursor.y = R0;
+			move = -(cursor.y - TOP);
+			cursor.y = TOP;
 			if (scroll) screen_scroll_down((unsigned int) move);
 		}
 		else {
@@ -1026,10 +1086,10 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		}
 	}
 
-	if (cursor.y > R1) {
+	if (cursor.y > BTM) {
 		if (was_inside) {
-			move = cursor.y - R1;
-			cursor.y = R1;
+			move = cursor.y - BTM;
+			cursor.y = BTM;
 			if (scroll) screen_scroll_up((unsigned int) move);
 		}
 		else {
@@ -1360,10 +1420,10 @@ putchar_graphic(const char *ch)
 			cursor.x = 0;
 			cursor.y++;
 			// Y wrap
-			if (cursor.y > R1) {
+			if (cursor.y > BTM) {
 				// Scroll up, so we have space for writing
 				screen_scroll_up(1);
-				cursor.y = R1;
+				cursor.y = BTM;
 			}
 
 			cursor.hanging = false;
