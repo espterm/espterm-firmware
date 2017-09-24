@@ -545,6 +545,10 @@ screen_tab_reverse(int count)
 
 /**
  * Clear range, inclusive
+ *
+ * @param from - starting absolute position
+ * @param to - ending absolute position
+ * @param clear_utf - release any encountered utf8
  */
 static void ICACHE_FLASH_ATTR
 clear_range_do(unsigned int from, unsigned int to, bool clear_utf)
@@ -566,7 +570,10 @@ clear_range_do(unsigned int from, unsigned int to, bool clear_utf)
 }
 
 /**
- * Clear range, inclusive
+ * Clear range, inclusive, freeing any encountered UTF8 from the cache
+ *
+ * @param from - starting absolute position
+ * @param to - ending absolute position
  */
 static inline void ICACHE_FLASH_ATTR
 clear_range_utf(unsigned int from, unsigned int to)
@@ -576,6 +583,9 @@ clear_range_utf(unsigned int from, unsigned int to)
 
 /**
  * Clear range, inclusive. Do not release utf characters
+ *
+ * @param from - starting absolute position
+ * @param to - ending absolute position
  */
 static inline void ICACHE_FLASH_ATTR
 clear_range_noutf(unsigned int from, unsigned int to)
@@ -583,44 +593,105 @@ clear_range_noutf(unsigned int from, unsigned int to)
 	clear_range_do(from, to, false);
 }
 
+/**
+ * Free a utf8 reference character in a cell
+ *
+ * @param row
+ * @param col
+ */
 static inline void ICACHE_FLASH_ATTR
-utf_free_cell(int row, int i)
+utf_free_cell(int row, int col)
 {
-	UnicodeCacheRef symbol = screen[row * W + i].symbol;
+	UnicodeCacheRef symbol = screen[row * W + col].symbol;
 	if (IS_UNICODE_CACHE_REF(symbol))
 		unicode_cache_remove(symbol);
 }
 
+/**
+ * Back-up utf8 reference in a cell (i.e. increment the counter,
+ * so 1 subsequent free has no effect)
+ *
+ * @param row
+ * @param col
+ */
 static inline void ICACHE_FLASH_ATTR
-utf_free_row(int r)
+utf_backup_cell(int row, int col)
 {
-	for (int i = 0; i < W; i++) {
-		utf_free_cell(r, i);
+	UnicodeCacheRef symbol = screen[row * W + col].symbol;
+	if (IS_UNICODE_CACHE_REF(symbol))
+		unicode_cache_inc(symbol);
+}
+
+/**
+ * Free all utf8 on a row
+ *
+ * @param row
+ */
+static inline void ICACHE_FLASH_ATTR
+utf_free_row(int row)
+{
+	for (int col = 0; col < W; col++) {
+		utf_free_cell(row, col);
 	}
 }
 
+/**
+ * Back-up all utf8 refs on a row
+ *
+ * @param row
+ */
+static inline void ICACHE_FLASH_ATTR
+utf_backup_row(int row)
+{
+	for (int col = 0; col < W; col++) {
+		utf_backup_cell(row, col);
+	}
+}
+
+/**
+ * Duplicate a row
+ *
+ * @param dest - destination row number (0-based)
+ * @param src  - source row number (0-based)
+ */
 static inline void ICACHE_FLASH_ATTR
 copy_row(int dest, int src)
 {
 	memcpy(screen + dest * W, screen + src * W, sizeof(Cell) * W);
 }
 
+/**
+ * Duplicate a cell within a row
+ * @param row - row to work on
+ * @param dest_col - destination column
+ * @param src_col - source column
+ */
 static inline void ICACHE_FLASH_ATTR
 copy_cell(int row, int dest_col, int src_col)
 {
 	memcpy(screen+row*W+dest_col, screen+row*W+src_col, sizeof(Cell));
 }
 
+/**
+ * Clear a row, do nothing with the utf8 cache
+ *
+ * @param row
+ */
 static inline void ICACHE_FLASH_ATTR
-clear_row_noutf(int r)
+clear_row_noutf(int row)
 {
-	clear_range_noutf(r * W, (r + 1) * W - 1);
+	clear_range_noutf(row * W, (row + 1) * W - 1);
 }
 
+/**
+ * Clear a row, freeing any utf8 refs
+ *
+ * @param row
+ */
 static inline void ICACHE_FLASH_ATTR
-clear_row_utf(int r)
+clear_row_utf(int row)
 {
-	clear_range_utf(r * W, (r + 1) * W - 1);
+	clear_range_utf(row * W, (row + 1) * W - 1);
 }
 
 /**
@@ -633,7 +704,8 @@ screen_clear(ClearMode mode)
 	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
-			clear_range_utf(0, W * H - 1);
+			clear_range_noutf(0, W * H - 1);
+			unicode_cache_clear();
 			break;
 
 		case CLEAR_FROM_CURSOR:
@@ -691,20 +763,20 @@ screen_insert_lines(unsigned int lines)
 	// shift the following lines
 	int targetStart = cursor.y + lines;
 	if (targetStart > BTM) {
-		targetStart = BTM - 1;
+		clear_range_utf(cursor.y*W, (BTM+1)*W-1);
 	} else {
 		// do the moving
 		for (int i = BTM; i >= targetStart; i--) {
 			utf_free_row(i); // release old characters
 			copy_row(i, i - lines);
 		}
-	}
 
-	// clear the first line
-	clear_row_noutf(CLEAR_ALL);
-	// copy it to the rest of the cleared region
-	for (int i = cursor.y+1; i < targetStart; i++) {
-		copy_row(i, cursor.y);
+		// clear the first line
+		clear_row_noutf(cursor.y);
+		// copy it to the rest of the cleared region
+		for (int i = cursor.y+1; i < targetStart; i++) {
+			copy_row(i, cursor.y);
+		}
 	}
 	NOTIFY_DONE();
 }
@@ -716,18 +788,18 @@ screen_delete_lines(unsigned int lines)
 	NOTIFY_LOCK();
 
 	// shift lines up
-	int targetEnd = BTM - lines - 1;
-	if (targetEnd <= cursor.y) {
+	int movedBlockEnd = BTM - lines ;
+	if (movedBlockEnd <= cursor.y) {
 		// clear the entire rest of the screen
-		targetEnd = cursor.y;
-		clear_range_utf(targetEnd * W, W * BTM);
+		movedBlockEnd = cursor.y;
+		clear_range_utf(movedBlockEnd*W, W * BTM);
 	} else {
 		// move some lines up, clear the rest
-		for (int i = cursor.y; i <= targetEnd; i++) {
+		for (int i = cursor.y; i <= movedBlockEnd; i++) {
 			utf_free_row(i);
 			copy_row(i, i+lines);
 		}
-		clear_range_noutf(targetEnd*W, W*BTM);
+		clear_range_noutf((movedBlockEnd+1)*W, (BTM+1)*W-1);
 	}
 
 	NOTIFY_DONE();
@@ -743,8 +815,7 @@ screen_insert_characters(unsigned int count)
 	int targetStart = cursor.x + count;
 	if (targetStart >= W) {
 		// all rest of line was cleared
-		targetStart = W-1;
-		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
+		clear_range_utf(cursor.y * W + cursor.x, (cursor.y + 1) * W - 1);
 	} else {
 		// do the moving
 		for (int i = W-1; i >= targetStart; i--) {
