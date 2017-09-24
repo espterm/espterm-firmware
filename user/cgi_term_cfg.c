@@ -14,6 +14,22 @@ Cgi/template routines for configuring non-wifi settings
 #define SET_REDIR_SUC "/cfg/term"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
 
+/** convert hex number to int */
+static ICACHE_FLASH_ATTR u32
+decodehex(const char *buf) {
+	u32 n = 0;
+	char c;
+	while ((c = *buf++) != 0) {
+		if (c >= '0' && c <= '9') c -= '0';
+		else if (c >= 'a' && c <= 'f') c -= 'a'-10;
+		else if (c >= 'A' && c <= 'F') c -= 'A'-10;
+		else c = 0;
+		n *= 16;
+		n += c;
+	}
+	return n;
+}
+
 /**
  * Universal CGI endpoint to set Terminal params.
  */
@@ -55,7 +71,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			if (!GET_ARG("term_height")) {
 				cgi_warn("Missing height arg!");
 				// this wont happen normally when the form is used
-				redir_url += sprintf(redir_url, "term_width,term_height,");
+				redir_url += sprintf(redir_url, "term_height,");
 				break;
 			}
 
@@ -83,29 +99,33 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 	if (GET_ARG("default_bg")) {
 		cgi_dbg("Screen default BG: %s", buff);
-		n = atoi(buff);
-		if (n >= 0 && n < 16) {
-			if (termconf->default_bg != n) {
-				termconf->default_bg = n;
-				shall_clear_screen = true;
-			}
+
+		if (buff[0] == '#') {
+			// decode hex
+			n = decodehex(buff+1);
+			n += 256;
 		} else {
-			cgi_warn("Bad color %s", buff);
-			redir_url += sprintf(redir_url, "default_bg,");
+			n = atoi(buff);
+		}
+
+		if (termconf->default_bg != n) {
+			termconf->default_bg = n; // this is current not sent through socket, no use to notify
 		}
 	}
 
 	if (GET_ARG("default_fg")) {
 		cgi_dbg("Screen default FG: %s", buff);
-		n = atoi(buff);
-		if (n >= 0 && n < 16) {
-			if (termconf->default_fg != n) {
-				termconf->default_fg = n;
-				shall_clear_screen = true;
-			}
+
+		if (buff[0] == '#') {
+			// decode hex
+			n = decodehex(buff+1);
+			n += 256;
 		} else {
-			cgi_warn("Bad color %s", buff);
-			redir_url += sprintf(redir_url, "default_fg,");
+			n = atoi(buff);
+		}
+
+		if (termconf->default_fg != n) {
+			termconf->default_fg = n; // this is current not sent through socket, no use to notify
 		}
 	}
 
@@ -415,10 +435,18 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 		sprintf(buff, "%d", termconf->theme);
 	}
 	else if (streq(token, "default_bg")) {
-		sprintf(buff, "%d", termconf->default_bg);
+		if (termconf->default_bg < 256) {
+			sprintf(buff, "%d", termconf->default_bg);
+		} else {
+			sprintf(buff, "#%06X", termconf->default_bg - 256);
+		}
 	}
 	else if (streq(token, "default_fg")) {
-		sprintf(buff, "%d", termconf->default_fg);
+		if (termconf->default_fg < 256) {
+			sprintf(buff, "%d", termconf->default_fg);
+		} else {
+			sprintf(buff, "#%06X", termconf->default_fg - 256);
+		}
 	}
 	else if (streq(token, "cursor_shape")) {
 		sprintf(buff, "%d", termconf->cursor_shape);
