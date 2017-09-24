@@ -38,11 +38,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 		tplSend(connData, buff, -1);
 	}
 	else if (streq(token, "default_fg")) {
-		sprintf(buff, "0x%08X", termconf->default_fg);
+		sprintf(buff, "%d", termconf->default_fg);
 		tplSend(connData, buff, -1);
 	}
 	else if (streq(token, "default_bg")) {
-		sprintf(buff, "0x%08X", termconf->default_bg);
+		sprintf(buff, "%d", termconf->default_bg);
 		tplSend(connData, buff, -1);
 	}
 

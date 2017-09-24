@@ -77,7 +77,7 @@ enum CursorShape {
 typedef struct {
 	u32 width;
 	u32 height;
-	u32 default_bg; // 00-FFh - ANSI colors, (00:00:00-FF:FF:FF)+256 - True Color, 1<<24 + 256 - default from theme
+	u32 default_bg; // 00-FFh - ANSI colors, (00:00:00-FF:FF:FF)+256 - True Color
 	u32 default_fg;
 	char title[TERM_TITLE_LEN];
 	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];

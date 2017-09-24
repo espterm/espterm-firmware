@@ -1689,18 +1689,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 			i++;
 		} else {
 			// last character was repeated repCnt times
-			int savings = ss->lastCharLen*repCnt;
-			if (savings > 3) {
-				// Repeat count
-				bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
-			} else {
-				// repeat it manually
-				for(int k = 0; k < repCnt; k++) {
-					for (int j = 0; j < ss->lastCharLen; j++) {
-						bufput_c(ss->lastChar[j]);
-					}
-				}
-			}
+			bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
 		}
 	}
 
