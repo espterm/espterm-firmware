@@ -86,7 +86,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		n = atoi(buff);
 		if (n >= 0 && n < 16) {
 			if (termconf->default_bg != n) {
-				termconf->default_bg = (u8) n;
+				termconf->default_bg = n;
 				shall_clear_screen = true;
 			}
 		} else {
@@ -100,7 +100,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		n = atoi(buff);
 		if (n >= 0 && n < 16) {
 			if (termconf->default_fg != n) {
-				termconf->default_fg = (u8) n;
+				termconf->default_fg = n;
 				shall_clear_screen = true;
 			}
 		} else {

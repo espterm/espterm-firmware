@@ -52,7 +52,7 @@ typedef struct { // the entire block should be 1024 bytes long (for compatibilit
 	uint32_t checksum; // computed before write and tested on load. If it doesn't match, values are reset to hard defaults.
 } AppConfigBundle;
 
-#define ADMINCONF_VERSION 1
+#define ADMINCONF_VERSION 0
 #define ADMINCONF_SIZE 256
 
 typedef struct {

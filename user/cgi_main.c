@@ -37,6 +37,14 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 		sprintf(buff, "%d", termconf->want_all_fn);
 		tplSend(connData, buff, -1);
 	}
+	else if (streq(token, "default_fg")) {
+		sprintf(buff, "%d", termconf->default_fg);
+		tplSend(connData, buff, -1);
+	}
+	else if (streq(token, "default_bg")) {
+		sprintf(buff, "%d", termconf->default_bg);
+		tplSend(connData, buff, -1);
+	}
 
 	return HTTPD_CGI_DONE;
 }
