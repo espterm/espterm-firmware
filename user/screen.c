@@ -609,7 +609,7 @@ clear_range_noutf(unsigned int from, unsigned int to)
 static inline void ICACHE_FLASH_ATTR
 utf_free_cell(int row, int col)
 {
-	dbg("free cell (row %d) %d", row, col);
+	//dbg("free cell (row %d) %d", row, col);
 	UnicodeCacheRef symbol = screen[row * W + col].symbol;
 	if (IS_UNICODE_CACHE_REF(symbol))
 		unicode_cache_remove(symbol);
@@ -625,7 +625,7 @@ utf_free_cell(int row, int col)
 static inline void ICACHE_FLASH_ATTR
 utf_backup_cell(int row, int col)
 {
-	dbg("backup cell (row %d) %d", row, col);
+	//dbg("backup cell (row %d) %d", row, col);
 	UnicodeCacheRef symbol = screen[row * W + col].symbol;
 	if (IS_UNICODE_CACHE_REF(symbol))
 		unicode_cache_inc(symbol);
@@ -640,7 +640,7 @@ utf_backup_cell(int row, int col)
 static inline void ICACHE_FLASH_ATTR
 copy_cell(int row, int dest_col, int src_col)
 {
-	dbg("copy cell (row %d) %d -> %d", row, src_col, dest_col);
+	//dbg("copy cell (row %d) %d -> %d", row, src_col, dest_col);
 	memcpy(screen+row*W+dest_col, screen+row*W+src_col, sizeof(Cell));
 }
 
@@ -652,7 +652,7 @@ copy_cell(int row, int dest_col, int src_col)
 static inline void ICACHE_FLASH_ATTR
 utf_free_row(int row)
 {
-	dbg("free row %d", row);
+	//dbg("free row %d", row);
 	for (int col = 0; col < W; col++) {
 		utf_free_cell(row, col);
 	}
@@ -666,7 +666,7 @@ utf_free_row(int row)
 static inline void ICACHE_FLASH_ATTR
 utf_backup_row(int row)
 {
-	dbg("backup row %d", row);
+	//dbg("backup row %d", row);
 	for (int col = 0; col < W; col++) {
 		utf_backup_cell(row, col);
 	}
@@ -681,7 +681,7 @@ utf_backup_row(int row)
 static inline void ICACHE_FLASH_ATTR
 copy_row(int dest, int src)
 {
-	dbg("copy row %d -> %d", src, dest);
+	//dbg("copy row %d -> %d", src, dest);
 	memcpy(screen + dest * W, screen + src * W, sizeof(Cell) * W);
 }
 
