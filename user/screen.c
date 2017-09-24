@@ -248,18 +248,7 @@ screen_init(void)
 {
 	if(DEBUG_HEAP) dbg("Screen buffer size = %d bytes", sizeof(screen));
 
-	NOTIFY_LOCK();
-	Cell sample;
-	sample.symbol = ' ';
-	sample.fg = 0;
-	sample.bg = 0;
-	sample.attrs = 0; // use default colors
-	for (unsigned int i = 0; i < MAX_SCREEN_SIZE; i++) {
-		memcpy(&screen[i], &sample, sizeof(Cell));
-	}
-
 	screen_reset();
-	NOTIFY_DONE();
 }
 
 /**
@@ -288,16 +277,13 @@ screen_reset_on_resize(void)
 	ansi_dbg("Screen partial reset due to resize");
 	NOTIFY_LOCK();
 
-	cursor.x = 0;
-	cursor.y = 0;
-	cursor.hanging = false;
+	cursor_reset();
 
 	scr.vm0 = 0;
 	scr.vm1 = H-1;
 
 	// size is left unchanged
-	screen_clear(CLEAR_ALL);
-	unicode_cache_clear();
+	screen_clear(CLEAR_ALL); // also clears utf cache
 
 	NOTIFY_DONE();
 }
@@ -314,17 +300,10 @@ screen_reset_sgr(void)
 	cursor.conceal = false;
 }
 
-/**
- * Reset the screen - called by ESC c
- */
-void ICACHE_FLASH_ATTR
-screen_reset(void)
+static void ICACHE_FLASH_ATTR
+screen_reset_do(bool size, bool labels)
 {
-	ansi_dbg("Screen reset.");
 	NOTIFY_LOCK();
-
-	cursor_reset();
-	unicode_cache_clear();
 
 	// DECopts
 	scr.cursor_visible = true;
@@ -339,17 +318,21 @@ screen_reset(void)
 	termconf_live.crlf_mode = termconf->crlf_mode;
 	scr.reverse_video = false;
 
-	scr.vm0 = 0;
-	scr.vm1 = H-1;
-
 	state_backup.alternate_active = false;
 
 	mouse_tracking.encoding = MTE_SIMPLE;
 	mouse_tracking.focus_tracking = false;
 	mouse_tracking.mode = MTM_NONE;
 
-	// size is left unchanged
-	screen_clear(CLEAR_ALL);
+	if (size) {
+		W = termconf->width;
+		H = termconf->height;
+	}
+
+	scr.vm0 = 0;
+	scr.vm1 = H - 1;
+	cursor_reset();
+	screen_clear(CLEAR_ALL); // also clears utf cache
 
 	// Set initial tabstops
 	for (int i = 0; i < TABSTOP_WORDS; i++) {
@@ -372,7 +355,29 @@ screen_reset(void)
 	opt_backup.show_config_links = termconf_live.show_config_links;
 
 	NOTIFY_DONE();
+
+	if (labels) {
+		strcpy(termconf_live.title, termconf->title);
+
+		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
+			strcpy(termconf_live.btn[i], termconf->btn[i]);
+			strcpy(termconf_live.btn_msg[i], termconf->btn_msg[i]);
+		}
+
+		screen_notifyChange(CHANGE_LABELS);
+	}
 }
+
+/**
+ * Reset the screen - called by ESC c
+ */
+void ICACHE_FLASH_ATTR
+screen_reset(void)
+{
+	ansi_dbg("Screen reset.");
+	screen_reset_do(true, true);
+}
+
 
 /**
  * Swap screen buffer / state
@@ -563,8 +568,10 @@ clear_range_do(unsigned int from, unsigned int to, bool clear_utf)
 	sample.attrs = (CellAttrs) (cursor.attrs & (ATTR_FG | ATTR_BG));
 
 	for (unsigned int i = from; i <= to; i++) {
-		UnicodeCacheRef symbol = screen[i].symbol;
-		if (clear_utf && IS_UNICODE_CACHE_REF(symbol)) unicode_cache_remove(symbol);
+		if (clear_utf) {
+			UnicodeCacheRef symbol = screen[i].symbol;
+			if (IS_UNICODE_CACHE_REF(symbol)) unicode_cache_remove(symbol);
+		}
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
 }
@@ -602,6 +609,7 @@ clear_range_noutf(unsigned int from, unsigned int to)
 static inline void ICACHE_FLASH_ATTR
 utf_free_cell(int row, int col)
 {
+	dbg("free cell (row %d) %d", row, col);
 	UnicodeCacheRef symbol = screen[row * W + col].symbol;
 	if (IS_UNICODE_CACHE_REF(symbol))
 		unicode_cache_remove(symbol);
@@ -617,9 +625,23 @@ utf_free_cell(int row, int col)
 static inline void ICACHE_FLASH_ATTR
 utf_backup_cell(int row, int col)
 {
+	dbg("backup cell (row %d) %d", row, col);
 	UnicodeCacheRef symbol = screen[row * W + col].symbol;
 	if (IS_UNICODE_CACHE_REF(symbol))
 		unicode_cache_inc(symbol);
+}
+
+/**
+ * Duplicate a cell within a row
+ * @param row - row to work on
+ * @param dest_col - destination column
+ * @param src_col - source column
+ */
+static inline void ICACHE_FLASH_ATTR
+copy_cell(int row, int dest_col, int src_col)
+{
+	dbg("copy cell (row %d) %d -> %d", row, src_col, dest_col);
+	memcpy(screen+row*W+dest_col, screen+row*W+src_col, sizeof(Cell));
 }
 
 /**
@@ -630,6 +652,7 @@ utf_backup_cell(int row, int col)
 static inline void ICACHE_FLASH_ATTR
 utf_free_row(int row)
 {
+	dbg("free row %d", row);
 	for (int col = 0; col < W; col++) {
 		utf_free_cell(row, col);
 	}
@@ -643,6 +666,7 @@ utf_free_row(int row)
 static inline void ICACHE_FLASH_ATTR
 utf_backup_row(int row)
 {
+	dbg("backup row %d", row);
 	for (int col = 0; col < W; col++) {
 		utf_backup_cell(row, col);
 	}
@@ -657,19 +681,8 @@ utf_backup_row(int row)
 static inline void ICACHE_FLASH_ATTR
 copy_row(int dest, int src)
 {
+	dbg("copy row %d -> %d", src, dest);
 	memcpy(screen + dest * W, screen + src * W, sizeof(Cell) * W);
-}
-
-/**
- * Duplicate a cell within a row
- * @param row - row to work on
- * @param dest_col - destination column
- * @param src_col - source column
- */
-static inline void ICACHE_FLASH_ATTR
-copy_cell(int row, int dest_col, int src_col)
-{
-	memcpy(screen+row*W+dest_col, screen+row*W+src_col, sizeof(Cell));
 }
 
 /**
@@ -704,8 +717,9 @@ screen_clear(ClearMode mode)
 	NOTIFY_LOCK();
 	switch (mode) {
 		case CLEAR_ALL:
-			clear_range_noutf(0, W * H - 1);
 			unicode_cache_clear();
+			clear_range_noutf(0, W * H - 1);
+			scr.last_char[0]  = 0;
 			break;
 
 		case CLEAR_FROM_CURSOR:
@@ -769,6 +783,7 @@ screen_insert_lines(unsigned int lines)
 		for (int i = BTM; i >= targetStart; i--) {
 			utf_free_row(i); // release old characters
 			copy_row(i, i - lines);
+			if (i != targetStart) utf_backup_row(i);
 		}
 
 		// clear the first line
@@ -792,12 +807,13 @@ screen_delete_lines(unsigned int lines)
 	if (movedBlockEnd <= cursor.y) {
 		// clear the entire rest of the screen
 		movedBlockEnd = cursor.y;
-		clear_range_utf(movedBlockEnd*W, W * BTM);
+		clear_range_utf(movedBlockEnd*W, (BTM+1)*W-1);
 	} else {
 		// move some lines up, clear the rest
 		for (int i = cursor.y; i <= movedBlockEnd; i++) {
 			utf_free_row(i);
 			copy_row(i, i+lines);
+			if (i != movedBlockEnd) utf_backup_row(i);
 		}
 		clear_range_noutf((movedBlockEnd+1)*W, (BTM+1)*W-1);
 	}
@@ -821,8 +837,9 @@ screen_insert_characters(unsigned int count)
 		for (int i = W-1; i >= targetStart; i--) {
 			utf_free_cell(cursor.y, i);
 			copy_cell(cursor.y, i, i - count);
+			utf_backup_cell(cursor.y, i);
 		}
-		clear_range_noutf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
+		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
 	}
 	NOTIFY_DONE();
 }
@@ -841,9 +858,10 @@ screen_delete_characters(unsigned int count)
 		for (int i = cursor.x; i <= movedBlockEnd; i++) {
 			utf_free_cell(cursor.y, i);
 			copy_cell(cursor.y, i, i + count);
+			utf_backup_cell(cursor.y, i);
 		}
 		// clear original positions of the moved characters
-		clear_range_utf(cursor.y * W + (W - count), (cursor.y + 1) * W - 1);
+		clear_range_noutf(cursor.y * W + (W - count), (cursor.y + 1) * W - 1);
 	} else {
 		// all rest was cleared
 		screen_clear_line(CLEAR_FROM_CURSOR);
@@ -859,7 +877,7 @@ void ICACHE_FLASH_ATTR
 screen_fill_with_E(void)
 {
 	NOTIFY_LOCK();
-	screen_reset(); // based on observation from xterm
+	screen_reset_do(false, false); // based on observation from xterm
 
 	Cell sample;
 	sample.symbol = 'E';
@@ -943,6 +961,7 @@ screen_scroll_up(unsigned int lines)
 	for (y = TOP; y <= BTM - lines; y++) {
 		utf_free_row(y);
 		copy_row(y, y+lines);
+		if (y < BTM - lines) utf_backup_row(y);
 	}
 
 	clear_range_noutf(y * W, (BTM + 1) * W - 1);
@@ -973,6 +992,7 @@ screen_scroll_down(unsigned int lines)
 	for (y = BTM; y >= TOP+lines; y--) {
 		utf_free_row(y);
 		copy_row(y, y-lines);
+		if (y > TOP + lines) utf_backup_row(y);
 	}
 
 	clear_range_noutf(TOP * W, TOP * W + lines * W - 1);

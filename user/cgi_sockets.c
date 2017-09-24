@@ -63,12 +63,11 @@ notifyContentTimCb(void *arg)
 
 	if (!notify_available || notify_cooldown || (max_bl > 2048)) { // do not send if we have anything significant backlogged
 		// postpone a little
-		TIMER_START(&notifyContentTim, notifyContentTimCb, 5, 0);
+		TIMER_START(&notifyContentTim, notifyContentTimCb, 4, 0);
+		inp_dbg("postpone notify content");
 		return;
 	}
 	notify_available = false;
-
-	resetHeartbeatTimer();
 
 	for (int i = 0; i < 20; i++) {
 		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, &data);
@@ -79,6 +78,7 @@ notifyContentTimCb(void *arg)
 			cgiWebsocketSend(ws, sock_buff, (int) strlen(sock_buff), flg);
 		} else {
 			cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), flg);
+			resetHeartbeatTimer();
 		}
 		if (cont == HTTPD_CGI_DONE) break;
 
@@ -101,18 +101,25 @@ notifyContentTimCb(void *arg)
 static void ICACHE_FLASH_ATTR
 notifyLabelsTimCb(void *arg)
 {
+	Websock *ws = arg;
 	char sock_buff[SOCK_BUF_LEN];
 
 	if (!notify_available || notify_cooldown) {
 		// postpone a little
-		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, 1, 0);
+		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, 7, 0);
+		inp_dbg("postpone notify labels");
 		return;
 	}
 	notify_available = false;
 
 	screenSerializeLabelsToBuffer(sock_buff, SOCK_BUF_LEN);
-	cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), 0);
-	resetHeartbeatTimer();
+
+	if (ws) {
+		cgiWebsocketSend(ws, sock_buff, (int) strlen(sock_buff), 0);
+	} else {
+		cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), 0);
+		resetHeartbeatTimer();
+	}
 
 	notify_cooldown = true;
 	notify_available = true;
@@ -155,13 +162,14 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
 	if (active_clients == 0) return;
 
 	// this is probably not needed here - ensure timeout is not 0
-	if (termconf->display_tout_ms == 0) termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
+	if (termconf->display_tout_ms == 0)
+		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 
 	// NOTE: the timers are restarted if already running
 
 	if (topic == CHANGE_LABELS) {
 		// separate timer from content change timer, to avoid losing that update
-		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, termconf->display_tout_ms, 0);
+		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, termconf->display_tout_ms+2, 0); // this delay is useful when both are fired at once on screen reset
 	}
 	else if (topic == CHANGE_CONTENT) {
 		// throttle delay
@@ -288,7 +296,8 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 		case 'i':
 			// requests initial load
 			inp_dbg("Client requests initial load");
-			notifyContentTimCb(ws);
+			notifyContentTimCb(ws); // delay??
+			notifyLabelsTimCb(ws);
 			break;
 
 		case 'm':
@@ -313,16 +322,27 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 /** Send a heartbeat msg */
 static void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 {
-	if (notify_available && active_clients > 0) {
-		// Heartbeat packet - indicate we're still connected
-		// JS reloads the page if heartbeat is lost for a couple seconds
-		cgiWebsockBroadcast(URL_WS_UPDATE, ".", 1, 0);
+	if (active_clients > 0) {
+		if (notify_available) {
+			inp_dbg(".");
+
+			// Heartbeat packet - indicate we're still connected
+			// JS reloads the page if heartbeat is lost for a couple seconds
+			cgiWebsockBroadcast(URL_WS_UPDATE, ".", 1, 0);
+
+			// schedule next tick
+			TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 0);
+		} else {
+			// postpone...
+			TIMER_START(&heartbeatTim, heartbeatTimCb, 10, 0);
+			inp_dbg("postpone heartbeat");
+		}
 	}
 }
 
 static void ICACHE_FLASH_ATTR resetHeartbeatTimer(void)
 {
-	TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 1);
+	TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 0);
 }
 
 
