@@ -1033,7 +1033,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 	clear_invalid_hanging();
 
 	if (cursor.hanging && dx < 0) {
-		dx += 1; // consume one step on the removal of "xenl"
+		//dx += 1; // consume one step on the removal of "xenl"
 		cursor.hanging = false;
 	}
 
