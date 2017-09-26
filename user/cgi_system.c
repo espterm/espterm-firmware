@@ -6,7 +6,6 @@
 #include "cgi_system.h"
 #include "persist.h"
 #include "syscfg.h"
-#include "uart_driver.h"
 #include "ansi_parser.h"
 #include "cgi_logging.h"
 
@@ -98,9 +97,7 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 
 	do {
 		if (!GET_ARG("pw")) {
-			warn("Missing admin pw!");
-			redir_url += sprintf(redir_url, "pw,");
-			break;
+			break; // if no PW in GET, not trying to configure anything protected
 		}
 
 		if (!streq(buff, persist.admin.pw)) {
@@ -191,6 +188,14 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		}
 	} while (0);
 
+	if (GET_ARG("overclock")) {
+		cgi_dbg("overclock = %s", buff);
+		int enable = atoi(buff);
+		if (sysconf->overclock != enable) {
+			sysconf->overclock = (bool)enable;
+		}
+	}
+
 	(void)redir_url;
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
@@ -245,6 +250,9 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "def_admin_pw")) {
 		sprintf(buff, "%s", DEFAULT_ADMIN_PW);
+	}
+	else if (streq(token, "overclock")) {
+		sprintf(buff, "%d", sysconf->overclock);
 	}
 
 	tplSend(connData, buff, -1);
