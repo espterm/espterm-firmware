@@ -9,7 +9,7 @@
 #include <uart_register.h>
 
 #define UART_TX_BUFFER_SIZE 512  //Ring buffer length of tx buffer
-#define UART_RX_BUFFER_SIZE 512 //Ring buffer length of rx buffer
+#define UART_RX_BUFFER_SIZE 600 //Ring buffer length of rx buffer
 
 struct UartBuffer {
 	uint32 UartBuffSize;
@@ -158,24 +158,34 @@ void UART_RxFifoCollect(void)
 	uint8 fifo_data;
 	fifo_len = (uint8) ((READ_PERI_REG(UART_STATUS(UART0)) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT);
 	if (fifo_len >= pRxBuffer->Space) {
-		UART_WriteChar(UART1, '%', 100);
-	}
-	else {
+		// try to read at least the bit we can
+		fifo_len = (uint8) (pRxBuffer->Space - 1);
+		UART_WriteChar(UART1, '%', 1);
+		// discard contents of the FIFO - would loop forever
 		buf_idx = 0;
 		while (buf_idx < fifo_len) {
 			buf_idx++;
 			fifo_data = (uint8) (READ_PERI_REG(UART_FIFO(UART0)) & 0xFF);
-			*(pRxBuffer->pInPos++) = fifo_data;
-			if (pRxBuffer->pInPos == (pRxBuffer->pUartBuff + pRxBuffer->UartBuffSize)) {
-				pRxBuffer->pInPos = pRxBuffer->pUartBuff;
-			}
+			(void)fifo_data; // pretend we use it
 		}
-		pRxBuffer->Space -= fifo_len;
+		return;
+	}
 
-		if (pRxBuffer->Space >= UART_FIFO_LEN) {
-			uart_rx_intr_enable(UART0);
+	buf_idx = 0;
+	while (buf_idx < fifo_len) {
+		buf_idx++;
+		fifo_data = (uint8) (READ_PERI_REG(UART_FIFO(UART0)) & 0xFF);
+		*(pRxBuffer->pInPos++) = fifo_data;
+		if (pRxBuffer->pInPos == (pRxBuffer->pUartBuff + pRxBuffer->UartBuffSize)) {
+			pRxBuffer->pInPos = pRxBuffer->pUartBuff;
 		}
 	}
+	pRxBuffer->Space -= fifo_len;
+//
+	// this is called by the processing routine, no need here
+//		if (pRxBuffer->Space >= UART_FIFO_LEN) {
+//			uart_rx_intr_enable(UART0);
+//		}
 }
 
 u16 ICACHE_FLASH_ATTR UART_AsyncTxGetEmptySpace(void)
@@ -209,7 +219,7 @@ UART_SendAsync(const char *pdata, int16_t data_len)
 			UART_WriteToAsyncBuffer(pTxBuffer, pdata, real_len);
 		}
 		else {
-			UART_WriteChar(UART1, '^', 100);
+			UART_WriteChar(UART1, '^', 1);
 		}
 //	}
 

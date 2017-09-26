@@ -10,6 +10,7 @@ Cgi/template routines for configuring non-wifi settings
 #include "helpers.h"
 #include "cgi_logging.h"
 #include "uart_driver.h"
+#include "serial.h"
 
 #define SET_REDIR_SUC "/cfg/term"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
@@ -42,6 +43,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	bool notify_screen_content = 0, notify_screen_labels = 0;
 
 	bool shall_clear_screen = false;
+	bool shall_init_uart = false;
 
 	char *redir_url = redir_url_buf;
 	redir_url += sprintf(redir_url, SET_REDIR_ERR);
@@ -317,6 +319,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			baud == BIT_RATE_1843200 ||
 			baud == BIT_RATE_3686400) {
 			sysconf->uart_baudrate = (u32) baud;
+			shall_init_uart = true;
 		} else {
 			cgi_warn("Bad baud rate %s", buff);
 			redir_url += sprintf(redir_url, "uart_baud,");
@@ -328,6 +331,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		int parity = atoi(buff);
 		if (parity >= 0 && parity <= 2) {
 			sysconf->uart_parity = (UartParityMode) parity;
+			shall_init_uart = true;
 		} else {
 			cgi_warn("Bad parity %s", buff);
 			redir_url += sprintf(redir_url, "uart_parity,");
@@ -339,6 +343,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		int stopbits = atoi(buff);
 		if (stopbits >= 1 && stopbits <= 3) {
 			sysconf->uart_stopbits = (UartStopBitsNum) stopbits;
+			shall_init_uart = true;
 		} else {
 			cgi_warn("Bad stopbits %s", buff);
 			redir_url += sprintf(redir_url, "uart_stopbits,");
@@ -359,6 +364,10 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			terminal_apply_settings_noclear();
 		}
 
+		if (shall_init_uart) {
+			serialInit();
+		}
+
 		if (notify_screen_content) {
 			screen_notifyChange(CHANGE_CONTENT);
 		}
@@ -367,7 +376,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			screen_notifyChange(CHANGE_LABELS);
 		}
 
-		httpdRedirect(connData, SET_REDIR_SUC);
+		httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
 	} else {
 		cgi_warn("Some settings did not validate, asking for correction");
 

@@ -12,6 +12,7 @@ html_compressed/
 ldscript_memspecific.ld
 eagle.app.sym
 node_modules
+esphttpdconfig.mk
 
 # Garbage added by CLion
 .idea/

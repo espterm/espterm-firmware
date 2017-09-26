@@ -10,7 +10,7 @@
 // Size designed for the wifi config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define SYSCONF_SIZE 300
-#define SYSCONF_VERSION 0
+#define SYSCONF_VERSION 1
 
 #define DEF_ACCESS_PW "1234"
 #define DEF_ACCESS_NAME "espterm"
@@ -32,6 +32,7 @@ typedef struct {
 	enum pwlock pwlock : 8; // page access lock
 	char access_pw[64]; // access password
 	char access_name[32]; // access name
+	bool overclock;
 } SystemConfigBundle;
 
 extern SystemConfigBundle * const sysconf;

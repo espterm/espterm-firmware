@@ -187,6 +187,10 @@ wifimgr_apply_settings(void)
 		configure_ap();
 	}
 
+	// tpw seems to be common - but info is scarce
+	// at any rate seems to do no harm to have it here
+	system_phy_set_max_tpw(wificonf->tpw);
+
 	wifi_change_flags.ap = false;
 	wifi_change_flags.sta = false;
 
