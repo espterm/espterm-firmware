@@ -9,9 +9,26 @@ Cgi/template routines for configuring non-wifi settings
 #include "screen.h"
 #include "helpers.h"
 #include "cgi_logging.h"
+#include "uart_driver.h"
 
 #define SET_REDIR_SUC "/cfg/term"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
+
+/** convert hex number to int */
+static ICACHE_FLASH_ATTR u32
+decodehex(const char *buf) {
+	u32 n = 0;
+	char c;
+	while ((c = *buf++) != 0) {
+		if (c >= '0' && c <= '9') c -= '0';
+		else if (c >= 'a' && c <= 'f') c -= 'a'-10;
+		else if (c >= 'A' && c <= 'F') c -= 'A'-10;
+		else c = 0;
+		n *= 16;
+		n += c;
+	}
+	return n;
+}
 
 /**
  * Universal CGI endpoint to set Terminal params.
@@ -30,6 +47,11 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	redir_url += sprintf(redir_url, SET_REDIR_ERR);
 	// we'll test if anything was printed by looking for \0 in failed_keys_buf
 
+	SystemConfigBundle *sysconf_backup = malloc(sizeof(SystemConfigBundle));
+	TerminalConfigBundle *termconf_backup = malloc(sizeof(TerminalConfigBundle));
+	memcpy(sysconf_backup, sysconf, sizeof(SystemConfigBundle));
+	memcpy(termconf_backup, termconf, sizeof(TerminalConfigBundle));
+
 	if (connData->conn == NULL) {
 		//Connection aborted. Clean up.
 		return HTTPD_CGI_DONE;
@@ -37,63 +59,73 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 	// width and height must always go together so we can do max size validation
 	if (GET_ARG("term_width")) {
-		cgi_dbg("Default screen width: %s", buff);
-		w = atoi(buff);
-		if (w > 1) {
-			if (GET_ARG("term_height")) {
-				cgi_dbg("Default screen height: %s", buff);
-				h = atoi(buff);
-				if (h > 1) {
-					if (w * h <= MAX_SCREEN_SIZE) {
-						if (termconf->width != w || termconf->height != h) {
-							termconf->width = w;
-							termconf->height = h;
-							shall_clear_screen = true; // this causes a notify
-						}
-					} else {
-						cgi_warn("Bad dimensions: %d x %d (total %d)", w, h, w*h);
-						redir_url += sprintf(redir_url, "term_width,term_height,");
-					}
-				} else {
-					cgi_warn("Bad height: \"%s\"", buff);
-					redir_url += sprintf(redir_url, "term_width,");
-				}
-			} else {
+		do {
+			cgi_dbg("Default screen width: %s", buff);
+			w = atoi(buff);
+			if (w < 1) {
+				cgi_warn("Bad width: \"%s\"", buff);
+				redir_url += sprintf(redir_url, "term_width,");
+				break;
+			}
+
+			if (!GET_ARG("term_height")) {
 				cgi_warn("Missing height arg!");
 				// this wont happen normally when the form is used
-				redir_url += sprintf(redir_url, "term_width,term_height,");
+				redir_url += sprintf(redir_url, "term_height,");
+				break;
 			}
-		} else {
-			cgi_warn("Bad width: \"%s\"", buff);
-			redir_url += sprintf(redir_url, "term_width,");
-		}
+
+			cgi_dbg("Default screen height: %s", buff);
+			h = atoi(buff);
+			if (h < 1) {
+				cgi_warn("Bad height: \"%s\"", buff);
+				redir_url += sprintf(redir_url, "term_height,");
+				break;
+			}
+
+			if (w * h > MAX_SCREEN_SIZE) {
+				cgi_warn("Bad dimensions: %d x %d (total %d)", w, h, w * h);
+				redir_url += sprintf(redir_url, "term_width,term_height,");
+				break;
+			}
+
+			if (termconf->width != w || termconf->height != h) {
+				termconf->width = w;
+				termconf->height = h;
+				shall_clear_screen = true; // this causes a notify
+			}
+		} while (0);
 	}
 
 	if (GET_ARG("default_bg")) {
 		cgi_dbg("Screen default BG: %s", buff);
-		n = atoi(buff);
-		if (n >= 0 && n < 16) {
-			if (termconf->default_bg != n) {
-				termconf->default_bg = (u8) n;
-				shall_clear_screen = true;
-			}
+
+		if (buff[0] == '#') {
+			// decode hex
+			n = decodehex(buff+1);
+			n += 256;
 		} else {
-			cgi_warn("Bad color %s", buff);
-			redir_url += sprintf(redir_url, "default_bg,");
+			n = atoi(buff);
+		}
+
+		if (termconf->default_bg != n) {
+			termconf->default_bg = n; // this is current not sent through socket, no use to notify
 		}
 	}
 
 	if (GET_ARG("default_fg")) {
 		cgi_dbg("Screen default FG: %s", buff);
-		n = atoi(buff);
-		if (n >= 0 && n < 16) {
-			if (termconf->default_fg != n) {
-				termconf->default_fg = (u8) n;
-				shall_clear_screen = true;
-			}
+
+		if (buff[0] == '#') {
+			// decode hex
+			n = decodehex(buff+1);
+			n += 256;
 		} else {
-			cgi_warn("Bad color %s", buff);
-			redir_url += sprintf(redir_url, "default_fg,");
+			n = atoi(buff);
+		}
+
+		if (termconf->default_fg != n) {
+			termconf->default_fg = n; // this is current not sent through socket, no use to notify
 		}
 	}
 
@@ -173,7 +205,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	if (GET_ARG("theme")) {
 		cgi_dbg("Screen color theme: %s", buff);
 		n = atoi(buff);
-		if (n >= 0 && n <= 5) { // ALWAYS ADJUST WHEN ADDING NEW THEME!
+		if (n >= 0) {
 			termconf->theme = (u8) n;
 			// this can't be notified, page must reload.
 		} else {
@@ -265,6 +297,56 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		}
 	}
 
+	if (GET_ARG("uart_baud")) {
+		cgi_dbg("Baud rate: %s", buff);
+		int baud = atoi(buff);
+		if (baud == BIT_RATE_300 ||
+			baud == BIT_RATE_600 ||
+			baud == BIT_RATE_1200 ||
+			baud == BIT_RATE_2400 ||
+			baud == BIT_RATE_4800 ||
+			baud == BIT_RATE_9600 ||
+			baud == BIT_RATE_19200 ||
+			baud == BIT_RATE_38400 ||
+			baud == BIT_RATE_57600 ||
+			baud == BIT_RATE_74880 ||
+			baud == BIT_RATE_115200 ||
+			baud == BIT_RATE_230400 ||
+			baud == BIT_RATE_460800 ||
+			baud == BIT_RATE_921600 ||
+			baud == BIT_RATE_1843200 ||
+			baud == BIT_RATE_3686400) {
+			sysconf->uart_baudrate = (u32) baud;
+		} else {
+			cgi_warn("Bad baud rate %s", buff);
+			redir_url += sprintf(redir_url, "uart_baud,");
+		}
+	}
+
+	if (GET_ARG("uart_parity")) {
+		cgi_dbg("Parity: %s", buff);
+		int parity = atoi(buff);
+		if (parity >= 0 && parity <= 2) {
+			sysconf->uart_parity = (UartParityMode) parity;
+		} else {
+			cgi_warn("Bad parity %s", buff);
+			redir_url += sprintf(redir_url, "uart_parity,");
+		}
+	}
+
+	if (GET_ARG("uart_stopbits")) {
+		cgi_dbg("Stop bits: %s", buff);
+		int stopbits = atoi(buff);
+		if (stopbits >= 1 && stopbits <= 3) {
+			sysconf->uart_stopbits = (UartStopBitsNum) stopbits;
+		} else {
+			cgi_warn("Bad stopbits %s", buff);
+			redir_url += sprintf(redir_url, "uart_stopbits,");
+		}
+	}
+
+	(void)redir_url;
+
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
 		info("Set term params - success, saving...");
@@ -288,9 +370,16 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		httpdRedirect(connData, SET_REDIR_SUC);
 	} else {
 		cgi_warn("Some settings did not validate, asking for correction");
+
+		memcpy(sysconf, sysconf_backup, sizeof(SystemConfigBundle));
+		memcpy(termconf, termconf_backup, sizeof(TerminalConfigBundle));
+
 		// Some errors, appended to the URL as ?err=
 		httpdRedirect(connData, redir_url_buf);
 	}
+
+	free(sysconf_backup);
+	free(termconf_backup);
 	return HTTPD_CGI_DONE;
 }
 
@@ -346,16 +435,33 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 		sprintf(buff, "%d", termconf->theme);
 	}
 	else if (streq(token, "default_bg")) {
-		sprintf(buff, "%d", termconf->default_bg);
+		if (termconf->default_bg < 256) {
+			sprintf(buff, "%d", termconf->default_bg);
+		} else {
+			sprintf(buff, "#%06X", termconf->default_bg - 256);
+		}
 	}
 	else if (streq(token, "default_fg")) {
-		sprintf(buff, "%d", termconf->default_fg);
+		if (termconf->default_fg < 256) {
+			sprintf(buff, "%d", termconf->default_fg);
+		} else {
+			sprintf(buff, "#%06X", termconf->default_fg - 256);
+		}
 	}
 	else if (streq(token, "cursor_shape")) {
 		sprintf(buff, "%d", termconf->cursor_shape);
 	}
 	else if (streq(token, "term_title")) {
 		strncpy_safe(buff, termconf->title, BUFLEN);
+	}
+	else if (streq(token, "uart_baud")) {
+		sprintf(buff, "%d", sysconf->uart_baudrate);
+	}
+	else if (streq(token, "uart_parity")) {
+		sprintf(buff, "%d", sysconf->uart_parity);
+	}
+	else if (streq(token, "uart_stopbits")) {
+		sprintf(buff, "%d", sysconf->uart_stopbits);
 	}
 	else {
 		for (int btn_i = 1; btn_i <= TERM_BTN_COUNT; btn_i++) {

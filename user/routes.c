@@ -12,12 +12,79 @@
 #include "cgi_network.h"
 #include "cgi_term_cfg.h"
 #include "cgi_persist.h"
+#include "syscfg.h"
+#include "persist.h"
 
-#define WIFI_PROTECT 0
-#define WIFI_AUTH_NAME "wifi"
-#define WIFI_AUTH_PASS "nicitel"
+/**
+ * Password for WiFi config
+ */
+static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
+{
+	if (no == 0) {
+		os_strcpy(user, sysconf->access_name);
+		os_strcpy(pass, sysconf->access_pw);
+		return 1;
+	}
+	if (no == 1) {
+		os_strcpy(user, "admin");
+		os_strcpy(pass, persist.admin.pw);
+		return 1;
+	}
+	return 0;
+}
 
-static int wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen);
+httpd_cgi_state ICACHE_FLASH_ATTR cgiOptionalPwLock(HttpdConnData *connData)
+{
+	bool protect = false;
+
+	http_dbg("Route, %s, pwlock=%d", connData->url, sysconf->pwlock);
+
+	switch (sysconf->pwlock) {
+		case PWLOCK_ALL:
+			protect = true;
+			break;
+
+		case PWLOCK_SETTINGS_NOTERM:
+			protect = strstarts(connData->url, "/cfg") && !strstarts(connData->url, "/cfg/term");
+			break;
+
+		case PWLOCK_SETTINGS_ALL:
+			protect = strstarts(connData->url, "/cfg");
+			break;
+
+		case PWLOCK_MENUS:
+			protect = strstarts(connData->url, "/cfg") || strstarts(connData->url, "/about") || strstarts(connData->url, "/help");
+			break;
+
+		default:
+		case PWLOCK_NONE:
+			break;
+	}
+
+	// pages outside the normal scope
+
+	if (sysconf->pwlock > PWLOCK_NONE) {
+		if (strstarts(connData->url, "/system/reset")) protect = true;
+	}
+
+	if (sysconf->pwlock > PWLOCK_SETTINGS_NOTERM) {
+		if (strstarts(connData->url, "/system/cls")) protect = true;
+	}
+
+	if (sysconf->access_pw[0] == 0) {
+		http_dbg("Access PW is nil, no protection.");
+		protect = false;
+	}
+
+	if (protect) {
+		http_dbg("Page is protected!");
+		connData->cgiArg = wifiPassFn;
+		return authBasic(connData);
+	} else {
+		http_dbg("Not protected");
+		return HTTPD_CGI_NOTFOUND;
+	}
+}
 
 /**
  * Application routes
@@ -25,6 +92,7 @@ static int wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, 
 const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	// redirect func for the captive portal
 	ROUTE_CGI_ARG("*", cgiRedirectApClientToHostname, "esp-terminal.ap"),
+	ROUTE_CGI("*", cgiOptionalPwLock),
 
 	// --- Web pages ---
 	ROUTE_TPL_FILE("/", tplScreen, "/term.tpl"),
@@ -39,10 +107,6 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_CGI("/system/ping/?", cgiPing),
 	ROUTE_CGI("/system/cls/?", cgiResetScreen),
 
-	// --- WiFi config --- (TODO make this conditional and configurable)
-#if WIFI_PROTECT
-	ROUTE_AUTH("/wifi*", wifiPassFn),
-#endif
 	ROUTE_REDIRECT("/cfg/?", "/cfg/wifi"),
 
 	ROUTE_TPL_FILE("/cfg/wifi/?", tplWlan, "/cfg_wifi.tpl"),
@@ -67,17 +131,3 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_END(),
 };
 
-// --- Wifi password protection ---
-
-/**
- * Password for WiFi config
- */
-static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
-{
-	if (no == 0) {
-		os_strcpy(user, WIFI_AUTH_NAME);
-		os_strcpy(pass, WIFI_AUTH_PASS);
-		return 1;
-	}
-	return 0;
-}

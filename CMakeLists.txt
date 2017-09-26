@@ -153,6 +153,7 @@ include_directories(esp_iot_sdk_v1.5.2/include)
 add_definitions(
         -D__ets__
         -DICACHE_FLASH
+        -DDEBUG_LOGBUF_SIZE=2048
         -DUSE_OPTIMIZE_PRINTF=1
         -DHTTPD_MAX_CONNECTIONS=5
         -DHTTPD_STACKSIZE=1000
@@ -160,9 +161,12 @@ add_definitions(
         -DICACHE_RODATA_ATTR=
         -DFLAG_GZIP=2
         -DADMIN_PASSWORD="asdf"
+        -DGIT_HASH_BACKEND="asdf"
+        -DGIT_HASH_FRONTEND="asdf"
         -DGIT_HASH="blabla"
         -DDEBUG_HEAP=1
         -DDEBUG_MALLOC=1
+        -D__TIMEZONE__="UTC"
         -DESPFS_HEATSHRINK)
 
 add_executable(ESPTerm ${SOURCE_FILES})

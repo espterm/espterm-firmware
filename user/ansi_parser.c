@@ -9,7 +9,7 @@
 /* Ragel constants block */
 
 /* #line 12 "user/ansi_parser.c" */
-static const char _ansi_actions[] = {
+static const char _ansi_actions[] ESP_CONST_DATA = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 8, 1, 9, 1, 10, 1, 
@@ -17,7 +17,7 @@ static const char _ansi_actions[] = {
 	15
 };
 
-static const char _ansi_eof_actions[] = {
+static const char _ansi_eof_actions[] ESP_CONST_DATA = {
 	0, 1, 1, 1, 1, 1, 1, 1, 
 	1, 1, 1, 0, 0, 0, 0
 };

@@ -79,7 +79,6 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 
 // Deferred init
 static void user_start(void *unused);
-static void user_start2(void *unused);
 
 static ETSTimer userStartTimer;
 static ETSTimer prHeapTimer;
@@ -99,7 +98,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	banner_info("Firmware (c) Ondrej Hruska, 2017");
 	banner_info(TERMINAL_GITHUB_REPO);
 	banner_info("");
-	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__);
+	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__ " " __TIMEZONE__);
 	printf("\r\n");
 
 	ioInit();
@@ -120,7 +119,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 	// do later (some functions do not work if called from user_init)
 	TIMER_START(&userStartTimer, user_start, 10, 0);
 }
-
 
 static void ICACHE_FLASH_ATTR user_start(void *unused)
 {

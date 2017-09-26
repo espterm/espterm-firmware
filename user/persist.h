@@ -14,11 +14,13 @@
 #include "screen.h"
 #include "syscfg.h"
 
+#define DEFAULT_ADMIN_PW "adminpw"
+
 // Changing this could be used to force-erase the config area
 // after a firmware upgrade
-#define CHECKSUM_SALT 3
+#define CHECKSUM_SALT 5
 
-#define APPCONF_SIZE 2048
+#define APPCONF_SIZE 1900
 
 /** Struct for current or default settings */
 typedef struct { // the entire block should be 1024 bytes long (for compatibility across upgrades)
@@ -41,7 +43,7 @@ typedef struct { // the entire block should be 1024 bytes long (for compatibilit
 	// it grew to a different memory area.
 	uint8_t _filler_end[
 		APPCONF_SIZE
-		- sizeof(uint32_t) // checksum
+		- 4 // checksum
 		- WIFICONF_SIZE
 		- SYSCONF_SIZE
 		- TERMCONF_SIZE
@@ -50,10 +52,21 @@ typedef struct { // the entire block should be 1024 bytes long (for compatibilit
 	uint32_t checksum; // computed before write and tested on load. If it doesn't match, values are reset to hard defaults.
 } AppConfigBundle;
 
+#define ADMINCONF_VERSION 0
+#define ADMINCONF_SIZE 256
+
+typedef struct {
+	u8 version;
+	char pw[64];
+	uint8_t _filler[ADMINCONF_SIZE-64-4];
+	uint32_t checksum;
+} AdminConfigBlock;
+
 /** This is the entire data block stored in FLASH */
 typedef struct {
 	AppConfigBundle defaults; // defaults are stored here
 	AppConfigBundle current;     // active settings adjusted by the user
+	AdminConfigBlock admin;
 } PersistBlock;
 
 // Persist holds the data currently loaded from the flash

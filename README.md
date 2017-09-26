@@ -30,6 +30,26 @@ emulator backend that runs on the ESP8266. The web version will be updated to ma
 after each minor release (and sometimes in between for testing; the version currently being show-cased
 can be read on the About page of the demo).
 
+### Browser support
+
+Use the above linked online demo to verify compatibility with your browser.
+
+To our knowledge, ESPTerm **works with**:
+- Google Chrome (desktop, mobile)
+- Firefox (desktop, mobile not tested)
+- Safari (desktop, mobile)
+- Chromium
+- Opera
+- Brave
+- Konqueror
+
+It **does not work with**:
+- Microsoft Edge - runs, but is extremely laggy
+- Internet Explorer (any version) - crashes, missing JS features
+- Opera Mini - crashes, missing JS and CSS features
+- Blackberry browser - not tested, but unlikely
+- Old Android Browser (before 4.4?) - not tested, likely missing JS features
+
 ## Main features
 
 - **Almost complete VT102 emulation** with some extras from Xterm, eg.

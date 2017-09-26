@@ -8,7 +8,7 @@
 #include <c_types.h>
 
 // 160 is maximum possible
-#define UNICODE_CACHE_SIZE 100
+#define UNICODE_CACHE_SIZE 160
 
 typedef u8 UnicodeCacheRef;
 #define IS_UNICODE_CACHE_REF(c) ((c) < 32 || (c) >= 127)
@@ -27,6 +27,14 @@ void unicode_cache_clear(void);
  * @return the obtained look-up reference
  */
 UnicodeCacheRef unicode_cache_add(const u8 *bytes);
+
+/**
+ * Increment a reference
+ *
+ * @param ref - reference
+ * @return success
+ */
+bool unicode_cache_inc(UnicodeCacheRef ref);
 
 /**
  * Look up a code point in the cache by reference. Do not change the use counter.

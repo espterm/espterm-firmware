@@ -20,7 +20,8 @@ static UnicodeCacheSlot cache[UNICODE_CACHE_SIZE];
  * @return
  */
 void ICACHE_FLASH_ATTR
-unicode_cache_clear(void) {
+unicode_cache_clear(void)
+{
 	utfc_dbg("utf8 cache clear!");
 	for (int slot = 0; slot < UNICODE_CACHE_SIZE; slot++) {
 		cache[slot].count=0;
@@ -35,7 +36,8 @@ unicode_cache_clear(void) {
  * @return the obtained look-up reference
  */
 UnicodeCacheRef ICACHE_FLASH_ATTR
-unicode_cache_add(const u8 *bytes) {
+unicode_cache_add(const u8 *bytes)
+{
 	if (bytes[0] < 32) {
 		utfc_warn("utf8 cache bad char '%c'", bytes[0]);
 		return '?';
@@ -70,6 +72,27 @@ unicode_cache_add(const u8 *bytes) {
 }
 
 /**
+ * Increment a reference
+ *
+ * @param ref - reference
+ * @return success
+ */
+bool ICACHE_FLASH_ATTR
+unicode_cache_inc(UnicodeCacheRef ref)
+{
+	if (!IS_UNICODE_CACHE_REF(ref)) return true; // ASCII
+
+	int slot = REF_TO_ID(ref);
+	if (cache[slot].count == 0) {
+		utfc_warn("utf8 cache inc-after-free ref @ %d", ref);
+		return false;
+	}
+	cache[slot].count++;
+	utfc_dbg("utf8 cache inc '%.4s' @ %d, %d uses", cache[slot].bytes, slot, cache[slot].count);
+	return true;
+}
+
+/**
  * Look up a code point in the cache by reference. Do not change the use counter.
  *
  * @param ref - reference obtained earlier using unicode_cache_add()
@@ -77,7 +100,8 @@ unicode_cache_add(const u8 *bytes) {
  * @return true if the look-up succeeded
  */
 bool ICACHE_FLASH_ATTR
-unicode_cache_retrieve(UnicodeCacheRef ref, u8 *target) {
+unicode_cache_retrieve(UnicodeCacheRef ref, u8 *target)
+{
 	if (!IS_UNICODE_CACHE_REF(ref)) {
 		// ASCII, bypass
 		target[0] = ref;
@@ -107,7 +131,8 @@ unicode_cache_retrieve(UnicodeCacheRef ref, u8 *target) {
  * @return true if the code point was found in the cache
  */
 bool ICACHE_FLASH_ATTR
-unicode_cache_remove(UnicodeCacheRef ref) {
+unicode_cache_remove(UnicodeCacheRef ref)
+{
 	if (!IS_UNICODE_CACHE_REF(ref)) return true; // ASCII, bypass
 
 	u8 slot = REF_TO_ID(ref);

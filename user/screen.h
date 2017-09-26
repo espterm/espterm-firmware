@@ -37,7 +37,7 @@
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define TERMCONF_SIZE 300
-#define TERMCONF_VERSION 5
+#define TERMCONF_VERSION 0
 
 #define TERM_BTN_LEN 10
 #define TERM_BTN_MSG_LEN 10
@@ -65,11 +65,11 @@ enum CursorShape {
 	CURSOR_BAR = 6,
 };
 
-#define SCR_DEF_SHOW_BUTTONS 0
+#define SCR_DEF_SHOW_BUTTONS 1
 #define SCR_DEF_SHOW_MENU 1
 #define SCR_DEF_CURSOR_SHAPE CURSOR_BLOCK_BL
-#define SCR_DEF_CRLF 0
-#define SCR_DEF_ALLFN 0
+#define SCR_DEF_CRLF 0  // enter sends CRLF
+#define SCR_DEF_ALLFN 0 // capture F5 etc
 
 // --- Persistent Settings ---
 #define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
@@ -77,8 +77,8 @@ enum CursorShape {
 typedef struct {
 	u32 width;
 	u32 height;
-	u8 default_bg; // should be the Color typedef, but this way the size is more explicit
-	u8 default_fg;
+	u32 default_bg; // 00-FFh - ANSI colors, (00:00:00-FF:FF:FF)+256 - True Color
+	u32 default_fg;
 	char title[TERM_TITLE_LEN];
 	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
 	u8 theme;
@@ -228,25 +228,32 @@ void screen_set_origin_mode(bool region_origin);
 
 // --- Graphic rendition setting ---
 
-typedef uint8_t Color; // 0-16
+typedef uint8_t Color;
+typedef uint16_t CellAttrs;
 
-#define ATTR_BOLD (1<<0)
-#define ATTR_FAINT (1<<1)
-#define ATTR_ITALIC (1<<2)
-#define ATTR_UNDERLINE (1<<3)
-#define ATTR_BLINK (1<<4)
-#define ATTR_FRAKTUR (1<<5)
-#define ATTR_STRIKE (1<<6)
-#define ATTR_OVERLINE (1<<7)
+// TODO sort by the expected frequency of being set - so when we switch to utf-8 encoding for data fields, it uses fewer bytes
+#define ATTR_BOLD      (1<<0)  //!< Bold font
+#define ATTR_FAINT     (1<<1)  //!< Faint foreground color (reduced alpha)
+#define ATTR_ITALIC    (1<<2)  //!< Italic font
+#define ATTR_UNDERLINE (1<<3)  //!< Underline decoration
+#define ATTR_BLINK     (1<<4)  //!< Blinking
+#define ATTR_FRAKTUR   (1<<5)  //!< Fraktur font (unicode substitution)
+#define ATTR_STRIKE    (1<<6)  //!< Strike-through decoration
+#define ATTR_OVERLINE  (1<<7)  //!< Over-line decoration
+#define ATTR_FG        (1<<8)  //!< 1 if not using default background color (ignore cell bg) - color extension bit
+#define ATTR_BG        (1<<9)  //!< 1 if not using default foreground color (ignore cell fg) - color extension bit
+#define ATTR_INVERSE   (1<<10) //!< Invert colors - this is useful so we can clear then with SGR manipulation commands
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);
 /** Set cursor background coloor */
 void screen_set_bg(Color color);
+/** Set cursor foreground color to default */
+void screen_set_default_fg(void);
+/** Set cursor background color to default */
+void screen_set_default_bg(void);
 /** Enable/disable attrs by bitmask */
-void screen_set_sgr(u8 attrs, bool ena);
-/** Set the inverse attribute */
-void screen_set_sgr_inverse(bool ena);
+void screen_set_sgr(CellAttrs attrs, bool ena);
 /** Conceal style */
 void screen_set_sgr_conceal(bool ena);
 /** Reset cursor attribs */
