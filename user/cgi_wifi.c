@@ -535,7 +535,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 			httpdRedirect(connData, "/cfg/wifi/connecting");
 		}
 		else {
-			httpdRedirect(connData, SET_REDIR_SUC);
+			httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
 		}
 	} else {
 		cgi_warn("Some WiFi settings did not validate, asking for correction");

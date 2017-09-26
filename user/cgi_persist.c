@@ -8,7 +8,7 @@ Cgi/template routines for configuring non-wifi settings
 #include "helpers.h"
 #include "cgi_logging.h"
 
-#define SET_REDIR_SUC "/cfg/admin"
+#define SET_REDIR_SUC "/cfg/system"
 
 static bool ICACHE_FLASH_ATTR
 verify_admin_pw(const char *pw)
@@ -34,7 +34,7 @@ cgiPersistWriteDefaults(HttpdConnData *connData)
 
 			persist_set_as_default();
 
-			httpdRedirect(connData, SET_REDIR_SUC);
+			httpdRedirect(connData, SET_REDIR_SUC "?msg=Default%20settings%20updated.");
 			return HTTPD_CGI_DONE;
 		}
 		// if pw failed, show the same error as if it's wrong
@@ -55,7 +55,7 @@ cgiPersistRestoreDefaults(HttpdConnData *connData)
 
 	persist_restore_default();
 
-	httpdRedirect(connData, SET_REDIR_SUC);
+	httpdRedirect(connData, SET_REDIR_SUC "?msg=All%20settings%20restored%20to%20saved%20defaults.");
 	return HTTPD_CGI_DONE;
 }
 
@@ -71,6 +71,6 @@ cgiPersistRestoreHard(HttpdConnData *connData)
 	// Defaults are not changed.
 	persist_load_hard_default();
 
-	httpdRedirect(connData, SET_REDIR_SUC);
+	httpdRedirect(connData, SET_REDIR_SUC "?msg=All%20settings%20restored%20to%20factory%20defaults.");
 	return HTTPD_CGI_DONE;
 }

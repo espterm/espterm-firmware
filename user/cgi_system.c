@@ -200,7 +200,7 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		sysconf_apply_settings();
 		persist_store();
 
-		httpdRedirect(connData, SET_REDIR_SUC);
+		httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
 	} else {
 		cgi_warn("Some settings did not validate, asking for correction");
 

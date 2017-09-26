@@ -194,7 +194,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 		os_timer_setfn(&timer, applyNetSettingsLaterCb, NULL);
 		os_timer_arm(&timer, 1000, false);
 
-		httpdRedirect(connData, SET_REDIR_SUC);
+		httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
 	} else {
 		cgi_warn("Some WiFi settings did not validate, asking for correction");
 

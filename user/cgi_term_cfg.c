@@ -367,7 +367,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			screen_notifyChange(CHANGE_LABELS);
 		}
 
-		httpdRedirect(connData, SET_REDIR_SUC);
+		httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
 	} else {
 		cgi_warn("Some settings did not validate, asking for correction");
 
