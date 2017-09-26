@@ -68,7 +68,8 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 		tplSend(connData, httpdGetVersion(), -1);
 	}
 	else if (streq(token, "vers_sdk")) {
-		tplSend(connData, STR(ESP_SDK_VERSION), -1);
+		//tplSend(connData, STR(ESP_SDK_VERSION), -1);
+		tplSend(connData, system_get_sdk_version(), -1);
 	}
 	else if (streq(token, "hash_backend")) {
 		tplSend(connData, GIT_HASH_BACKEND, -1);

@@ -234,9 +234,17 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 	if (streq(token, "pwlock")) {
 		sprintf(buff, "%d", sysconf->pwlock);
 	}
-
-	if (streq(token, "access_name")) {
+	else if (streq(token, "access_name")) {
 		sprintf(buff, "%s", sysconf->access_name);
+	}
+	else if (streq(token, "def_access_name")) {
+		sprintf(buff, "%s", DEF_ACCESS_NAME);
+	}
+	else if (streq(token, "def_access_pw")) {
+		sprintf(buff, "%s", DEF_ACCESS_PW);
+	}
+	else if (streq(token, "def_admin_pw")) {
+		sprintf(buff, "%s", DEFAULT_ADMIN_PW);
 	}
 
 	tplSend(connData, buff, -1);

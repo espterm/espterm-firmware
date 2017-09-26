@@ -339,6 +339,20 @@ screen_reset_do(bool size, bool labels)
 		scr.tab_stops[i] = 0x80808080;
 	}
 
+	if (labels) {
+		strcpy(termconf_live.title, termconf->title);
+
+		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
+			strcpy(termconf_live.btn[i], termconf->btn[i]);
+			strcpy(termconf_live.btn_msg[i], termconf->btn_msg[i]);
+		}
+
+		termconf_live.show_buttons = termconf->show_buttons;
+		termconf_live.show_config_links = termconf->show_config_links;
+
+		screen_notifyChange(CHANGE_LABELS);
+	}
+
 	// initial values in the save buffer in case of receiving restore without storing first
 	opt_backup.cursors_alt_mode = scr.cursors_alt_mode;
 	opt_backup.reverse_video = scr.reverse_video;
@@ -355,17 +369,6 @@ screen_reset_do(bool size, bool labels)
 	opt_backup.show_config_links = termconf_live.show_config_links;
 
 	NOTIFY_DONE();
-
-	if (labels) {
-		strcpy(termconf_live.title, termconf->title);
-
-		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
-			strcpy(termconf_live.btn[i], termconf->btn[i]);
-			strcpy(termconf_live.btn_msg[i], termconf->btn_msg[i]);
-		}
-
-		screen_notifyChange(CHANGE_LABELS);
-	}
 }
 
 /**
