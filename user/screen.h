@@ -34,11 +34,6 @@
  *
  */
 
-// Size designed for the terminal config structure
-// Must be constant to avoid corrupting user config after upgrade
-#define TERMCONF_SIZE 300
-#define TERMCONF_VERSION 0
-
 #define TERM_BTN_LEN 10
 #define TERM_BTN_MSG_LEN 10
 #define TERM_TITLE_LEN 64
@@ -70,9 +65,15 @@ enum CursorShape {
 #define SCR_DEF_CURSOR_SHAPE CURSOR_BLOCK_BL
 #define SCR_DEF_CRLF 0  // enter sends CRLF
 #define SCR_DEF_ALLFN 0 // capture F5 etc
+#define SCR_DEF_DEBUGBAR 0
 
 // --- Persistent Settings ---
 #define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
+
+// Size designed for the terminal config structure
+// Must be constant to avoid corrupting user config after upgrade
+#define TERMCONF_SIZE 300
+#define TERMCONF_VERSION 1
 
 typedef struct {
 	u32 width;
@@ -94,6 +95,7 @@ typedef struct {
 	enum CursorShape cursor_shape;
 	bool crlf_mode;
 	bool want_all_fn;
+	bool debugbar;
 } TerminalConfigBundle;
 
 // Live config
@@ -152,9 +154,29 @@ typedef enum {
 	CS_1_DOS_437 = '1',
 } CHARSET;
 
-httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, void **data);
+enum ScreenSerializeTopic {
+	TOPIC_CHANGE_SCREEN_OPTS  = (1<<0),
+	TOPIC_CHANGE_CONTENT_ALL  = (1<<1),
+	TOPIC_CHANGE_CONTENT_PART = (1<<2),
+	TOPIC_CHANGE_TITLE        = (1<<3),
+	TOPIC_CHANGE_BUTTONS      = (1<<4),
+	TOPIC_CHANGE_CURSOR       = (1<<5),
+	TOPIC_INTERNAL            = (1<<6), // debugging internal state
+	TOPIC_BELL                = (1<<7), // beep
+	// combos
+	TOPIC_INITIAL =
+		TOPIC_CHANGE_SCREEN_OPTS |
+		TOPIC_CHANGE_CONTENT_ALL |
+		TOPIC_CHANGE_CURSOR |
+		TOPIC_CHANGE_TITLE |
+		TOPIC_CHANGE_BUTTONS,
 
-void screenSerializeLabelsToBuffer(char *buffer, size_t buf_len);
+	TOPIC_WRITE = TOPIC_CHANGE_CURSOR | TOPIC_CHANGE_CONTENT_PART,
+};
+
+typedef u16 ScreenNotifyTopics;
+
+httpd_cgi_state screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics, void **data);
 
 // --- Clearing ---
 
@@ -231,18 +253,19 @@ void screen_set_origin_mode(bool region_origin);
 typedef uint8_t Color;
 typedef uint16_t CellAttrs;
 
-// TODO sort by the expected frequency of being set - so when we switch to utf-8 encoding for data fields, it uses fewer bytes
-#define ATTR_BOLD      (1<<0)  //!< Bold font
-#define ATTR_FAINT     (1<<1)  //!< Faint foreground color (reduced alpha)
-#define ATTR_ITALIC    (1<<2)  //!< Italic font
-#define ATTR_UNDERLINE (1<<3)  //!< Underline decoration
-#define ATTR_BLINK     (1<<4)  //!< Blinking
-#define ATTR_FRAKTUR   (1<<5)  //!< Fraktur font (unicode substitution)
-#define ATTR_STRIKE    (1<<6)  //!< Strike-through decoration
-#define ATTR_OVERLINE  (1<<7)  //!< Over-line decoration
-#define ATTR_FG        (1<<8)  //!< 1 if not using default background color (ignore cell bg) - color extension bit
-#define ATTR_BG        (1<<9)  //!< 1 if not using default foreground color (ignore cell fg) - color extension bit
-#define ATTR_INVERSE   (1<<10) //!< Invert colors - this is useful so we can clear then with SGR manipulation commands
+enum SgrAttrBits {
+	ATTR_FG        = (1<<0),  //!< 1 if not using default background color (ignore cell bg) - color extension bit
+	ATTR_BG        = (1<<1),  //!< 1 if not using default foreground color (ignore cell fg) - color extension bit
+	ATTR_BOLD      = (1<<2),  //!< Bold font
+	ATTR_UNDERLINE = (1<<3),  //!< Underline decoration
+	ATTR_INVERSE   = (1<<4),  //!< Invert colors - this is useful so we can clear then with SGR manipulation commands
+	ATTR_BLINK     = (1<<5),  //!< Blinking
+	ATTR_ITALIC    = (1<<6),  //!< Italic font
+	ATTR_STRIKE    = (1<<7),  //!< Strike-through decoration
+	ATTR_OVERLINE  = (1<<8),  //!< Over-line decoration
+	ATTR_FAINT     = (1<<9),  //!< Faint foreground color (reduced alpha)
+	ATTR_FRAKTUR   = (1<<10), //!< Fraktur font (unicode substitution)
+};
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);
@@ -323,18 +346,11 @@ void screen_repeat_last_character(int count);
 /** Report current SGR as num;num;... for DAC query */
 void screen_report_sgr(char *buffer);
 
-// --- Notify ---
-
-typedef enum {
-	CHANGE_CONTENT = 0,
-	CHANGE_LABELS = 1,
-} ScreenNotifyChangeTopic;
-
 /**
  * Called when the screen content or settings change
  * and the front-end should redraw / update.
  * @param topic - what kind of change this is (chooses what message to send)
  */
-extern void screen_notifyChange(ScreenNotifyChangeTopic topic);
+extern void screen_notifyChange(ScreenNotifyTopics topics);
 
 #endif // SCREEN_H

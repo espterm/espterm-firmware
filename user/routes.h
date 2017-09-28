@@ -6,7 +6,4 @@
 
 extern const HttpdBuiltInUrl routes[];
 
-/** Broadcast screen state to sockets */
-void screen_notifyChange();
-
 #endif //ROUTES_H

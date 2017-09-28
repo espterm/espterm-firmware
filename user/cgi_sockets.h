@@ -15,6 +15,8 @@ void send_beep(void);
 /** open pop-up notification */
 void notify_growl(char *msg);
 
+extern volatile int term_active_clients;
+
 // defined in the makefile
 #if DEBUG_INPUT
 #define inp_warn warn

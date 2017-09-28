@@ -5,10 +5,9 @@
 #include "sgr.h"
 #include "ascii.h"
 #include "apars_logging.h"
-#include "jstring.h"
 #include "character_sets.h"
 #include "utf8.h"
-#include "uart_buffer.h"
+#include "cgi_sockets.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_live;
@@ -74,7 +73,6 @@ typedef struct {
 	bool hanging; //!< xenl state - cursor half-wrapped
 
 	/* SGR */
-	bool inverse; //!< not in attrs bc it's applied immediately when writing the cell
 	bool conceal; //!< similar to inverse, causes all to be replaced by SP
 	u16 attrs;
 	Color fg;     //!< Foreground color for writing
@@ -139,14 +137,19 @@ static struct {
  * (from nested calls)
  */
 static volatile int notifyLock = 0;
+static volatile ScreenNotifyTopics lockTopics = 0;
 
-#define NOTIFY_LOCK()   do { \
+#define NOTIFY_LOCK() do { \
 							notifyLock++; \
 						} while(0)
-
-#define NOTIFY_DONE()   do { \
+            
+#define NOTIFY_DONE(updateTopics) do { \
+							lockTopics |= (updateTopics); \
 							if (notifyLock > 0) notifyLock--; \
-							if (notifyLock == 0) screen_notifyChange(CHANGE_CONTENT); \
+							if (notifyLock == 0) { \
+								screen_notifyChange(lockTopics); \
+								lockTopics = 0;\
+							} \
 						} while(0)
 
 /** Clear the hanging attribute if the cursor is no longer >= W */
@@ -185,6 +188,7 @@ terminal_restore_defaults(void)
 	termconf->cursor_shape = SCR_DEF_CURSOR_SHAPE;
 	termconf->crlf_mode = SCR_DEF_CRLF;
 	termconf->want_all_fn = SCR_DEF_ALLFN;
+	termconf->debugbar = SCR_DEF_DEBUGBAR;
 }
 
 /**
@@ -203,12 +207,12 @@ terminal_apply_settings_noclear(void)
 {
 	bool changed = false;
 
-//	// Migrate to v1
-//	if (termconf->config_version < 1) {
-//		persist_dbg("termconf: Updating to version %d", 1);
-//		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
-//		changed = 1;
-//	}
+	// Migrate to v1
+	if (termconf->config_version < 1) {
+		persist_dbg("termconf: Updating to version %d", 1);
+		termconf->debugbar = SCR_DEF_DEBUGBAR;
+		changed = 1;
+	}
 
 	termconf->config_version = TERMCONF_VERSION;
 
@@ -257,6 +261,8 @@ screen_init(void)
 static void ICACHE_FLASH_ATTR
 cursor_reset(void)
 {
+	NOTIFY_LOCK();
+
 	cursor.x = 0;
 	cursor.y = 0;
 	cursor.hanging = false;
@@ -266,6 +272,8 @@ cursor_reset(void)
 	cursor.charset1 = CS_0_DEC_SUPPLEMENTAL;
 
 	screen_reset_sgr();
+
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 /**
@@ -285,7 +293,7 @@ screen_reset_on_resize(void)
 	// size is left unchanged
 	screen_clear(CLEAR_ALL); // also clears utf cache
 
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -294,15 +302,20 @@ screen_reset_on_resize(void)
 void ICACHE_FLASH_ATTR
 screen_reset_sgr(void)
 {
+	NOTIFY_LOCK();
+
 	cursor.fg = 0;
 	cursor.bg = 0;
 	cursor.attrs = 0;
 	cursor.conceal = false;
+
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 static void ICACHE_FLASH_ATTR
 screen_reset_do(bool size, bool labels)
 {
+	ScreenNotifyTopics topics = TOPIC_CHANGE_SCREEN_OPTS | TOPIC_CHANGE_CURSOR | TOPIC_CHANGE_CONTENT_ALL;
 	NOTIFY_LOCK();
 
 	// DECopts
@@ -350,7 +363,7 @@ screen_reset_do(bool size, bool labels)
 		termconf_live.show_buttons = termconf->show_buttons;
 		termconf_live.show_config_links = termconf->show_config_links;
 
-		screen_notifyChange(CHANGE_LABELS);
+		topics |= TOPIC_CHANGE_TITLE | TOPIC_CHANGE_BUTTONS;
 	}
 
 	// initial values in the save buffer in case of receiving restore without storing first
@@ -368,7 +381,7 @@ screen_reset_do(bool size, bool labels)
 	opt_backup.show_buttons = termconf_live.show_buttons;
 	opt_backup.show_config_links = termconf_live.show_config_links;
 
-	NOTIFY_DONE();
+	NOTIFY_DONE(topics);
 }
 
 /**
@@ -395,8 +408,11 @@ screen_swap_state(bool alternate)
 		return; // nothing to do
 	}
 
+	NOTIFY_LOCK();
+
 	if (alternate) {
 		ansi_dbg("Swap to alternate");
+		NOTIFY_LOCK();
 		// store old state
 		memcpy(state_backup.title, termconf_live.title, TERM_TITLE_LEN);
 		memcpy(state_backup.btn, termconf_live.btn, sizeof(termconf_live.btn));
@@ -411,7 +427,6 @@ screen_swap_state(bool alternate)
 	}
 	else {
 		ansi_dbg("Unswap from alternate");
-		NOTIFY_LOCK();
 		memcpy(termconf_live.title, state_backup.title, TERM_TITLE_LEN);
 		memcpy(termconf_live.btn, state_backup.btn, sizeof(termconf_live.btn));
 		memcpy(termconf_live.btn_msg, state_backup.btn_msg, sizeof(termconf_live.btn_msg));
@@ -421,11 +436,10 @@ screen_swap_state(bool alternate)
 		// this may clear the screen as a side effect if size changed
 		screen_resize(state_backup.height, state_backup.width);
 		// TODO restore screen content (if this is ever possible)
-		NOTIFY_DONE();
-		screen_notifyChange(CHANGE_LABELS);
 	}
 
 	state_backup.alternate_active = alternate;
+	NOTIFY_DONE(TOPIC_INITIAL);
 }
 
 //endregion
@@ -435,19 +449,25 @@ screen_swap_state(bool alternate)
 void ICACHE_FLASH_ATTR
 screen_clear_all_tabs(void)
 {
+	NOTIFY_LOCK();
 	memset(scr.tab_stops, 0, sizeof(scr.tab_stops));
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_tab(void)
 {
+	NOTIFY_LOCK();
 	scr.tab_stops[cursor.x/32] |= (1<<(cursor.x%32));
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_clear_tab(void)
 {
+	NOTIFY_LOCK();
 	scr.tab_stops[cursor.x/32] &= ~(1<<(cursor.x%32));
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -529,7 +549,7 @@ screen_tab_forward(int count)
 			cursor.x = W - 1;
 		}
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 void ICACHE_FLASH_ATTR
@@ -544,7 +564,7 @@ screen_tab_reverse(int count)
 			cursor.x = 0;
 		}
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 //endregion
@@ -733,7 +753,7 @@ screen_clear(ClearMode mode)
 			clear_range_utf(0, (cursor.y * W) + cursor.x);
 			break;
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(mode == CLEAR_ALL ? TOPIC_CHANGE_CONTENT_ALL : TOPIC_CHANGE_CONTENT_PART);
 }
 
 /**
@@ -756,7 +776,7 @@ screen_clear_line(ClearMode mode)
 			clear_range_utf(cursor.y * W, cursor.y * W + cursor.x);
 			break;
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 void ICACHE_FLASH_ATTR
@@ -768,7 +788,7 @@ screen_clear_in_line(unsigned int count)
 	} else {
 		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + cursor.x + count - 1);
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 void ICACHE_FLASH_ATTR
@@ -796,7 +816,7 @@ screen_insert_lines(unsigned int lines)
 			copy_row(i, cursor.y);
 		}
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 void ICACHE_FLASH_ATTR
@@ -821,7 +841,7 @@ screen_delete_lines(unsigned int lines)
 		clear_range_noutf((movedBlockEnd+1)*W, (BTM+1)*W-1);
 	}
 
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 void ICACHE_FLASH_ATTR
@@ -844,7 +864,7 @@ screen_insert_characters(unsigned int count)
 		}
 		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 void ICACHE_FLASH_ATTR
@@ -870,7 +890,7 @@ screen_delete_characters(unsigned int count)
 		screen_clear_line(CLEAR_FROM_CURSOR);
 	}
 
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 //endregion
 
@@ -891,7 +911,7 @@ screen_fill_with_E(void)
 	for (unsigned int i = 0; i <= W*H-1; i++) {
 		memcpy(&screen[i], &sample, sizeof(Cell));
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_ALL);
 }
 
 /**
@@ -920,14 +940,15 @@ screen_resize(int rows, int cols)
 	W = cols;
 	H = rows;
 	screen_reset_on_resize();
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS|TOPIC_CHANGE_CONTENT_ALL|TOPIC_CHANGE_CURSOR);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_title(const char *title)
 {
+	NOTIFY_LOCK();
 	strncpy(termconf_live.title, title, TERM_TITLE_LEN);
-	screen_notifyChange(CHANGE_LABELS);
+	NOTIFY_DONE(TOPIC_CHANGE_TITLE);
 }
 
 /**
@@ -938,8 +959,9 @@ screen_set_title(const char *title)
 void ICACHE_FLASH_ATTR
 screen_set_button_text(int num, const char *text)
 {
+	NOTIFY_LOCK();
 	strncpy(termconf_live.btn[num-1], text, TERM_BTN_LEN);
-	screen_notifyChange(CHANGE_LABELS);
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
 }
 
 /**
@@ -970,7 +992,7 @@ screen_scroll_up(unsigned int lines)
 	clear_range_noutf(y * W, (BTM + 1) * W - 1);
 
 done:
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 /**
@@ -1000,13 +1022,14 @@ screen_scroll_down(unsigned int lines)
 
 	clear_range_noutf(TOP * W, TOP * W + lines * W - 1);
 done:
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
 /** Set scrolling region */
 void ICACHE_FLASH_ATTR
 screen_set_scrolling_region(int from, int to)
 {
+	NOTIFY_LOCK();
 	if (from <= 0 && to <= 0) {
 		scr.vm0 = 0;
 		scr.vm1 = H-1;
@@ -1020,6 +1043,7 @@ screen_set_scrolling_region(int from, int to)
 
 	// Always move cursor home (may be translated due to DECOM)
 	screen_cursor_set(0, 0);
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 //endregion
@@ -1033,7 +1057,7 @@ screen_cursor_shape(enum CursorShape shape)
 	NOTIFY_LOCK();
 	if (shape == CURSOR_DEFAULT) shape = termconf->cursor_shape;
 	termconf_live.cursor_shape = shape;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 /** set cursor blink option */
@@ -1050,7 +1074,7 @@ screen_cursor_blink(bool blink)
 		if (termconf_live.cursor_shape == CURSOR_BAR_BL) termconf_live.cursor_shape = CURSOR_BAR;
 		if (termconf_live.cursor_shape == CURSOR_UNDERLINE_BL) termconf_live.cursor_shape = CURSOR_UNDERLINE;
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 /**
@@ -1062,7 +1086,7 @@ screen_cursor_set(int y, int x)
 	NOTIFY_LOCK();
 	screen_cursor_set_x(x);
 	screen_cursor_set_y(y);
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 /**
@@ -1093,7 +1117,7 @@ screen_cursor_set_x(int x)
 	// hanging happens when the cursor is virtually at col=81, which
 	// cannot be set using the cursor-set commands.
 	cursor.hanging = false;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 /**
@@ -1112,7 +1136,7 @@ screen_cursor_set_y(int y)
 		if (y < 0) y = 0;
 	}
 	cursor.y = y;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 /**
@@ -1195,7 +1219,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		}
 	}
 
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR | (scroll*TOPIC_CHANGE_CONTENT_PART));
 }
 
 /**
@@ -1232,21 +1256,23 @@ screen_cursor_restore(bool withAttrs)
 		}
 	}
 
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
 void ICACHE_FLASH_ATTR
 screen_back_index(int count)
 {
 	NOTIFY_LOCK();
+	ScreenNotifyTopics topics = TOPIC_CHANGE_CURSOR;
 	int new_x = cursor.x - count;
 	if (new_x >= 0) {
 		cursor.x = new_x;
 	} else {
 		cursor.x = 0;
 		screen_insert_characters(-new_x);
+		topics |= TOPIC_CHANGE_CONTENT_PART;
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(topics);
 }
 
 //endregion
@@ -1261,7 +1287,7 @@ screen_set_cursor_visible(bool visible)
 {
 	NOTIFY_LOCK();
 	scr.cursor_visible = visible;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 /**
@@ -1270,7 +1296,9 @@ screen_set_cursor_visible(bool visible)
 void ICACHE_FLASH_ATTR
 screen_wrap_enable(bool enable)
 {
+	NOTIFY_LOCK();
 	cursor.auto_wrap = enable;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -1279,7 +1307,9 @@ screen_wrap_enable(bool enable)
 void ICACHE_FLASH_ATTR
 screen_reverse_wrap_enable(bool enable)
 {
+	NOTIFY_LOCK();
 	cursor.reverse_wrap = enable;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -1288,8 +1318,10 @@ screen_reverse_wrap_enable(bool enable)
 void ICACHE_FLASH_ATTR
 screen_set_fg(Color color)
 {
+	NOTIFY_LOCK();
 	cursor.fg = color;
 	cursor.attrs |= ATTR_FG;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -1298,8 +1330,10 @@ screen_set_fg(Color color)
 void ICACHE_FLASH_ATTR
 screen_set_bg(Color color)
 {
+	NOTIFY_LOCK();
 	cursor.bg = color;
 	cursor.attrs |= ATTR_BG;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -1308,8 +1342,10 @@ screen_set_bg(Color color)
 void ICACHE_FLASH_ATTR
 screen_set_default_fg(void)
 {
+	NOTIFY_LOCK();
 	cursor.fg = 0;
 	cursor.attrs &= ~ATTR_FG;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 /**
@@ -1318,45 +1354,57 @@ screen_set_default_fg(void)
 void ICACHE_FLASH_ATTR
 screen_set_default_bg(void)
 {
+	NOTIFY_LOCK();
 	cursor.bg = 0;
 	cursor.attrs &= ~ATTR_BG;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_sgr(CellAttrs attrs, bool ena)
 {
+	NOTIFY_LOCK();
 	if (ena) {
 		cursor.attrs |= attrs;
 	}
 	else {
 		cursor.attrs &= ~attrs;
 	}
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_sgr_conceal(bool ena)
 {
+	NOTIFY_LOCK();
 	cursor.conceal = ena;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_charset_n(int Gx)
 {
+	NOTIFY_LOCK();
 	if (Gx < 0 || Gx > 1) return; // bad n
 	cursor.charsetN = Gx;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_charset(int Gx, char charset)
 {
+	NOTIFY_LOCK();
 	if (Gx == 0) cursor.charset0 = charset;
 	else if (Gx == 1) cursor.charset1 = charset;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_insert_mode(bool insert)
 {
+	NOTIFY_LOCK();
 	scr.insert_mode = insert;
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1364,7 +1412,7 @@ screen_set_numpad_alt_mode(bool alt_mode)
 {
 	NOTIFY_LOCK();
 	scr.numpad_alt_mode = alt_mode;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1372,7 +1420,7 @@ screen_set_cursors_alt_mode(bool alt_mode)
 {
 	NOTIFY_LOCK();
 	scr.cursors_alt_mode = alt_mode;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1380,7 +1428,7 @@ screen_set_reverse_video(bool reverse)
 {
 	NOTIFY_LOCK();
 	scr.reverse_video = reverse;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1388,7 +1436,7 @@ screen_set_bracketed_paste(bool ena)
 {
 	NOTIFY_LOCK();
 	scr.bracketed_paste = ena;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1396,29 +1444,34 @@ screen_set_newline_mode(bool nlm)
 {
 	NOTIFY_LOCK();
 	termconf_live.crlf_mode = nlm;
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
 
 void ICACHE_FLASH_ATTR
 screen_set_origin_mode(bool region_origin)
 {
+	NOTIFY_LOCK();
 	cursor.origin_mode = region_origin;
 	screen_cursor_set(0, 0);
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 static void ICACHE_FLASH_ATTR
 do_save_private_opt(int n, bool save)
 {
+	ScreenNotifyTopics topics = TOPIC_INTERNAL;
+	if (!save) NOTIFY_LOCK();
 #define SAVE_RESTORE(sf, of) do { if (save) sf=(of); else of=(sf); } while(0)
 	switch (n) {
 		case 1:
 			SAVE_RESTORE(opt_backup.cursors_alt_mode, scr.cursors_alt_mode);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 5:
 			SAVE_RESTORE(opt_backup.reverse_video, scr.reverse_video);
 			break;
 		case 6:
-			SAVE_RESTORE(opt_backup.origin_mode, cursor.origin_mode);
+			SAVE_RESTORE(opt_backup.origin_mode, cursor.origin_mode); // XXX maybe we should move cursor to 1,1 if it's restored to True
 			break;
 		case 7:
 			SAVE_RESTORE(opt_backup.auto_wrap, cursor.auto_wrap);
@@ -1429,14 +1482,17 @@ do_save_private_opt(int n, bool save)
 		case 1002:
 		case 1003:
 			SAVE_RESTORE(opt_backup.mouse_tracking, mouse_tracking.mode);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 1004:
 			SAVE_RESTORE(opt_backup.focus_tracking, mouse_tracking.focus_tracking);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 1005:
 		case 1006:
 		case 1015:
 			SAVE_RESTORE(opt_backup.mouse_encoding, mouse_tracking.encoding);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 12: // cursor blink
 			if (save) {
@@ -1444,9 +1500,11 @@ do_save_private_opt(int n, bool save)
 			} else {
 				screen_cursor_blink(opt_backup.cursor_blink);
 			}
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 25:
 			SAVE_RESTORE(opt_backup.cursor_visible, scr.cursor_visible);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 45:
 			SAVE_RESTORE(opt_backup.reverse_wrap, cursor.reverse_wrap);
@@ -1456,19 +1514,24 @@ do_save_private_opt(int n, bool save)
 			break;
 		case 800:
 			SAVE_RESTORE(opt_backup.show_buttons, termconf_live.show_buttons);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		case 801:
 			SAVE_RESTORE(opt_backup.show_config_links, termconf_live.show_config_links);
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 			break;
 		default:
 			ansi_warn("Cannot store ?%d", n);
 	}
+	if (!save) NOTIFY_DONE(topics);
 }
 
 void ICACHE_FLASH_ATTR
 screen_save_private_opt(int n)
 {
+	NOTIFY_LOCK();
 	do_save_private_opt(n, true);
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1476,7 +1539,7 @@ screen_restore_private_opt(int n)
 {
 	NOTIFY_LOCK();
 	do_save_private_opt(n, false);
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_INTERNAL);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1599,7 +1662,7 @@ screen_putchar(const char *ch)
 	strncpy(scr.last_char, result, 4);
 
 	done:
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_WRITE);
 }
 
 /**
@@ -1621,7 +1684,7 @@ screen_repeat_last_character(int count)
 		putchar_graphic(scr.last_char);
 		count--;
 	}
-	NOTIFY_DONE();
+	NOTIFY_DONE(TOPIC_WRITE);
 }
 
 /**
@@ -1674,28 +1737,11 @@ struct ScreenSerializeState {
 	UnicodeCacheRef lastSymbol;
 	char lastChar[4];
 	u8 lastCharLen;
-	int index;
+	int index; // index in the screen buffer
+	ScreenNotifyTopics topics;
+	ScreenNotifyTopics last_topic;
+	ScreenNotifyTopics current_topic;
 };
-
-/**
- * buffer should be at least 64+5*10+6 long (title + buttons + 6), ie. 120
- * @param buffer
- * @param buf_len
- */
-void ICACHE_FLASH_ATTR
-screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
-{
-	(void)buf_len;
-	// let's just assume it's long enough - called with the huge websocket buffer
-	sprintf(buffer, "T%s\x01%s\x01%s\x01%s\x01%s\x01%s", // use 0x01 as separator
-			termconf_live.title,
-			termconf_live.btn[0],
-			termconf_live.btn[1],
-			termconf_live.btn[2],
-			termconf_live.btn[3],
-			termconf_live.btn[4]
-	);
-}
 
 /**
  * Serialize the screen to a data buffer. May need multiple calls if the buffer is insufficient in size.
@@ -1705,12 +1751,14 @@ screenSerializeLabelsToBuffer(char *buffer, size_t buf_len)
  *
  * @param buffer - buffer array of limited size. If NULL, indicates this is the last call.
  * @param buf_len - buffer array size
+ * @param topics - what should be included in the message (ignored after the first call)
  * @param data - opaque pointer to internal data structure for storing state between repeated calls
- *               if NULL, indicates this is the first call.
- * @return HTTPD_CGI_DONE or HTTPD_CGI_MORE. If more, repeat with the same DATA.
+ *               if NULL, indicates this is the first call; the structure will be allocated.
+ *
+ * @return HTTPD_CGI_DONE or HTTPD_CGI_MORE. If more, repeat with the same `data` pointer.
  */
 httpd_cgi_state ICACHE_FLASH_ATTR
-screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
+screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics, void **data)
 {
 	struct ScreenSerializeState *ss = *data;
 
@@ -1719,11 +1767,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		return HTTPD_CGI_DONE;
 	}
 
-	Cell *cell, *cell0;
+	Cell *cell, *cell0;      // temporary cell pointers for finding repetitions
 
-	u8 nbytes;
-	size_t remain = buf_len;
-	char *bb = buffer;
+	u8 nbytes;               // temporary variable for utf writing utilities
+	size_t remain = buf_len; // remaining space in the output buffer
+	char *bb = buffer;       // write pointer
 
 #define bufput_c(c) do { \
 			*bb = (char)(c); \
@@ -1742,47 +1790,183 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 		bufput_utf8((num)); \
 	} while(0)
 
-	if (ss == NULL) {
-		*data = ss = malloc(sizeof(struct ScreenSerializeState));
-		ss->index = 0;
-		ss->lastBg = 0xFF;
-		ss->lastFg = 0xFF;
-		ss->lastAttrs = 0xFFFF;
-		ss->lastCharLen = 0;
-		ss->lastSymbol = 0;
-		strncpy(ss->lastChar, " ", 4);
-
-		bufput_c('S');
-		// H W X Y Attribs
-		bufput_utf8(H);
-		bufput_utf8(W);
-		bufput_utf8(cursor.y);
-		bufput_utf8(cursor.x);
-		// 3B has 18 free bits
-		bufput_utf8(
-			(scr.cursor_visible << 0) |
-			(cursor.hanging << 1) |
-			(scr.cursors_alt_mode << 2) |
-			(scr.numpad_alt_mode << 3) |
-			(termconf_live.fn_alt_mode << 4) |
-			((mouse_tracking.mode>MTM_NONE) << 5) | // disables context menu
-			((mouse_tracking.mode>=MTM_NORMAL) << 6) | // disables selecting
-			(termconf_live.show_buttons << 7) |
-			(termconf_live.show_config_links << 8) |
-			((termconf_live.cursor_shape&0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
-		    (termconf_live.crlf_mode << 12) |
-			(scr.bracketed_paste << 13) |
-			(scr.reverse_video << 14)
-	    );
-	}
-
+	// tags for screen serialization
 #define SEQ_TAG_REPEAT '\x02'
 #define SEQ_TAG_COLORS '\x03'
 #define SEQ_TAG_ATTRS '\x04'
 #define SEQ_TAG_FG '\x05'
 #define SEQ_TAG_BG '\x06'
 
+#define TOPICMARK_SCREEN_OPTS 'O'
+#define TOPICMARK_TITLE   'T'
+#define TOPICMARK_BUTTONS 'B'
+#define TOPICMARK_DEBUG   'D'
+#define TOPICMARK_BELL    '!'
+#define TOPICMARK_CURSOR  'C'
+#define TOPICMARK_SCREEN   'S'
+
+	if (ss == NULL) {
+		// START!
+
+		*data = ss = malloc(sizeof(struct ScreenSerializeState));
+
+		if (topics == 0 || termconf_live.debugbar) {
+			topics |= TOPIC_INTERNAL;
+		}
+
+		ss->index = 0;
+
+		ss->topics = topics;
+		ss->last_topic = 0; // to be filled
+		ss->current_topic = 0; // to be filled
+		strncpy(ss->lastChar, " ", 4);
+
+		bufput_c('U'); // - stands for "update"
+
+		bufput_utf8(topics);
+	}
+
+	int begun_topic = 0;
+	int prev_topic = 0;
+
+#define BEGIN_TOPIC(topic, size) \
+	if (ss->last_topic == prev_topic) { \
+		begun_topic = (topic); \
+		if (ss->topics & (topic)) { \
+            if (remain < (size)) return HTTPD_CGI_MORE;
+
+#define END_TOPIC \
+        } \
+		ss->last_topic = begun_topic; \
+		ss->current_topic = 0; \
+	} \
+	prev_topic = begun_topic;
+
+	if (ss->current_topic == 0) {
+		BEGIN_TOPIC(TOPIC_CHANGE_SCREEN_OPTS, 32+1)
+			bufput_c(TOPICMARK_SCREEN_OPTS);
+
+			bufput_utf8(H);
+			bufput_utf8(W);
+			bufput_utf8(termconf_live.theme);
+
+			bufput_utf8(termconf_live.default_fg & 0x000FFF);
+			bufput_utf8((termconf_live.default_fg & 0xFFF000) >> 12);
+
+			bufput_utf8(termconf_live.default_bg & 0x000FFF);
+			bufput_utf8((termconf_live.default_bg & 0xFFF000) >> 12);
+
+			bufput_utf8(
+				(scr.cursor_visible << 0) |
+				(termconf_live.debugbar << 1) | // debugbar - this was previously "hanging"
+				(scr.cursors_alt_mode << 2) |
+				(scr.numpad_alt_mode << 3) |
+				(termconf_live.fn_alt_mode << 4) |
+				((mouse_tracking.mode > MTM_NONE) << 5) | // disables context menu
+				((mouse_tracking.mode >= MTM_NORMAL) << 6) | // disables selecting
+				(termconf_live.show_buttons << 7) |
+				(termconf_live.show_config_links << 8) |
+				((termconf_live.cursor_shape & 0x07) << 9) | // 9,10,11 - cursor shape based on DECSCUSR
+				(termconf_live.crlf_mode << 12) |
+				(scr.bracketed_paste << 13) |
+				(scr.reverse_video << 14)
+			);
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_CHANGE_TITLE, TERM_TITLE_LEN+4+1)
+			bufput_c(TOPICMARK_TITLE);
+
+			int len = (int) strlen(termconf_live.title);
+			memcpy(bb, termconf_live.title, len);
+			bb += len;
+			remain -= len;
+			bufput_c('\x01');
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_CHANGE_BUTTONS, (TERM_BTN_LEN+4)*TERM_BTN_COUNT+1+4)
+			bufput_c(TOPICMARK_BUTTONS);
+
+			bufput_utf8(TERM_BTN_COUNT);
+
+			for (int i = 0; i < TERM_BTN_COUNT; i++) {
+				int len = (int) strlen(termconf_live.btn[i]);
+				memcpy(bb, termconf_live.btn[i], len);
+				bb += len;
+				remain -= len;
+				bufput_c('\x01');
+			}
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_INTERNAL, 45)
+			bufput_c(TOPICMARK_DEBUG);
+			// General flags
+			bufput_utf8(
+				(scr.insert_mode << 0) |
+				(cursor.conceal << 1) |
+				(cursor.auto_wrap << 2) |
+				(cursor.reverse_wrap << 3) |
+				(cursor.origin_mode << 4) |
+				(cursor_saved << 5) |
+				(state_backup.alternate_active << 6)
+			);
+			bufput_utf8(cursor.attrs);
+			bufput_utf8(scr.vm0);
+			bufput_utf8(scr.vm1);
+			bufput_utf8(cursor.charsetN);
+			bufput_c(cursor.charset0);
+			bufput_c(cursor.charset1);
+			bufput_utf8(system_get_free_heap_size());
+			bufput_utf8(term_active_clients);
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_BELL, 1)
+			bufput_c(TOPICMARK_BELL);
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_CHANGE_CURSOR, 13)
+			bufput_c(TOPICMARK_CURSOR);
+			bufput_utf8(cursor.y);
+			bufput_utf8(cursor.x);
+			bufput_utf8(
+				(cursor.hanging << 0)
+			);
+		END_TOPIC
+
+		if (ss->last_topic == TOPIC_CHANGE_CURSOR) {
+			// now we can begin any of the two screen sequences
+
+			if (ss->topics & TOPIC_CHANGE_CONTENT_ALL) {
+				ss->current_topic = TOPIC_CHANGE_CONTENT_ALL;
+			}
+			if (ss->topics & TOPIC_CHANGE_CONTENT_PART) {
+				ss->current_topic = TOPIC_CHANGE_CONTENT_PART;
+			}
+
+			if (ss->current_topic == 0) {
+				// no screen mode - wrap it up
+				goto ser_done;
+			}
+		}
+	}
+
+	// screen contents
 	int i = ss->index;
+	if (i == 0) {
+		bufput_c(TOPICMARK_SCREEN); // desired update mode is in `ss->current_topic`
+
+		// TODO implement partial
+		bufput_utf8(0); // Y0
+		bufput_utf8(0); // X0
+		bufput_utf8(H); // height
+		bufput_utf8(W); // width
+
+		ss->index = 0;
+		ss->lastBg = 0xFF;
+		ss->lastFg = 0xFF;
+		ss->lastAttrs = 0xFFFF;
+		ss->lastCharLen = 0;
+		ss->lastSymbol = 0;
+	}
 	while(i < W*H && remain > 12) {
 		cell = cell0 = &screen[i];
 
@@ -1848,20 +2032,22 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, void **data)
 	}
 
 	ss->index = i;
+	if (i >= W*H-1) goto ser_done;
+
+	// MORE TO WRITE...
 	bufput_c('\0'); // terminate the string
+	return HTTPD_CGI_MORE;
+
+ser_done:
+	bufput_c('\0'); // terminate the string
+	return HTTPD_CGI_DONE;
+}
+//endregion
 
 #if 0
-	printf("MSG: ");
+printf("MSG: ");
 	for (int j=0;j<bb-buffer;j++) {
 		printf("%02X ", buffer[j]);
 	}
 	printf("\n");
 #endif
-
-	if (i < W*H-1) {
-		return HTTPD_CGI_MORE;
-	}
-
-	return HTTPD_CGI_DONE;
-}
-//endregion
