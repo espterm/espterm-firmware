@@ -1821,8 +1821,6 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		ss->current_topic = 0; // to be filled
 		strncpy(ss->lastChar, " ", 4);
 
-		dbg("NOTIFY -> %02X", topics);
-
 		bufput_c('U'); // - stands for "update"
 
 		bufput_utf8(topics);

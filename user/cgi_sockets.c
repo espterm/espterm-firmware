@@ -149,6 +149,8 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyTopics topics)
 		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 	}
 
+	pendingBroadcastTopics |= topics;
+
 	// NOTE: the timer is restarted if already running
 	TIMER_START(&updateNotifyTim, updateNotifyCb, termconf->display_tout_ms, 0); // note - this adds latency to beep
 }
