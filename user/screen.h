@@ -253,18 +253,19 @@ void screen_set_origin_mode(bool region_origin);
 typedef uint8_t Color;
 typedef uint16_t CellAttrs;
 
-// TODO sort by the expected frequency of being set - so when we switch to utf-8 encoding for data fields, it uses fewer bytes
-#define ATTR_BOLD      (1<<0)  //!< Bold font
-#define ATTR_FAINT     (1<<1)  //!< Faint foreground color (reduced alpha)
-#define ATTR_ITALIC    (1<<2)  //!< Italic font
-#define ATTR_UNDERLINE (1<<3)  //!< Underline decoration
-#define ATTR_BLINK     (1<<4)  //!< Blinking
-#define ATTR_FRAKTUR   (1<<5)  //!< Fraktur font (unicode substitution)
-#define ATTR_STRIKE    (1<<6)  //!< Strike-through decoration
-#define ATTR_OVERLINE  (1<<7)  //!< Over-line decoration
-#define ATTR_FG        (1<<8)  //!< 1 if not using default background color (ignore cell bg) - color extension bit
-#define ATTR_BG        (1<<9)  //!< 1 if not using default foreground color (ignore cell fg) - color extension bit
-#define ATTR_INVERSE   (1<<10) //!< Invert colors - this is useful so we can clear then with SGR manipulation commands
+enum SgrAttrBits {
+	ATTR_FG        = (1<<0),  //!< 1 if not using default background color (ignore cell bg) - color extension bit
+	ATTR_BG        = (1<<1),  //!< 1 if not using default foreground color (ignore cell fg) - color extension bit
+	ATTR_BOLD      = (1<<2),  //!< Bold font
+	ATTR_UNDERLINE = (1<<3),  //!< Underline decoration
+	ATTR_INVERSE   = (1<<4),  //!< Invert colors - this is useful so we can clear then with SGR manipulation commands
+	ATTR_BLINK     = (1<<5),  //!< Blinking
+	ATTR_ITALIC    = (1<<6),  //!< Italic font
+	ATTR_STRIKE    = (1<<7),  //!< Strike-through decoration
+	ATTR_OVERLINE  = (1<<8),  //!< Over-line decoration
+	ATTR_FAINT     = (1<<9),  //!< Faint foreground color (reduced alpha)
+	ATTR_FRAKTUR   = (1<<10), //!< Fraktur font (unicode substitution)
+};
 
 /** Set cursor foreground color */
 void screen_set_fg(Color color);
