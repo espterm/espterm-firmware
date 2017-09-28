@@ -1803,8 +1803,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define TOPICMARK_DEBUG   'D'
 #define TOPICMARK_BELL    '!'
 #define TOPICMARK_CURSOR  'C'
-#define TOPICMARK_SCREEN_ALL   'S'
-#define TOPICMARK_SCREEN_PART  's'
+#define TOPICMARK_SCREEN   'S'
 
 	if (ss == NULL) {
 		// START!
@@ -1826,7 +1825,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 
 		bufput_c('U'); // - stands for "update"
 
-		bufput_utf8(topics & ~TOPIC_INTERNAL);
+		bufput_utf8(topics);
 	}
 
 	int begun_topic = 0;
@@ -1880,10 +1879,10 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_c(TOPICMARK_TITLE);
 
 			int len = (int) strlen(termconf_live.title);
-			bufput_utf8(len);
 			memcpy(bb, termconf_live.title, len);
 			bb += len;
 			remain -= len;
+			bufput_c('\x01');
 		END_TOPIC
 
 		BEGIN_TOPIC(TOPIC_CHANGE_BUTTONS, (TERM_BTN_LEN+4)*TERM_BTN_COUNT+1+4)
@@ -1893,10 +1892,10 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 
 			for (int i = 0; i < TERM_BTN_COUNT; i++) {
 				int len = (int) strlen(termconf_live.btn[i]);
-				bufput_utf8(len);
 				memcpy(bb, termconf_live.btn[i], len);
 				bb += len;
 				remain -= len;
+				bufput_c('\x01');
 			}
 		END_TOPIC
 
@@ -1952,10 +1951,16 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		}
 	}
 
-	// screen contents - TODO implement partial update
+	// screen contents
 	int i = ss->index;
 	if (i == 0) {
-		bufput_c(TOPICMARK_SCREEN_ALL); // desired update mode is in `ss->current_topic`
+		bufput_c(TOPICMARK_SCREEN); // desired update mode is in `ss->current_topic`
+
+		// TODO implement partial
+		bufput_utf8(0); // Y0
+		bufput_utf8(0); // X0
+		bufput_utf8(H); // height
+		bufput_utf8(W); // width
 
 		ss->index = 0;
 		ss->lastBg = 0xFF;

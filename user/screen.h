@@ -156,13 +156,13 @@ typedef enum {
 
 enum ScreenSerializeTopic {
 	TOPIC_CHANGE_SCREEN_OPTS  = (1<<0),
-	TOPIC_CHANGE_TITLE        = (1<<1),
-	TOPIC_CHANGE_BUTTONS      = (1<<2),
-	TOPIC_BELL                = (1<<3), // beep
-	TOPIC_CHANGE_CURSOR       = (1<<4),
-	TOPIC_CHANGE_CONTENT_ALL  = (1<<5),
-	TOPIC_CHANGE_CONTENT_PART = (1<<6),
-	TOPIC_INTERNAL            = (1<<7), // debugging internal state
+	TOPIC_CHANGE_CONTENT_ALL  = (1<<1),
+	TOPIC_CHANGE_CONTENT_PART = (1<<2),
+	TOPIC_CHANGE_TITLE        = (1<<3),
+	TOPIC_CHANGE_BUTTONS      = (1<<4),
+	TOPIC_CHANGE_CURSOR       = (1<<5),
+	TOPIC_INTERNAL            = (1<<6), // debugging internal state
+	TOPIC_BELL                = (1<<7), // beep
 	// combos
 	TOPIC_INITIAL =
 		TOPIC_CHANGE_SCREEN_OPTS |
