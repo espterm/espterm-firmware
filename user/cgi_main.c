@@ -25,11 +25,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 
 	char buff[150];
 
-	if (streq(token, "labels_seq")) {
-		screenSerializeLabelsToBuffer(buff, 150);
-		tplSend(connData, buff, -1);
-	}
-	else if (streq(token, "theme")) {
+	if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);
 		tplSend(connData, buff, -1);
 	}

@@ -16,6 +16,8 @@
 // Must be less than httpd sendbuf
 #define SOCK_BUF_LEN 2000
 
+volatile ScreenNotifyTopics pendingBroadcastTopics = 0;
+
 // flags for screen update timeouts
 volatile bool notify_available = true;
 volatile bool notify_cooldown = false;
@@ -24,12 +26,11 @@ volatile bool notify_cooldown = false;
  * and we have to tell it we're ready again */
 volatile bool browser_wants_xon = false;
 
-static ETSTimer notifyContentTim;
-static ETSTimer notifyLabelsTim;
+static ETSTimer updateNotifyTim;
 static ETSTimer notifyCooldownTim;
 static ETSTimer heartbeatTim;
 
-volatile int active_clients = 0;
+volatile int term_active_clients = 0;
 
 // we're trying to do a kind of mutex here, without the actual primitives
 // this might glitch, very rarely.
@@ -52,25 +53,21 @@ notifyCooldownTimCb(void *arg)
  * @param arg
  */
 static void ICACHE_FLASH_ATTR
-notifyContentTimCb(void *arg)
+updateNotify_do(Websock *ws, ScreenNotifyTopics topics)
 {
-	Websock *ws = arg;
 	void *data = NULL;
-	int max_bl, total_bl;
 	char sock_buff[SOCK_BUF_LEN];
 
-	cgiWebsockMeasureBacklog(URL_WS_UPDATE, &max_bl, &total_bl);
-
-	if (!notify_available || notify_cooldown || (max_bl > 2048)) { // do not send if we have anything significant backlogged
-		// postpone a little
-		TIMER_START(&notifyContentTim, notifyContentTimCb, 4, 0);
-		inp_dbg("postpone notify content");
-		return;
-	}
 	notify_available = false;
 
 	for (int i = 0; i < 20; i++) {
-		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, &data);
+		if (! ws) {
+			// broadcast
+			topics = pendingBroadcastTopics;
+			pendingBroadcastTopics = 0;
+		}
+		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, topics, &data);
+
 		int flg = 0;
 		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
 		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
@@ -86,56 +83,42 @@ notifyContentTimCb(void *arg)
 	}
 
 	// cleanup
-	screenSerializeToBuffer(NULL, SOCK_BUF_LEN, &data);
+	screenSerializeToBuffer(NULL, 0, 0, &data);
 
-	notify_cooldown = true;
 	notify_available = true;
-
-	TIMER_START(&notifyCooldownTim, notifyCooldownTimCb, termconf->display_cooldown_ms, 0);
 }
 
 /**
- * Tell browsers about the new text labels
+ * Tell browser we have new content
  * @param arg
  */
 static void ICACHE_FLASH_ATTR
-notifyLabelsTimCb(void *arg)
+updateNotifyCb(void *arg)
 {
-	Websock *ws = arg;
-	char sock_buff[SOCK_BUF_LEN];
+	int max_bl, total_bl;
+	cgiWebsockMeasureBacklog(URL_WS_UPDATE, &max_bl, &total_bl);
 
-	if (!notify_available || notify_cooldown) {
+	if (!notify_available || notify_cooldown || (max_bl > 2048)) { // do not send if we have anything significant backlogged
 		// postpone a little
-		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, 7, 0);
-		inp_dbg("postpone notify labels");
+		TIMER_START(&updateNotifyTim, updateNotifyCb, 4, 0);
+		inp_dbg("postpone notify content");
 		return;
 	}
-	notify_available = false;
 
-	screenSerializeLabelsToBuffer(sock_buff, SOCK_BUF_LEN);
-
-	if (ws) {
-		cgiWebsocketSend(ws, sock_buff, (int) strlen(sock_buff), 0);
-	} else {
-		cgiWebsockBroadcast(URL_WS_UPDATE, sock_buff, (int) strlen(sock_buff), 0);
-		resetHeartbeatTimer();
-	}
+	updateNotify_do(arg, 0);
 
 	notify_cooldown = true;
-	notify_available = true;
 
 	TIMER_START(&notifyCooldownTim, notifyCooldownTimCb, termconf->display_cooldown_ms, 0);
 }
+
 
 /** Beep */
 void ICACHE_FLASH_ATTR
 send_beep(void)
 {
-	if (active_clients == 0) return;
-
-	// here's some potential for a race error with the other broadcast functions :C
-	cgiWebsockBroadcast(URL_WS_UPDATE, "B", 1, 0);
-	resetHeartbeatTimer();
+	if (term_active_clients == 0) return;
+	screen_notifyChange(TOPIC_BELL); // XXX has latency, maybe better to send directly
 }
 
 
@@ -143,10 +126,10 @@ send_beep(void)
 void ICACHE_FLASH_ATTR
 notify_growl(char *msg)
 {
-	if (active_clients == 0) return;
+	if (term_active_clients == 0) return;
 
-	// TODO via timer...
-	// here's some potential for a race error with the other broadcast functions :C
+	// here's some potential for a race error with the other broadcast functions
+	// - we assume app won't send notifications in the middle of updating content
 	cgiWebsockBroadcast(URL_WS_UPDATE, msg, (int) strlen(msg), 0);
 	resetHeartbeatTimer();
 }
@@ -157,24 +140,17 @@ notify_growl(char *msg)
  * This is a callback for the Screen module,
  * called after each visible screen modification.
  */
-void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyChangeTopic topic)
+void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyTopics topics)
 {
-	if (active_clients == 0) return;
+	if (term_active_clients == 0) return;
 
 	// this is probably not needed here - ensure timeout is not 0
-	if (termconf->display_tout_ms == 0)
+	if (termconf->display_tout_ms == 0) {
 		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
-
-	// NOTE: the timers are restarted if already running
-
-	if (topic == CHANGE_LABELS) {
-		// separate timer from content change timer, to avoid losing that update
-		TIMER_START(&notifyLabelsTim, notifyLabelsTimCb, termconf->display_tout_ms+2, 0); // this delay is useful when both are fired at once on screen reset
 	}
-	else if (topic == CHANGE_CONTENT) {
-		// throttle delay
-		TIMER_START(&notifyContentTim, notifyContentTimCb, termconf->display_tout_ms, 0);
-	}
+
+	// NOTE: the timer is restarted if already running
+	TIMER_START(&updateNotifyTim, updateNotifyCb, termconf->display_tout_ms, 0); // note - this adds latency to beep
 }
 
 /**
@@ -296,8 +272,7 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 		case 'i':
 			// requests initial load
 			inp_dbg("Client requests initial load");
-			notifyContentTimCb(ws); // delay??
-			notifyLabelsTimCb(ws);
+			updateNotify_do(ws, TOPIC_INITIAL);
 			break;
 
 		case 'm':
@@ -322,7 +297,7 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 /** Send a heartbeat msg */
 static void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 {
-	if (active_clients > 0) {
+	if (term_active_clients > 0) {
 		if (notify_available) {
 			inp_dbg(".");
 
@@ -348,9 +323,9 @@ static void ICACHE_FLASH_ATTR resetHeartbeatTimer(void)
 
 static void ICACHE_FLASH_ATTR closeSockCb(Websock *ws)
 {
-	active_clients--;
-	if (active_clients <= 0) {
-		active_clients = 0;
+	term_active_clients--;
+	if (term_active_clients <= 0) {
+		term_active_clients = 0;
 
 		if (mouse_tracking.focus_tracking) {
 			UART_SendAsync("\x1b[O", 3);
@@ -368,7 +343,7 @@ void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 	ws->recvCb = updateSockRx;
 	ws->closeCb = closeSockCb;
 
-	if (active_clients == 0) {
+	if (term_active_clients == 0) {
 		if (mouse_tracking.focus_tracking) {
 			UART_SendAsync("\x1b[I", 3);
 		}
@@ -376,7 +351,7 @@ void ICACHE_FLASH_ATTR updateSockConnect(Websock *ws)
 		resetHeartbeatTimer();
 	}
 
-	active_clients++;
+	term_active_clients++;
 }
 
 ETSTimer xonTim;

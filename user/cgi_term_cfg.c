@@ -40,7 +40,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	char buff[50];
 	char redir_url_buf[100];
 	int32 n, w, h;
-	bool notify_screen_content = 0, notify_screen_labels = 0;
+	ScreenNotifyTopics topics = 0;
 
 	bool shall_clear_screen = false;
 	bool shall_init_uart = false;
@@ -94,7 +94,8 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			if (termconf->width != w || termconf->height != h) {
 				termconf->width = w;
 				termconf->height = h;
-				shall_clear_screen = true; // this causes a notify
+				shall_clear_screen = true;
+				topics |= TOPIC_CHANGE_SCREEN_OPTS | TOPIC_CHANGE_CONTENT_ALL;
 			}
 		} while (0);
 	}
@@ -112,6 +113,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 		if (termconf->default_bg != n) {
 			termconf->default_bg = n; // this is current not sent through socket, no use to notify
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 		}
 	}
 
@@ -128,6 +130,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 		if (termconf->default_fg != n) {
 			termconf->default_fg = n; // this is current not sent through socket, no use to notify
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 		}
 	}
 
@@ -168,40 +171,49 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		cgi_dbg("FN alt mode: %s", buff);
 		n = atoi(buff);
 		termconf->fn_alt_mode = (bool)n;
-		notify_screen_content = true;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
 	if (GET_ARG("want_all_fn")) {
 		cgi_dbg("AllFN mode: %s", buff);
 		n = atoi(buff);
 		termconf->want_all_fn = (bool)n;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
 	if (GET_ARG("crlf_mode")) {
 		cgi_dbg("CRLF mode: %s", buff);
 		n = atoi(buff);
 		termconf->crlf_mode = (bool)n;
-		notify_screen_content = true;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
 	if (GET_ARG("show_buttons")) {
 		cgi_dbg("Show buttons: %s", buff);
 		n = atoi(buff);
 		termconf->show_buttons = (bool)n;
-		notify_screen_content = true;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
 	if (GET_ARG("show_config_links")) {
 		cgi_dbg("Show config links: %s", buff);
 		n = atoi(buff);
 		termconf->show_config_links = (bool)n;
-		notify_screen_content = true;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
 	if (GET_ARG("loopback")) {
 		cgi_dbg("Loopback: %s", buff);
 		n = atoi(buff);
 		termconf->loopback = (bool)n;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
+	}
+
+	if (GET_ARG("debugbar")) {
+		cgi_dbg("Debugbar: %s", buff);
+		n = atoi(buff);
+		termconf->debugbar = (bool)n;
+		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
 	if (GET_ARG("theme")) {
@@ -213,6 +225,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		} else {
 			cgi_warn("Bad theme num: %s", buff);
 			redir_url += sprintf(redir_url, "theme,");
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 		}
 	}
 
@@ -221,7 +234,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		n = atoi(buff);
 		if (n >= 0 && n <= 6 && n != 1) {
 			termconf->cursor_shape = (enum CursorShape) n;
-			notify_screen_content = true;
+			topics |= TOPIC_CHANGE_SCREEN_OPTS;
 		} else {
 			cgi_warn("Bad cursor_shape num: %s", buff);
 			redir_url += sprintf(redir_url, "cursor_shape,");
@@ -231,7 +244,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	if (GET_ARG("term_title")) {
 		cgi_dbg("Terminal title default text: \"%s\"", buff);
 		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
-		notify_screen_labels = true;
+		topics |= TOPIC_CHANGE_TITLE;
 	}
 
 	for (int btn_i = 1; btn_i <= TERM_BTN_COUNT; btn_i++) {
@@ -239,7 +252,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		if (GET_ARG(buff)) {
 			cgi_dbg("Button%d default text: \"%s\"", btn_i, buff);
 			strncpy_safe(termconf->btn[btn_i-1], buff, TERM_BTN_LEN);
-			notify_screen_labels = true;
+			topics |= TOPIC_CHANGE_BUTTONS;
 		}
 
 		sprintf(buff, "bm%d", btn_i);
@@ -368,13 +381,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 			serialInit();
 		}
 
-		if (notify_screen_content) {
-			screen_notifyChange(CHANGE_CONTENT);
-		}
-
-		if (notify_screen_labels) {
-			screen_notifyChange(CHANGE_LABELS);
-		}
+		if (topics) screen_notifyChange(topics);
 
 		httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
 	} else {
@@ -439,6 +446,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "loopback")) {
 		sprintf(buff, "%d", (int)termconf->loopback);
+	}
+	else if (streq(token, "debugbar")) {
+		sprintf(buff, "%d", (int)termconf->debugbar);
 	}
 	else if (streq(token, "theme")) {
 		sprintf(buff, "%d", termconf->theme);
