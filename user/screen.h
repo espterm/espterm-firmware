@@ -163,6 +163,8 @@ enum ScreenSerializeTopic {
 	TOPIC_CHANGE_CURSOR       = (1<<5),
 	TOPIC_INTERNAL            = (1<<6), // debugging internal state
 	TOPIC_BELL                = (1<<7), // beep
+	TOPIC_FLAG_NOCLEAN        = (1<<15), // do not clean dirty extents
+
 	// combos
 	TOPIC_INITIAL =
 		TOPIC_CHANGE_SCREEN_OPTS |
