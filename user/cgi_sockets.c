@@ -98,10 +98,12 @@ updateNotifyCb(void *arg)
 	int max_bl, total_bl;
 	cgiWebsockMeasureBacklog(URL_WS_UPDATE, &max_bl, &total_bl);
 
+	inp_dbg("Notify broadcast +%02Xh?", pendingBroadcastTopics);
+
 	if (!notify_available || notify_cooldown || (max_bl > 2048)) { // do not send if we have anything significant backlogged
 		// postpone a little
 		TIMER_START(&updateNotifyTim, updateNotifyCb, 4, 0);
-		inp_dbg("postpone notify content");
+		inp_dbg("postpone notify; avail? %d coold? %d maxbl? %d", notify_available, notify_cooldown, max_bl);
 		return;
 	}
 
@@ -148,6 +150,8 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyTopics topics)
 	if (termconf->display_tout_ms == 0) {
 		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
 	}
+
+	inp_dbg("Notify +%02Xh", topics);
 
 	pendingBroadcastTopics |= topics;
 

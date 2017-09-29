@@ -412,7 +412,6 @@ screen_swap_state(bool alternate)
 
 	if (alternate) {
 		ansi_dbg("Swap to alternate");
-		NOTIFY_LOCK();
 		// store old state
 		memcpy(state_backup.title, termconf_live.title, TERM_TITLE_LEN);
 		memcpy(state_backup.btn, termconf_live.btn, sizeof(termconf_live.btn));
