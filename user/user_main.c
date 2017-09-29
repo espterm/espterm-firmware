@@ -28,6 +28,8 @@
 #include "ansi_parser_callbacks.h"
 #include "wifimgr.h"
 #include "persist.h"
+#include "ansi_parser.h"
+#include "ascii.h"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -86,6 +88,7 @@ static ETSTimer prHeapTimer;
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
 void ICACHE_FLASH_ATTR user_init(void)
 {
+	ansi_parser_inhibit = true;
 	serialInitBase();
 
 	// Prevent WiFi starting and connecting by default
@@ -128,9 +131,11 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 	captdnsInit();
 	httpdInit(routes, 80);
 
+	ansi_parser_inhibit = false;
+
 	// Print the CANCEL character to indicate the module has restarted
 	// Critically important for client application if any kind of screen persistence / content re-use is needed
-	UART_WriteChar(UART0, 24, UART_TIMEOUT_US); // 0x18 - 24 - CAN
+	UART_WriteChar(UART0, CAN, UART_TIMEOUT_US); // 0x18 - 24 - CAN
 }
 
 // ---- unused funcs removed from sdk to save space ---

@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 
+extern volatile bool ansi_parser_inhibit; // discard all characters
+
 void ansi_parser_reset(void);
 
 extern volatile u32 ansi_parser_char_cnt;

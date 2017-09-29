@@ -19,6 +19,7 @@ static volatile bool inside_string = false;
 
 // public
 volatile u32 ansi_parser_char_cnt = 0;
+volatile bool ansi_parser_inhibit = 0;
 
 void ICACHE_FLASH_ATTR
 ansi_parser_reset(void) {
@@ -82,6 +83,8 @@ ansi_parser(char newchar)
 	static int  arg[CSI_N_MAX];
 	static char string_buffer[ANSI_STR_LEN];
 	static int  str_ni;
+
+	if (ansi_parser_inhibit) return;
 
 	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
