@@ -1936,13 +1936,6 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 	int begun_topic = 0;
 	int prev_topic = 0;
 
-#define INC_I() do { \
-		i++; \
-		if (ss->partial) {\
-			if (i%W > ss->x_max) i += (W - ss->x_max + ss->x_min - 1);\
-        } \
-	} while (0)
-
 #define BEGIN_TOPIC(topic, size) \
 	if (ss->last_topic == prev_topic) { \
 		begun_topic = (topic); \
@@ -1964,11 +1957,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(W);
 			bufput_utf8(termconf_live.theme);
 
-			bufput_utf8(termconf_live.default_fg & 0x000FFF);
-			bufput_utf8((termconf_live.default_fg & 0xFFF000) >> 12);
+			bufput_utf8(termconf_live.default_fg & 0xFFF);
+			bufput_utf8((u32)(termconf_live.default_fg >> 16) & 0xFFFF);
 
-			bufput_utf8(termconf_live.default_bg & 0x000FFF);
-			bufput_utf8((termconf_live.default_bg & 0xFFF000) >> 12);
+			bufput_utf8(termconf_live.default_bg & 0xFFF);
+			bufput_utf8((u32)(termconf_live.default_bg >> 16) & 0xFFFF);
 
 			bufput_utf8(
 				(scr.cursor_visible << 0) |
@@ -2064,6 +2057,14 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			// start the screen section
 		}
 	}
+
+#define INC_I() do { \
+		i++; \
+		if (ss->partial) {\
+			if (i%W == 0) i += (ss->x_min);\
+			else if (i%W > ss->x_max) i += (W - ss->x_max + ss->x_min - 1);\
+        } \
+	} while (0)
 
 	// screen contents
 	int i = ss->index;
