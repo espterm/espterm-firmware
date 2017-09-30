@@ -172,8 +172,6 @@ enum ScreenSerializeTopic {
 		TOPIC_CHANGE_CURSOR |
 		TOPIC_CHANGE_TITLE |
 		TOPIC_CHANGE_BUTTONS,
-
-	TOPIC_WRITE = TOPIC_CHANGE_CURSOR | TOPIC_CHANGE_CONTENT_PART,
 };
 
 typedef u16 ScreenNotifyTopics;
@@ -354,5 +352,8 @@ void screen_report_sgr(char *buffer);
  * @param topic - what kind of change this is (chooses what message to send)
  */
 extern void screen_notifyChange(ScreenNotifyTopics topics);
+
+#define seri_dbg(...)
+#define seri_warn(...) warn(__VA_ARGS__)
 
 #endif // SCREEN_H

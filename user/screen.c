@@ -151,10 +151,11 @@ static struct {
 	} while(0)
 
 #define expand_dirty(y0, y1, x0, x1)  do { \
-		if ((y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0); \
-		if ((x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0); \
-		if ((y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1); \
-		if ((x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1); \
+		seri_dbg("Expand: X: (%d..%d) -> %d..%d, Y: (%d..%d) -> %d..%d", scr_dirty.x_min, scr_dirty.x_max, x0, x1, scr_dirty.y_min, scr_dirty.y_max, y0, y1); \
+		if ((int)(y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0); \
+		if ((int)(x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0); \
+		if ((int)(y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1); \
+		if ((int)(x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1); \
 	} while(0)
 
 #define NOTIFY_LOCK() do { \
@@ -172,7 +173,10 @@ static struct {
 
 /** Clear the hanging attribute if the cursor is no longer >= W */
 #define clear_invalid_hanging() do { \
-									if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; \
+									if (cursor.hanging && cursor.x != W-1) { \
+										cursor.hanging = false; \
+										screen_notifyChange(TOPIC_CHANGE_CURSOR); \
+									} \
 								} while(false)
 
 #define cursor_inside_region() (cursor.y >= TOP && cursor.y <= BTM)
@@ -1611,6 +1615,9 @@ putchar_graphic(const char *ch)
 {
 	static char buf[4];
 
+	NOTIFY_LOCK();
+	ScreenNotifyTopics topics = TOPIC_CHANGE_CURSOR;
+
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
 		// if auto-wrap = off, it overwrites the last char
@@ -1629,21 +1636,32 @@ putchar_graphic(const char *ch)
 	}
 
 	Cell *c = &screen[cursor.x + cursor.y * W];
-	expand_dirty(cursor.y, cursor.y, cursor.x, cursor.x);
 
 	// move the rest of the line if we're in Insert Mode
 	if (cursor.x < W-1 && scr.insert_mode) screen_insert_characters(1);
 
-	if (ch[1] == 0 && ch[0] <= 0x7f) {
+	char chs = (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1;
+	if (chs != 'B' && ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII, can be re-mapped using a table
-		utf8_remap(buf, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		utf8_remap(buf, ch[0], chs);
 		ch = buf;
 	}
+
+	UnicodeCacheRef oldSymbol = c->symbol;
+	Color oldFg = c->fg;
+	Color oldBg = c->bg;
+	CellAttrs oldAttrs = c->attrs;
+
 	unicode_cache_remove(c->symbol);
 	c->symbol = unicode_cache_add((const u8 *)ch);
 	c->fg = cursor.fg;
 	c->bg = cursor.bg;
 	c->attrs = cursor.attrs;
+
+	if (c->symbol != oldSymbol || c->fg != oldFg || c->bg != oldBg || c->attrs != oldAttrs) {
+		expand_dirty(cursor.y, cursor.y, cursor.x, cursor.x);
+		topics |= TOPIC_CHANGE_CONTENT_PART;
+	}
 
 	cursor.x++;
 	// X wrap
@@ -1652,6 +1670,7 @@ putchar_graphic(const char *ch)
 		cursor.x = W - 1;
 	}
 
+	NOTIFY_DONE(topics);
 	return ch;
 }
 
@@ -1661,8 +1680,6 @@ putchar_graphic(const char *ch)
 void ICACHE_FLASH_ATTR
 screen_putchar(const char *ch)
 {
-	NOTIFY_LOCK();
-
 	// clear "hanging" flag if not possible
 	clear_invalid_hanging();
 
@@ -1703,8 +1720,8 @@ screen_putchar(const char *ch)
 	// not have to call the remap function repeatedly.
 	strncpy(scr.last_char, result, 4);
 
-	done:
-	NOTIFY_DONE(TOPIC_WRITE);
+done:
+	return;
 }
 
 /**
@@ -1714,7 +1731,6 @@ screen_putchar(const char *ch)
 void ICACHE_FLASH_ATTR
 screen_repeat_last_character(int count)
 {
-	NOTIFY_LOCK();
 	if (scr.last_char[0]==0) {
 		scr.last_char[0] = ' ';
 		scr.last_char[1] = 0;
@@ -1726,7 +1742,6 @@ screen_repeat_last_character(int count)
 		putchar_graphic(scr.last_char);
 		count--;
 	}
-	NOTIFY_DONE(TOPIC_WRITE);
 }
 
 /**
@@ -1842,6 +1857,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define SEQ_TAG_ATTRS '\x04'
 #define SEQ_TAG_FG '\x05'
 #define SEQ_TAG_BG '\x06'
+#define SEQ_TAG_ATTRS_0 '\x07'
 
 #define TOPICMARK_SCREEN_OPTS 'O'
 #define TOPICMARK_TITLE   'T'
@@ -1870,15 +1886,17 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			ss->y_max = scr_dirty.y_max;
 
 			if (ss->x_min > ss->x_max || ss->y_min > ss->y_max) {
-				dbg("Partial redraw, but bad bounds!");
+				seri_warn("Partial redraw, but bad bounds! X %d..%d, Y %d..%d", ss->x_min, ss->x_max, ss->y_min, ss->y_max);
 				// use full redraw
+				reset_screen_dirty();
+
 				topics ^= TOPIC_CHANGE_CONTENT_PART;
 				topics |= TOPIC_CHANGE_CONTENT_ALL;
 			} else {
 				// is OK
 				ss->i_max = ss->y_max * W + ss->x_max;
 				ss->index = W*ss->y_min + ss->x_min;
-				dbg("Partial! X %d..%d, Y %d..%d, i_max %d", ss->x_min, ss->x_max, ss->y_min, ss->y_min, ss->i_max);
+				seri_dbg("Partial! X %d..%d, Y %d..%d, i_max %d", ss->x_min, ss->x_max, ss->y_min, ss->y_max, ss->i_max);
 			}
 		}
 
@@ -1892,7 +1910,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			ss->x_max = W-1;
 			ss->y_min = 0;
 			ss->y_max = H-1;
-			dbg("Full redraw!");
+			seri_dbg("Full redraw!");
 		}
 
 		ss->i_start = ss->index;
@@ -2081,8 +2099,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		if (repCnt == 0) {
 			// No repeat - first occurrence
 			bool changeAttrs = cell0->attrs != ss->lastAttrs;
-			bool changeFg = cell0->fg != ss->lastFg;
-			bool changeBg = cell0->bg != ss->lastBg;
+			bool changeFg = (cell0->fg != ss->lastFg) && (cell0->attrs & ATTR_FG);
+			bool changeBg = (cell0->bg != ss->lastBg) && (cell0->attrs & ATTR_BG);
 			bool changeColors = changeFg && changeBg;
 			Color fg, bg;
 
@@ -2101,7 +2119,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			}
 
 			if (changeAttrs) {
-				bufput_t_utf8(SEQ_TAG_ATTRS, cell0->attrs);
+				if (cell0->attrs) {
+					bufput_t_utf8(SEQ_TAG_ATTRS, cell0->attrs);
+				} else {
+					bufput_c(SEQ_TAG_ATTRS_0);
+				}
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
@@ -2123,7 +2145,18 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			INC_I();
 		} else {
 			// last character was repeated repCnt times
-			bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
+			int savings = ss->lastCharLen*repCnt;
+			if (savings > 2) {
+				// Repeat count
+				bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
+			} else {
+				// repeat it manually
+				for(int k = 0; k < repCnt; k++) {
+					for (int j = 0; j < ss->lastCharLen; j++) {
+						bufput_c(ss->lastChar[j]);
+					}
+				}
+			}
 		}
 	}
 
