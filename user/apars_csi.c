@@ -709,6 +709,8 @@ do_csi_set_private_option(CSI_Data *opts)
 				mouse_tracking.mode,
 				mouse_tracking.encoding,
 				mouse_tracking.focus_tracking);
+
+			screen_notifyChange(TOPIC_CHANGE_SCREEN_OPTS);
 		}
 		else if (n == 12) {
 			screen_cursor_blink(yn);
