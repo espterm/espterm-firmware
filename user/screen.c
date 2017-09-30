@@ -211,6 +211,7 @@ terminal_restore_defaults(void)
 	termconf->crlf_mode = SCR_DEF_CRLF;
 	termconf->want_all_fn = SCR_DEF_ALLFN;
 	termconf->debugbar = SCR_DEF_DEBUGBAR;
+	termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 }
 
 /**
@@ -229,10 +230,15 @@ terminal_apply_settings_noclear(void)
 {
 	bool changed = false;
 
-	// Migrate to v1
+	// Migrate
 	if (termconf->config_version < 1) {
 		persist_dbg("termconf: Updating to version %d", 1);
 		termconf->debugbar = SCR_DEF_DEBUGBAR;
+		changed = 1;
+	}
+	if (termconf->config_version < 2) {
+		persist_dbg("termconf: Updating to version %d", 1);
+		termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 		changed = 1;
 	}
 
@@ -1099,6 +1105,8 @@ screen_cursor_shape(enum CursorShape shape)
 void ICACHE_FLASH_ATTR
 screen_cursor_blink(bool blink)
 {
+	if (!termconf->allow_decopt_12) return;
+
 	NOTIFY_LOCK();
 	if (blink) {
 		if (termconf_live.cursor_shape == CURSOR_BLOCK) termconf_live.cursor_shape = CURSOR_BLOCK_BL;

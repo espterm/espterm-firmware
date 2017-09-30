@@ -216,6 +216,12 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		topics |= TOPIC_CHANGE_SCREEN_OPTS;
 	}
 
+	if (GET_ARG("allow_decopt_12")) {
+		cgi_dbg("DECOPT 12: %s", buff);
+		n = atoi(buff);
+		termconf->allow_decopt_12 = (bool)n;
+	}
+
 	if (GET_ARG("theme")) {
 		cgi_dbg("Screen color theme: %s", buff);
 		n = atoi(buff);
@@ -443,6 +449,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "show_config_links")) {
 		sprintf(buff, "%d", (int)termconf->show_config_links);
+	}
+	else if (streq(token, "allow_decopt_12")) {
+		sprintf(buff, "%d", (int)termconf->allow_decopt_12);
 	}
 	else if (streq(token, "loopback")) {
 		sprintf(buff, "%d", (int)termconf->loopback);
