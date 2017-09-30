@@ -21,6 +21,7 @@ volatile ScreenNotifyTopics pendingBroadcastTopics = 0;
 // flags for screen update timeouts
 volatile bool notify_available = true;
 volatile bool notify_cooldown = false;
+volatile bool notify_scheduled = false;
 
 /** True if we sent XOFF to browser to stop uploading,
  * and we have to tell it we're ready again */
@@ -109,6 +110,7 @@ updateNotifyCb(void *arg)
 
 	updateNotify_do(arg, 0);
 
+	notify_scheduled = false;
 	notify_cooldown = true;
 
 	TIMER_START(&notifyCooldownTim, notifyCooldownTimCb, termconf->display_cooldown_ms, 0);
@@ -146,17 +148,16 @@ void ICACHE_FLASH_ATTR screen_notifyChange(ScreenNotifyTopics topics)
 {
 	if (term_active_clients == 0) return;
 
-	// this is probably not needed here - ensure timeout is not 0
-	if (termconf->display_tout_ms == 0) {
-		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
-	}
-
 	inp_dbg("Notify +%02Xh", topics);
 
 	pendingBroadcastTopics |= topics;
 
+	int time = termconf->display_tout_ms;
+	if (time == 0 && notify_scheduled) return; // do not reset the timer if already scheduled
+
+	notify_scheduled = true;
 	// NOTE: the timer is restarted if already running
-	TIMER_START(&updateNotifyTim, updateNotifyCb, termconf->display_tout_ms, 0); // note - this adds latency to beep
+	TIMER_START(&updateNotifyTim, updateNotifyCb, time, 0); // note - this adds latency to beep
 }
 
 /**

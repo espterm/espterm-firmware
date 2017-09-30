@@ -87,11 +87,14 @@ apars_handle_plainchar(char c)
 			else {
 				bytes[utf_j++] = c;
 				if (utf_j >= utf_len) {
-					// check for bad sequences
+					// check for bad sequences - overlong or some other problem
 					if (bytes[0] == 0xF4 && bytes[1] > 0x8F) goto fail;
 					if (bytes[0] == 0xF0 && bytes[1] < 0x90) goto fail;
 					if (bytes[0] == 0xED && bytes[1] > 0x9F) goto fail;
 					if (bytes[0] == 0xE0 && bytes[1] < 0xA0) goto fail;
+
+					// trap for surrogates - those break javascript
+					if (bytes[0] == 0xED && bytes[1] >= 0xA0 && bytes[1] <= 0xBF) goto fail;
 
 					screen_putchar((const char *) bytes);
 					apars_reset_utf8buffer();
@@ -113,5 +116,5 @@ fail:
 	apars_show_context();
 	apars_reset_utf8buffer();
 	ansi_dbg("Temporarily inhibiting parser...");
-	TIMER_START(&timerResumeRx, resumeRxCb, 1000, 0);
+	TIMER_START(&timerResumeRx, resumeRxCb, 500, 0);
 }

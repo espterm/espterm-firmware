@@ -239,12 +239,8 @@ terminal_apply_settings_noclear(void)
 	termconf->config_version = TERMCONF_VERSION;
 
 	// Validation...
-	if (termconf->display_tout_ms == 0) {
-		termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
-		changed = 1;
-	}
 	if (termconf->display_cooldown_ms == 0) {
-		termconf->display_cooldown_ms = SCR_DEF_DISPLAY_COOLDOWN_MS;
+		termconf->display_cooldown_ms = 1;
 		changed = 1;
 	}
 
@@ -1781,7 +1777,7 @@ utf8_remap(char *out, char g, char charset)
 			break;
 	}
 
-	utf8_encode(out, utf);
+	utf8_encode(out, utf, false);
 }
 //endregion
 
@@ -1841,7 +1837,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		} while(0)
 
 #define bufput_utf8(num) do { \
-		nbytes = utf8_encode(bb, (num)+1); \
+		nbytes = utf8_encode(bb, (num)+1, true); \
 		bb += nbytes; \
 		remain -= nbytes; \
 	} while(0)
@@ -1957,11 +1953,15 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(W);
 			bufput_utf8(termconf_live.theme);
 
-			bufput_utf8(termconf_live.default_fg & 0xFFF);
-			bufput_utf8((u32)(termconf_live.default_fg >> 16) & 0xFFFF);
+			bufput_utf8(termconf_live.default_fg & 0xFFFF);
+			bufput_utf8((termconf_live.default_fg >> 16) & 0xFFFF);
 
-			bufput_utf8(termconf_live.default_bg & 0xFFF);
-			bufput_utf8((u32)(termconf_live.default_bg >> 16) & 0xFFFF);
+			dbg("Fg %04X,%04X", termconf_live.default_fg & 0xFFFF, (termconf_live.default_fg >> 16) & 0xFFFF);
+
+			bufput_utf8(termconf_live.default_bg & 0xFFFF);
+			bufput_utf8((termconf_live.default_bg >> 16) & 0xFFFF);
+
+			dbg("Bg %04X,%04X", termconf_live.default_bg & 0xFFFF, (termconf_live.default_bg >> 16) & 0xFFFF);
 
 			bufput_utf8(
 				(scr.cursor_visible << 0) |

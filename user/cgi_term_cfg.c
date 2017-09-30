@@ -148,7 +148,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 	if (GET_ARG("display_tout_ms")) {
 		cgi_dbg("Display update idle timeout: %s ms", buff);
 		n = atoi(buff);
-		if (n > 0) {
+		if (n >= 0) {
 			termconf->display_tout_ms = n;
 		} else {
 			cgi_warn("Bad update timeout %s", buff);

@@ -160,8 +160,13 @@ unicode_cache_remove(UnicodeCacheRef ref)
  * @return number of bytes on success, 0 on failure (also produces U+FFFD, which uses 3 bytes)
  */
 int ICACHE_FLASH_ATTR
-utf8_encode(char *out, uint32_t utf)
+utf8_encode(char *out, uint32_t utf, bool surrogateFix)
 {
+	// Skip the surrogate block (wtf, unicode???)
+	if (surrogateFix && utf >= 0xD800) {
+		utf += 0x800;
+	}
+
 	if (utf <= 0x7F) {
 		// Plain ASCII
 		out[0] = (char) utf;
