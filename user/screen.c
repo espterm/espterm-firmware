@@ -139,6 +139,25 @@ static struct {
 static volatile int notifyLock = 0;
 static volatile ScreenNotifyTopics lockTopics = 0;
 
+static struct {
+	int x_min, y_min, x_max, y_max;
+} scr_dirty;
+
+#define reset_screen_dirty() do { \
+		scr_dirty.x_min = W; \
+		scr_dirty.x_max = -1; \
+		scr_dirty.y_min = H; \
+		scr_dirty.y_max = -1; \
+	} while(0)
+
+#define expand_dirty(y0, y1, x0, x1)  do { \
+		seri_dbg("Expand: X: (%d..%d) -> %d..%d, Y: (%d..%d) -> %d..%d", scr_dirty.x_min, scr_dirty.x_max, x0, x1, scr_dirty.y_min, scr_dirty.y_max, y0, y1); \
+		if ((int)(y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0); \
+		if ((int)(x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0); \
+		if ((int)(y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1); \
+		if ((int)(x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1); \
+	} while(0)
+
 #define NOTIFY_LOCK() do { \
 							notifyLock++; \
 						} while(0)
@@ -154,7 +173,10 @@ static volatile ScreenNotifyTopics lockTopics = 0;
 
 /** Clear the hanging attribute if the cursor is no longer >= W */
 #define clear_invalid_hanging() do { \
-									if (cursor.hanging && cursor.x != W-1) cursor.hanging = false; \
+									if (cursor.hanging && cursor.x != W-1) { \
+										cursor.hanging = false; \
+										screen_notifyChange(TOPIC_CHANGE_CURSOR); \
+									} \
 								} while(false)
 
 #define cursor_inside_region() (cursor.y >= TOP && cursor.y <= BTM)
@@ -252,6 +274,7 @@ screen_init(void)
 {
 	if(DEBUG_HEAP) dbg("Screen buffer size = %d bytes", sizeof(screen));
 
+	reset_screen_dirty();
 	screen_reset();
 }
 
@@ -746,10 +769,12 @@ screen_clear(ClearMode mode)
 
 		case CLEAR_FROM_CURSOR:
 			clear_range_utf((cursor.y * W) + cursor.x, W * H - 1);
+			expand_dirty(cursor.y, H-1, 0, W-1);
 			break;
 
 		case CLEAR_TO_CURSOR:
 			clear_range_utf(0, (cursor.y * W) + cursor.x);
+			expand_dirty(0, cursor.y, 0, W-1);
 			break;
 	}
 	NOTIFY_DONE(mode == CLEAR_ALL ? TOPIC_CHANGE_CONTENT_ALL : TOPIC_CHANGE_CONTENT_PART);
@@ -765,14 +790,17 @@ screen_clear_line(ClearMode mode)
 	switch (mode) {
 		case CLEAR_ALL:
 			clear_row_utf(cursor.y);
+			expand_dirty(cursor.y, cursor.y, 0, W-1);
 			break;
 
 		case CLEAR_FROM_CURSOR:
 			clear_range_utf(cursor.y * W + cursor.x, (cursor.y + 1) * W - 1);
+			expand_dirty(cursor.y, cursor.y, cursor.x, W-1);
 			break;
 
 		case CLEAR_TO_CURSOR:
 			clear_range_utf(cursor.y * W, cursor.y * W + cursor.x);
+			expand_dirty(cursor.y, cursor.y, 0, cursor.x);
 			break;
 	}
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
@@ -786,6 +814,7 @@ screen_clear_in_line(unsigned int count)
 		screen_clear_line(CLEAR_FROM_CURSOR);
 	} else {
 		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + cursor.x + count - 1);
+		expand_dirty(cursor.y, cursor.y, cursor.x, cursor.x + count - 1);
 	}
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
@@ -815,6 +844,7 @@ screen_insert_lines(unsigned int lines)
 			copy_row(i, cursor.y);
 		}
 	}
+	expand_dirty(cursor.y, BTM, 0, W - 1);
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
@@ -840,6 +870,7 @@ screen_delete_lines(unsigned int lines)
 		clear_range_noutf((movedBlockEnd+1)*W, (BTM+1)*W-1);
 	}
 
+	expand_dirty(cursor.y, BTM, 0, W - 1);
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
@@ -863,6 +894,7 @@ screen_insert_characters(unsigned int count)
 		}
 		clear_range_utf(cursor.y * W + cursor.x, cursor.y * W + targetStart - 1);
 	}
+	expand_dirty(cursor.y, cursor.y, cursor.x, W - 1);
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
@@ -889,6 +921,7 @@ screen_delete_characters(unsigned int count)
 		screen_clear_line(CLEAR_FROM_CURSOR);
 	}
 
+	expand_dirty(cursor.y, cursor.y, cursor.x, W - 1);
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 //endregion
@@ -991,6 +1024,7 @@ screen_scroll_up(unsigned int lines)
 	clear_range_noutf(y * W, (BTM + 1) * W - 1);
 
 done:
+	expand_dirty(TOP, BTM, 0, W - 1);
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
@@ -1021,6 +1055,7 @@ screen_scroll_down(unsigned int lines)
 
 	clear_range_noutf(TOP * W, TOP * W + lines * W - 1);
 done:
+	expand_dirty(TOP, BTM, 0, W - 1);
 	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
 }
 
@@ -1146,6 +1181,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 {
 	NOTIFY_LOCK();
 	int move;
+	bool scrolled = 0;
 
 	clear_invalid_hanging();
 
@@ -1192,7 +1228,10 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		if (was_inside) {
 			move = -(cursor.y - TOP);
 			cursor.y = TOP;
-			if (scroll) screen_scroll_down((unsigned int) move);
+			if (scroll) {
+				screen_scroll_down((unsigned int) move);
+				scrolled = true;
+			}
 		}
 		else {
 			// outside the region, just validate that we're not going offscreen
@@ -1207,7 +1246,10 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		if (was_inside) {
 			move = cursor.y - BTM;
 			cursor.y = BTM;
-			if (scroll) screen_scroll_up((unsigned int) move);
+			if (scroll) {
+				screen_scroll_up((unsigned int) move);
+				scrolled = true;
+			}
 		}
 		else {
 			// outside the region, just validate that we're not going offscreen
@@ -1218,7 +1260,11 @@ screen_cursor_move(int dy, int dx, bool scroll)
 		}
 	}
 
-	NOTIFY_DONE(TOPIC_CHANGE_CURSOR | (scroll*TOPIC_CHANGE_CONTENT_PART));
+	if (scrolled) {
+		expand_dirty(TOP, BTM, 0, W-1);
+	}
+
+	NOTIFY_DONE(TOPIC_CHANGE_CURSOR | (scrolled*TOPIC_CHANGE_CONTENT_PART));
 }
 
 /**
@@ -1569,6 +1615,9 @@ putchar_graphic(const char *ch)
 {
 	static char buf[4];
 
+	NOTIFY_LOCK();
+	ScreenNotifyTopics topics = TOPIC_CHANGE_CURSOR;
+
 	if (cursor.hanging) {
 		// perform the scheduled wrap if hanging
 		// if auto-wrap = off, it overwrites the last char
@@ -1591,16 +1640,28 @@ putchar_graphic(const char *ch)
 	// move the rest of the line if we're in Insert Mode
 	if (cursor.x < W-1 && scr.insert_mode) screen_insert_characters(1);
 
-	if (ch[1] == 0 && ch[0] <= 0x7f) {
+	char chs = (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1;
+	if (chs != 'B' && ch[1] == 0 && ch[0] <= 0x7f) {
 		// we have len=1 and ASCII, can be re-mapped using a table
-		utf8_remap(buf, ch[0], (cursor.charsetN == 0) ? cursor.charset0 : cursor.charset1);
+		utf8_remap(buf, ch[0], chs);
 		ch = buf;
 	}
+
+	UnicodeCacheRef oldSymbol = c->symbol;
+	Color oldFg = c->fg;
+	Color oldBg = c->bg;
+	CellAttrs oldAttrs = c->attrs;
+
 	unicode_cache_remove(c->symbol);
 	c->symbol = unicode_cache_add((const u8 *)ch);
 	c->fg = cursor.fg;
 	c->bg = cursor.bg;
 	c->attrs = cursor.attrs;
+
+	if (c->symbol != oldSymbol || c->fg != oldFg || c->bg != oldBg || c->attrs != oldAttrs) {
+		expand_dirty(cursor.y, cursor.y, cursor.x, cursor.x);
+		topics |= TOPIC_CHANGE_CONTENT_PART;
+	}
 
 	cursor.x++;
 	// X wrap
@@ -1609,6 +1670,7 @@ putchar_graphic(const char *ch)
 		cursor.x = W - 1;
 	}
 
+	NOTIFY_DONE(topics);
 	return ch;
 }
 
@@ -1618,8 +1680,6 @@ putchar_graphic(const char *ch)
 void ICACHE_FLASH_ATTR
 screen_putchar(const char *ch)
 {
-	NOTIFY_LOCK();
-
 	// clear "hanging" flag if not possible
 	clear_invalid_hanging();
 
@@ -1660,8 +1720,8 @@ screen_putchar(const char *ch)
 	// not have to call the remap function repeatedly.
 	strncpy(scr.last_char, result, 4);
 
-	done:
-	NOTIFY_DONE(TOPIC_WRITE);
+done:
+	return;
 }
 
 /**
@@ -1671,7 +1731,6 @@ screen_putchar(const char *ch)
 void ICACHE_FLASH_ATTR
 screen_repeat_last_character(int count)
 {
-	NOTIFY_LOCK();
 	if (scr.last_char[0]==0) {
 		scr.last_char[0] = ' ';
 		scr.last_char[1] = 0;
@@ -1683,7 +1742,6 @@ screen_repeat_last_character(int count)
 		putchar_graphic(scr.last_char);
 		count--;
 	}
-	NOTIFY_DONE(TOPIC_WRITE);
 }
 
 /**
@@ -1740,6 +1798,10 @@ struct ScreenSerializeState {
 	ScreenNotifyTopics topics;
 	ScreenNotifyTopics last_topic;
 	ScreenNotifyTopics current_topic;
+	bool partial;
+	int x_min, x_max, y_min, y_max;
+	int i_max;
+	int i_start;
 };
 
 /**
@@ -1795,6 +1857,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define SEQ_TAG_ATTRS '\x04'
 #define SEQ_TAG_FG '\x05'
 #define SEQ_TAG_BG '\x06'
+#define SEQ_TAG_ATTRS_0 '\x07'
 
 #define TOPICMARK_SCREEN_OPTS 'O'
 #define TOPICMARK_TITLE   'T'
@@ -1813,7 +1876,48 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			topics |= TOPIC_INTERNAL;
 		}
 
-		ss->index = 0;
+		if (topics & TOPIC_CHANGE_CONTENT_PART) {
+			// reset dirty extents
+			ss->partial = true;
+
+			ss->x_min = scr_dirty.x_min;
+			ss->x_max = scr_dirty.x_max;
+			ss->y_min = scr_dirty.y_min;
+			ss->y_max = scr_dirty.y_max;
+
+			if (ss->x_min > ss->x_max || ss->y_min > ss->y_max) {
+				seri_warn("Partial redraw, but bad bounds! X %d..%d, Y %d..%d", ss->x_min, ss->x_max, ss->y_min, ss->y_max);
+				// use full redraw
+				reset_screen_dirty();
+
+				topics ^= TOPIC_CHANGE_CONTENT_PART;
+				topics |= TOPIC_CHANGE_CONTENT_ALL;
+			} else {
+				// is OK
+				ss->i_max = ss->y_max * W + ss->x_max;
+				ss->index = W*ss->y_min + ss->x_min;
+				seri_dbg("Partial! X %d..%d, Y %d..%d, i_max %d", ss->x_min, ss->x_max, ss->y_min, ss->y_max, ss->i_max);
+			}
+		}
+
+		if (topics & TOPIC_CHANGE_CONTENT_ALL) {
+			// this is a no-clean request, do not purge
+			// it's also always a full-screen repaint
+			ss->partial = false;
+			ss->index = 0;
+			ss->i_max = W*H-1;
+			ss->x_min = 0;
+			ss->x_max = W-1;
+			ss->y_min = 0;
+			ss->y_max = H-1;
+			seri_dbg("Full redraw!");
+		}
+
+		ss->i_start = ss->index;
+
+		if ((topics & (TOPIC_CHANGE_CONTENT_ALL | TOPIC_CHANGE_CONTENT_PART)) && !(topics & TOPIC_FLAG_NOCLEAN)) {
+			reset_screen_dirty();
+		}
 
 		ss->topics = topics;
 		ss->last_topic = 0; // to be filled
@@ -1823,10 +1927,21 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		bufput_c('U'); // - stands for "update"
 
 		bufput_utf8(topics);
+
+		if (ss->partial) {
+			// advance to the first char we want to send
+		}
 	}
 
 	int begun_topic = 0;
 	int prev_topic = 0;
+
+#define INC_I() do { \
+		i++; \
+		if (ss->partial) {\
+			if (i%W > ss->x_max) i += (W - ss->x_max + ss->x_min - 1);\
+        } \
+	} while (0)
 
 #define BEGIN_TOPIC(topic, size) \
 	if (ss->last_topic == prev_topic) { \
@@ -1945,20 +2060,19 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 				// no screen mode - wrap it up
 				goto ser_done;
 			}
+
+			// start the screen section
 		}
 	}
 
 	// screen contents
 	int i = ss->index;
-	if (i == 0) {
+	if (i == ss->i_start) {
 		bufput_c(TOPICMARK_SCREEN); // desired update mode is in `ss->current_topic`
-
-		// TODO implement partial
-		bufput_utf8(0); // Y0
-		bufput_utf8(0); // X0
-		bufput_utf8(H); // height
-		bufput_utf8(W); // width
-
+		bufput_utf8(ss->y_min); // Y0
+		bufput_utf8(ss->x_min); // X0
+		bufput_utf8(ss->y_max - ss->y_min + 1); // height
+		bufput_utf8(ss->x_max - ss->x_min + 1); // width
 		ss->index = 0;
 		ss->lastBg = 0xFF;
 		ss->lastFg = 0xFF;
@@ -1966,26 +2080,27 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		ss->lastCharLen = 0;
 		ss->lastSymbol = 0;
 	}
-	while(i < W*H && remain > 12) {
+	while(i <= ss->i_max && remain > 12) {
 		cell = cell0 = &screen[i];
 
 		// Count how many times same as previous
 		int repCnt = 0;
-		while (i < W*H
+		while (i <= ss->i_max
 			   && cell->fg == ss->lastFg
 			   && cell->bg == ss->lastBg
 			   && cell->attrs == ss->lastAttrs
 			   && cell->symbol == ss->lastSymbol) {
 			// Repeat
 			repCnt++;
-			cell = &screen[++i];
+			INC_I();
+			cell = &screen[i]; // it can go outside the allocated memory here if we went over the top
 		}
 
 		if (repCnt == 0) {
 			// No repeat - first occurrence
 			bool changeAttrs = cell0->attrs != ss->lastAttrs;
-			bool changeFg = cell0->fg != ss->lastFg;
-			bool changeBg = cell0->bg != ss->lastBg;
+			bool changeFg = (cell0->fg != ss->lastFg) && (cell0->attrs & ATTR_FG);
+			bool changeBg = (cell0->bg != ss->lastBg) && (cell0->attrs & ATTR_BG);
 			bool changeColors = changeFg && changeBg;
 			Color fg, bg;
 
@@ -2004,7 +2119,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			}
 
 			if (changeAttrs) {
-				bufput_t_utf8(SEQ_TAG_ATTRS, cell0->attrs);
+				if (cell0->attrs) {
+					bufput_t_utf8(SEQ_TAG_ATTRS, cell0->attrs);
+				} else {
+					bufput_c(SEQ_TAG_ATTRS_0);
+				}
 			}
 
 			// copy the symbol, until first 0 or reached 4 bytes
@@ -2023,15 +2142,26 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			ss->lastAttrs = cell0->attrs;
 			ss->lastSymbol = cell0->symbol;
 
-			i++;
+			INC_I();
 		} else {
 			// last character was repeated repCnt times
-			bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
+			int savings = ss->lastCharLen*repCnt;
+			if (savings > 2) {
+				// Repeat count
+				bufput_t_utf8(SEQ_TAG_REPEAT, repCnt);
+			} else {
+				// repeat it manually
+				for(int k = 0; k < repCnt; k++) {
+					for (int j = 0; j < ss->lastCharLen; j++) {
+						bufput_c(ss->lastChar[j]);
+					}
+				}
+			}
 		}
 	}
 
 	ss->index = i;
-	if (i >= W*H-1) goto ser_done;
+	if (i >= ss->i_max) goto ser_done;
 
 	// MORE TO WRITE...
 	bufput_c('\0'); // terminate the string

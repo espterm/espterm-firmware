@@ -163,6 +163,8 @@ enum ScreenSerializeTopic {
 	TOPIC_CHANGE_CURSOR       = (1<<5),
 	TOPIC_INTERNAL            = (1<<6), // debugging internal state
 	TOPIC_BELL                = (1<<7), // beep
+	TOPIC_FLAG_NOCLEAN        = (1<<15), // do not clean dirty extents
+
 	// combos
 	TOPIC_INITIAL =
 		TOPIC_CHANGE_SCREEN_OPTS |
@@ -170,8 +172,6 @@ enum ScreenSerializeTopic {
 		TOPIC_CHANGE_CURSOR |
 		TOPIC_CHANGE_TITLE |
 		TOPIC_CHANGE_BUTTONS,
-
-	TOPIC_WRITE = TOPIC_CHANGE_CURSOR | TOPIC_CHANGE_CONTENT_PART,
 };
 
 typedef u16 ScreenNotifyTopics;
@@ -352,5 +352,8 @@ void screen_report_sgr(char *buffer);
  * @param topic - what kind of change this is (chooses what message to send)
  */
 extern void screen_notifyChange(ScreenNotifyTopics topics);
+
+#define seri_dbg(...)
+#define seri_warn(...) warn(__VA_ARGS__)
 
 #endif // SCREEN_H

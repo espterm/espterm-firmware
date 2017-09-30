@@ -278,7 +278,7 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 		case 'i':
 			// requests initial load
 			inp_dbg("Client requests initial load");
-			updateNotify_do(ws, TOPIC_INITIAL);
+			updateNotify_do(ws, TOPIC_INITIAL|TOPIC_FLAG_NOCLEAN);
 			break;
 
 		case 'm':
