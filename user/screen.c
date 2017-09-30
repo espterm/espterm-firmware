@@ -608,6 +608,11 @@ clear_range_do(unsigned int from, unsigned int to, bool clear_utf)
 	// we discard all attributes except color-set flags
 	sample.attrs = (CellAttrs) (cursor.attrs & (ATTR_FG | ATTR_BG));
 
+	// if no colors, always use 0,0
+	if (0 == sample.attrs) {
+		sample.fg = sample.bg = 0;
+	}
+
 	for (unsigned int i = from; i <= to; i++) {
 		if (clear_utf) {
 			UnicodeCacheRef symbol = screen[i].symbol;
@@ -1798,6 +1803,7 @@ struct ScreenSerializeState {
 	int x_min, x_max, y_min, y_max;
 	int i_max;
 	int i_start;
+	bool first;
 };
 
 /**
@@ -2075,35 +2081,40 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		bufput_utf8(ss->y_max - ss->y_min + 1); // height
 		bufput_utf8(ss->x_max - ss->x_min + 1); // width
 		ss->index = 0;
-		ss->lastBg = 0xFF;
-		ss->lastFg = 0xFF;
-		ss->lastAttrs = 0xFFFF;
+		ss->lastBg = 0;
+		ss->lastFg = 0;
+		ss->lastAttrs = 0;
 		ss->lastCharLen = 0;
 		ss->lastSymbol = 0;
+		ss->first = 1;
 	}
 	while(i <= ss->i_max && remain > 12) {
 		cell = cell0 = &screen[i];
 
-		// Count how many times same as previous
 		int repCnt = 0;
-		while (i <= ss->i_max
-			   && cell->fg == ss->lastFg
-			   && cell->bg == ss->lastBg
-			   && cell->attrs == ss->lastAttrs
-			   && cell->symbol == ss->lastSymbol) {
-			// Repeat
-			repCnt++;
-			INC_I();
-			cell = &screen[i]; // it can go outside the allocated memory here if we went over the top
+
+		if (!ss->first) {
+			// Count how many times same as previous
+			while (i <= ss->i_max
+				   && cell->fg == ss->lastFg
+				   && cell->bg == ss->lastBg
+				   && cell->attrs == ss->lastAttrs
+				   && cell->symbol == ss->lastSymbol) {
+				// Repeat
+				repCnt++;
+				INC_I();
+				cell = &screen[i]; // it can go outside the allocated memory here if we went over the top
+			}
 		}
 
 		if (repCnt == 0) {
 			// No repeat - first occurrence
-			bool changeAttrs = cell0->attrs != ss->lastAttrs;
+			bool changeAttrs = ss->first || (cell0->attrs != ss->lastAttrs);
 			bool changeFg = (cell0->fg != ss->lastFg) && (cell0->attrs & ATTR_FG);
 			bool changeBg = (cell0->bg != ss->lastBg) && (cell0->attrs & ATTR_BG);
-			bool changeColors = changeFg && changeBg;
+			bool changeColors = ss->first || (changeFg && changeBg);
 			Color fg, bg;
+			ss->first = false;
 
 			// Reverse fg and bg if we're in global reverse mode
 			fg = cell0->fg;
