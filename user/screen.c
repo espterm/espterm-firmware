@@ -1799,6 +1799,8 @@ utf8_remap(char *out, char g, char charset)
 struct ScreenSerializeState {
 	Color lastFg;
 	Color lastBg;
+	Color lastLiveFg;
+	Color lastLiveBg;
 	CellAttrs lastAttrs;
 	UnicodeCacheRef lastSymbol;
 	char lastChar[4];
@@ -2091,6 +2093,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		ss->index = 0;
 		ss->lastBg = 0;
 		ss->lastFg = 0;
+		ss->lastLiveBg = 0;
+		ss->lastLiveFg = 0;
 		ss->lastAttrs = 0;
 		ss->lastCharLen = 0;
 		ss->lastSymbol = 0;
@@ -2118,8 +2122,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		if (repCnt == 0) {
 			// No repeat - first occurrence
 			bool changeAttrs = ss->first || (cell0->attrs != ss->lastAttrs);
-			bool changeFg = (cell0->fg != ss->lastFg) && (cell0->attrs & ATTR_FG);
-			bool changeBg = (cell0->bg != ss->lastBg) && (cell0->attrs & ATTR_BG);
+			bool changeFg = (cell0->fg != ss->lastLiveFg) && (cell0->attrs & ATTR_FG);
+			bool changeBg = (cell0->bg != ss->lastLiveBg) && (cell0->attrs & ATTR_BG);
 			bool changeColors = ss->first || (changeFg && changeBg);
 			Color fg, bg;
 			ss->first = false;
@@ -2159,6 +2163,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 
 			ss->lastFg = cell0->fg;
 			ss->lastBg = cell0->bg;
+			if (cell0->attrs & ATTR_FG) ss->lastLiveFg = cell0->fg;
+			if (cell0->attrs & ATTR_BG) ss->lastLiveBg = cell0->bg;
 			ss->lastAttrs = cell0->attrs;
 			ss->lastSymbol = cell0->symbol;
 
