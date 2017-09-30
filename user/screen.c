@@ -1864,6 +1864,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 	} while(0)
 
 	// tags for screen serialization
+#define SEQ_TAG_SKIP '\x01'
 #define SEQ_TAG_REPEAT '\x02'
 #define SEQ_TAG_COLORS '\x03'
 #define SEQ_TAG_ATTRS '\x04'
