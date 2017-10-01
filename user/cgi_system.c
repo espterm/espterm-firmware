@@ -50,7 +50,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiResetDevice(HttpdConnData *connData)
 	os_timer_setfn(&tmr, tmrCb, NULL);
 	os_timer_arm(&tmr, 100, false);
 
-	httpdSend(connData, "system reset\n", -1);
+	httpdSend(connData, "system reset\r\n", -1);
 
 	return HTTPD_CGI_DONE;
 }
@@ -66,7 +66,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiPing(HttpdConnData *connData)
 	httpdHeader(connData, "Content-Type", "text/plain");
 	httpdEndHeaders(connData);
 
-	httpdSend(connData, "pong\n", -1);
+	httpdSend(connData, "pong\r\n", -1);
 
 	return HTTPD_CGI_DONE;
 }

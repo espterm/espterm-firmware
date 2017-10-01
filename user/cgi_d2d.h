@@ -6,6 +6,7 @@
 #define ESPTERM_CGI_D2D_H
 
 #include <esp8266.h>
+#include <httpd.h>
 
 #if DEBUG_D2D
 #define d2d_warn warn
@@ -17,8 +18,8 @@
 #define d2d_info(fmt, ...)
 #endif
 
-#define D2D_MSG_ENDPOINT "/api/v1/msg"
-
 bool d2d_parse_command(char *msg);
+
+httpd_cgi_state cgiD2DMessage(HttpdConnData *connData);
 
 #endif //ESPTERM_CGI_D2D_H

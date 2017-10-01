@@ -11,6 +11,7 @@
 #include "version.h"
 #include "uart_buffer.h"
 #include "screen.h"
+#include "uart_driver.h"
 
 volatile bool enquiry_suppressed = false;
 ETSTimer enqTimer;
@@ -26,7 +27,8 @@ void ICACHE_FLASH_ATTR enqTimerCb(void *unused)
 void ICACHE_FLASH_ATTR
 apars_respond(const char *str)
 {
-	UART_SendAsync(str, -1);
+	UART_WriteString(UART0, str, UART_TIMEOUT_US);
+	//UART_SendAsync(str, -1);
 }
 
 /**
