@@ -12,6 +12,13 @@
 #include "uart_buffer.h"
 #include "screen.h"
 
+volatile bool enquiry_suppressed = false;
+ETSTimer enqTimer;
+void ICACHE_FLASH_ATTR enqTimerCb(void *unused)
+{
+	enquiry_suppressed = false;
+}
+
 /**
  * Send a response to UART0
  * @param str
@@ -37,8 +44,16 @@ apars_handle_bel(void)
 void ICACHE_FLASH_ATTR
 apars_handle_enq(void)
 {
+	if (enquiry_suppressed) return;
+
 	// version encased in SOS and ST
 	apars_respond("\x1bXESPTerm " FIRMWARE_VERSION "\x1b\\");
+
+	// Throttle enquiry - this is a single-character-invoked response,
+	// so it tends to happen randomly when throwing garbage at the ESP.
+	// We don't want to fill the output buffer with dozens of enquiry responses
+	enquiry_suppressed = true;
+	TIMER_START(&enqTimer, enqTimerCb, 500, 0);
 }
 
 void ICACHE_FLASH_ATTR

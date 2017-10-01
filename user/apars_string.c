@@ -17,6 +17,7 @@
 #include "apars_logging.h"
 #include "ansi_parser_callbacks.h"
 #include "screen.h"
+#include "apars_pm.h"
 
 // ----- Generic String cmd - disambiguation -----
 
@@ -37,6 +38,7 @@ apars_handle_string_cmd(char leadchar, char *buffer)
 			break;
 
 		case '^': // PM - Privacy Message
+			apars_handle_pm(buffer);
 			break;
 
 		case '_': // APC - Application Program Command

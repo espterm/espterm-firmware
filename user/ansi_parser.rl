@@ -111,6 +111,13 @@ ansi_parser(char newchar)
 		history[HISTORY_LEN-1] = newchar;
 	#endif
 
+	// THose should work always, even inside a string
+	if (newchar == CAN || newchar == SUB) {
+		// Cancel the active sequence
+		cs = ansi_start;
+		return;
+	}
+
 	// Handle simple characters immediately (bypass parser)
 	if (newchar < ' ' && !inside_string) {
 		switch (newchar) {
@@ -150,12 +157,6 @@ ansi_parser(char newchar)
 
 			case ENQ:
 				apars_handle_enq();
-				return;
-
-				// Cancel the active sequence
-			case CAN:
-			case SUB:
-				cs = ansi_start;
 				return;
 
 			default:
