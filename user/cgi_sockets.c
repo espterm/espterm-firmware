@@ -69,7 +69,7 @@ updateNotify_do(Websock *ws, ScreenNotifyTopics topics)
 		}
 		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, topics, &data);
 
-		int flg = WEBSOCK_FLAG_BIN;
+		int flg = 0; //WEBSOCK_FLAG_BIN
 		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
 		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
 		if (ws) {
@@ -304,13 +304,17 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 /** Send a heartbeat msg */
 static void ICACHE_FLASH_ATTR heartbeatTimCb(void *unused)
 {
+	static u32 hbcnt=0;
+
 	if (term_active_clients > 0) {
 		if (notify_available) {
 			inp_dbg(".");
 
 			// Heartbeat packet - indicate we're still connected
 			// JS reloads the page if heartbeat is lost for a couple seconds
-			cgiWebsockBroadcast(URL_WS_UPDATE, ".", 1, 0);
+			char buf[10];
+			sprintf(buf, ".%d", hbcnt++);
+			cgiWebsockBroadcast(URL_WS_UPDATE, buf, (int) strlen(buf), 0);
 
 			// schedule next tick
 			TIMER_START(&heartbeatTim, heartbeatTimCb, HB_TIME, 0);
@@ -331,6 +335,7 @@ static void ICACHE_FLASH_ATTR resetHeartbeatTimer(void)
 static void ICACHE_FLASH_ATTR closeSockCb(Websock *ws)
 {
 	term_active_clients--;
+	inp_dbg("Close socket CB, remain %d clients", term_active_clients);
 	if (term_active_clients <= 0) {
 		term_active_clients = 0;
 
@@ -340,6 +345,7 @@ static void ICACHE_FLASH_ATTR closeSockCb(Websock *ws)
 
 		// stop the timer
 		os_timer_disarm(&heartbeatTim);
+		inp_dbg("Stop HB timer");
 	}
 }
 

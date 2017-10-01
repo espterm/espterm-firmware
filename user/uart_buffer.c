@@ -11,9 +11,6 @@
 //#define buf_dbg(format, ...) printf(format "\r\n", ##__VA_ARGS__)
 #define buf_dbg(format, ...) (void)format
 
-#define UART_TX_BUFFER_SIZE 1024 //Ring buffer length of tx buffer
-#define UART_RX_BUFFER_SIZE 1024 //Ring buffer length of rx buffer
-
 struct UartBuffer {
 	uint32 UartBuffSize;
 	uint8 *pUartBuff;
@@ -25,12 +22,15 @@ struct UartBuffer {
 static struct UartBuffer *pTxBuffer = NULL;
 static struct UartBuffer *pRxBuffer = NULL;
 
-static struct UartBuffer *UART_AsyncBufferInit(uint32 buf_size);
+static u8 rxArray[UART_RX_BUFFER_SIZE];
+static u8 txArray[UART_TX_BUFFER_SIZE];
+
+static struct UartBuffer *UART_AsyncBufferInit(uint32 buf_size, u8 *buffer);
 
 void ICACHE_FLASH_ATTR UART_AllocBuffers(void)
 {
-	pTxBuffer = UART_AsyncBufferInit(UART_TX_BUFFER_SIZE);
-	pRxBuffer = UART_AsyncBufferInit(UART_RX_BUFFER_SIZE);
+	pTxBuffer = UART_AsyncBufferInit(UART_TX_BUFFER_SIZE, txArray);
+	pRxBuffer = UART_AsyncBufferInit(UART_RX_BUFFER_SIZE, rxArray);
 }
 
 /******************************************************************************
@@ -40,7 +40,7 @@ void ICACHE_FLASH_ATTR UART_AllocBuffers(void)
  * Returns      : NONE
 *******************************************************************************/
 static struct UartBuffer *ICACHE_FLASH_ATTR
-UART_AsyncBufferInit(uint32 buf_size)
+UART_AsyncBufferInit(uint32 buf_size, u8 *buffer)
 {
 	uint32 heap_size = system_get_free_heap_size();
 	if (heap_size <= buf_size) {
@@ -50,7 +50,7 @@ UART_AsyncBufferInit(uint32 buf_size)
 	else {
 		struct UartBuffer *pBuff = (struct UartBuffer *) malloc(sizeof(struct UartBuffer));
 		pBuff->UartBuffSize = buf_size;
-		pBuff->pUartBuff = (uint8 *) malloc(pBuff->UartBuffSize);
+		pBuff->pUartBuff = buffer != NULL ? buffer : (uint8 *) malloc(pBuff->UartBuffSize);
 		pBuff->pInPos = pBuff->pUartBuff;
 		pBuff->pOutPos = pBuff->pUartBuff;
 		pBuff->Space = (uint16) pBuff->UartBuffSize;
@@ -176,7 +176,7 @@ void UART_RxFifoCollect(void)
 	fifo_len = (uint8) ((READ_PERI_REG(UART_STATUS(UART0)) >> UART_RXFIFO_CNT_S) & UART_RXFIFO_CNT);
 	if (fifo_len >= pRxBuffer->Space) {
 		fifo_len = (uint8) (pRxBuffer->Space - 1);
-		UART_WriteString(UART1, "\r\nRX BUF OVERRUN!!\r\n", 100);
+		UART_WriteChar(UART1, '#', 10);
 		// discard contents of the FIFO - would loop forever
 		buf_idx = 0;
 		while (buf_idx < fifo_len) {
@@ -209,6 +209,11 @@ u16 ICACHE_FLASH_ATTR UART_AsyncTxGetEmptySpace(void)
 	return pTxBuffer->Space;
 }
 
+u16 ICACHE_FLASH_ATTR UART_AsyncTxCount(void)
+{
+	return (u16) (pTxBuffer->UartBuffSize - pTxBuffer->Space);
+}
+
 /**
  * Schedule data to be sent
  * @param pdata
@@ -226,7 +231,7 @@ UART_SendAsync(const char *pdata, int data_len)
 	}
 	else {
 		buf_dbg("FULL!");
-		UART_WriteString(UART1, "\r\nTX BUF OVERRUN!!\r\n", 100);
+		UART_WriteChar(UART1, '=', 10);
 	}
 
 	// Here we enable TX empty interrupt that will take care of sending the content

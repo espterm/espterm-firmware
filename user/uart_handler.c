@@ -24,8 +24,8 @@ static void uart_recvTask(os_event_t *events);
 static void uart_processTask(os_event_t *events);
 
 // Those heavily affect the byte loss ratio
-#define PROCESS_CHUNK_LEN 1
-#define RX_FIFO_FULL_THRES 16
+#define PROCESS_CHUNK_LEN 10
+#define RX_FIFO_FULL_THRES 40
 
 #define uart_recvTaskPrio        1
 #define uart_recvTaskQueueLen    25

@@ -7,6 +7,9 @@
 
 #include <esp8266.h>
 
+#define UART_TX_BUFFER_SIZE 1000 //Ring buffer length of tx buffer
+#define UART_RX_BUFFER_SIZE 600 //Ring buffer length of rx buffer
+
 // the init func
 void UART_AllocBuffers(void);
 
@@ -22,6 +25,7 @@ void UART_RxFifoCollect(void);
 void UART_DispatchFromTxBuffer(uint8 uart_no);
 
 u16 UART_AsyncRxCount(void);
+u16 UART_AsyncTxCount(void);
 
 u16 UART_AsyncTxGetEmptySpace(void);
 

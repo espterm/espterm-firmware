@@ -30,6 +30,7 @@
 #include "persist.h"
 #include "ansi_parser.h"
 #include "ascii.h"
+#include "uart_buffer.h"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -51,6 +52,7 @@ CgiUploadFlashDef uploadParams={
 #define INCLUDE_FLASH_FNS
 #endif
 
+#define HEAP_TIMER_MS 1000
 /** Periodically show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 {
@@ -60,18 +62,24 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 	int heap = system_get_free_heap_size();
 	int diff = (heap-last);
 
+	int rxc = UART_AsyncRxCount();
+	int txc = UART_AsyncTxCount();
+
+	int rxp = ((rxc*10000) / UART_RX_BUFFER_SIZE)/100;
+	int txp = ((txc*10000) / UART_TX_BUFFER_SIZE)/100;
+
 	const char *cc = "+";
 	if (diff<0) cc = "";
 
 	if (diff == 0) {
 		if (cnt == 5) {
 			// only every 5 secs if no change
-			dbg("FH: %d", heap);
+			dbg("Rx: %2d%c, Tx: %2d%c, Hp: %d", rxp, '%', txp, '%', heap);
 			cnt = 0;
 		}
 	} else {
 		// report change
-		dbg("FH: %d (%s%d)", heap, cc, diff);
+		dbg("Rx: %2d%c, Tx: %2d%c, Hp: %d (%s%d)", rxp, '%', txp, '%', heap, cc, diff);
 		cnt = 0;
 	}
 
@@ -101,7 +109,8 @@ void ICACHE_FLASH_ATTR user_init(void)
 	banner_info("Firmware (c) Ondrej Hruska, 2017");
 	banner_info(TERMINAL_GITHUB_REPO);
 	banner_info("");
-	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__ " " __TIMEZONE__);
+	banner_info("Version "FIRMWARE_VERSION",");
+	banner_info("built " __DATE__ " at " __TIME__ " " __TIMEZONE__);
 	printf("\r\n");
 
 	ioInit();
@@ -116,7 +125,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 
 #if DEBUG_HEAP
 	// Heap use timer & blink
-	TIMER_START(&prHeapTimer, prHeapTimerCb, 1000, 1);
+	TIMER_START(&prHeapTimer, prHeapTimerCb, HEAP_TIMER_MS, 1);
 #endif
 
 	// do later (some functions do not work if called from user_init)
@@ -130,6 +139,7 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 
 	captdnsInit();
 	httpdInit(routes, 80);
+	httpdSetName("ESPTerm " FIRMWARE_VERSION);
 
 	ansi_parser_inhibit = false;
 

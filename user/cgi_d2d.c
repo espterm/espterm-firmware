@@ -13,7 +13,7 @@
 #define D2D_TIMEOUT_MS 2000
 
 #define D2D_HEADERS \
-	"User-Agent: ESPTerm/"FIRMWARE_VERSION"\r\n" \
+	"User-Agent: ESPTerm "FIRMWARE_VERSION"\r\n" \
 	"Content-Type: text/plain; charset=utf-8\r\n" \
 	"Cache-Control: max-age=0\r\n"
 
@@ -62,14 +62,13 @@ requestCb(int http_status,
 	}
 
 	// semicolon only if more data is to be sent
-	if (opts->want_head || opts->want_body)
-		sprintf(bb, ";");
+	if (opts->want_head || opts->want_body)	sprintf(bb, ";");
 
 	apars_respond(buff100);
 
-	dbg("Response %d, nonce %s", http_status, opts->nonce);
-	dbg("Headers %s", response_headers);
-	dbg("Body %s", response_body);
+	d2d_dbg("Response %d, nonce \"%s\"", http_status, opts->nonce?opts->nonce:"");
+	d2d_dbg("Headers %s", response_headers);
+	d2d_dbg("Body %s", response_body);
 
 	// head and payload separated by \r\n\r\n (one \r\n is at the end of head - maybe)
 	if (opts->want_head) {
@@ -108,7 +107,7 @@ d2d_parse_command(char *msg)
 		FIND_NEXT(ip, ';');
 		const char *payload = msg;
 
-		ansi_dbg("D2D Tx,dest=%s,msg=%s", ip, payload);
+		d2d_dbg("D2D Tx,dest=%s,msg=%s", ip, payload);
 		sprintf(buff40, "http://%s" D2D_MSG_ENDPOINT, ip);
 
 		httpclient_args args;
@@ -141,16 +140,16 @@ d2d_parse_command(char *msg)
 		else if (streq(method, "PATCH")) methodNum = HTTPD_METHOD_PATCH;
 		else if (streq(method, "HEAD")) methodNum = HTTPD_METHOD_HEAD;
 		else {
-			warn("BAD METHOD: %s, using GET", method);
+			d2d_warn("BAD METHOD: %s, using GET", method);
 		}
 
 		FIND_NEXT(params, ';');
 
-		dbg("Method %s", method);
-		dbg("Params %s", params);
+		d2d_dbg("Method %s", method);
+		d2d_dbg("Params %s", params);
 
 		size_t max_len = HTTPCLIENT_DEF_MAX_LEN;
-		int timeout = HTTPCLIENT_DEF_TIMEOUT_MS;
+		uint timeout = HTTPCLIENT_DEF_TIMEOUT_MS;
 		bool want_body = 0;
 		bool want_head = 0;
 		bool no_resp = 0;
@@ -165,17 +164,17 @@ d2d_parse_command(char *msg)
 			else if(streq(param, "B")) want_body = 1; // Return body
 			else if(streq(param, "X")) no_resp = 1; // X - no response, no callback
 			else if(strstarts(param, "L=")) { // max length
-				max_len = atoi(param+2);
+				max_len = (size_t) atoi(param + 2);
 			} else if(strstarts(param, "T=")) { // timeout
-				timeout = atoi(param+2);
+				timeout = (uint) atoi(param + 2);
 			} else if(strstarts(param, "N=")) { // Nonce
 				nonce = param+2;
 			} else {
-				warn("BAD PARAM: %s", param);
+				d2d_warn("BAD PARAM: %s", param);
 				return false;
 			}
 
-			dbg("- param %s", params);
+			d2d_dbg("- param %s", params);
 
 			if (p == NULL) break;
 			params = p + 1;
@@ -184,11 +183,11 @@ d2d_parse_command(char *msg)
 		p = strchr(msg, '\n');
 		if (p != NULL) *p = '\0';
 		url = msg;
-		dbg("URL: %s", url);
+		d2d_dbg("URL: %s", url);
 
 		if (p != NULL)  {
 			payload = p + 1;
-			dbg("Payload: %s", payload);
+			d2d_dbg("Payload: %s", payload);
 		} else {
 			payload = NULL;
 		}
@@ -212,7 +211,7 @@ d2d_parse_command(char *msg)
 
 		http_request(&args, no_resp ? NULL : requestCb);
 
-		dbg("Done");
+		d2d_dbg("Done");
 		return true;
 	}
 
