@@ -212,6 +212,7 @@ terminal_restore_defaults(void)
 	termconf->want_all_fn = SCR_DEF_ALLFN;
 	termconf->debugbar = SCR_DEF_DEBUGBAR;
 	termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
+	termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
 }
 
 /**
@@ -239,6 +240,11 @@ terminal_apply_settings_noclear(void)
 	if (termconf->config_version < 2) {
 		persist_dbg("termconf: Updating to version %d", 1);
 		termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
+		changed = 1;
+	}
+	if (termconf->config_version < 3) {
+		persist_dbg("termconf: Updating to version %d", 1);
+		termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
 		changed = 1;
 	}
 

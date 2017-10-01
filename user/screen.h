@@ -67,6 +67,7 @@ enum CursorShape {
 #define SCR_DEF_ALLFN 0 // capture F5 etc
 #define SCR_DEF_DEBUGBAR 0
 #define SCR_DEF_DECOPT12 0
+#define SCR_DEF_ASCIIDEBUG 0
 
 // --- Persistent Settings ---
 #define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
@@ -74,7 +75,7 @@ enum CursorShape {
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define TERMCONF_SIZE 300
-#define TERMCONF_VERSION 2
+#define TERMCONF_VERSION 3
 
 typedef struct {
 	u32 width;
@@ -98,6 +99,7 @@ typedef struct {
 	bool want_all_fn;
 	bool debugbar;
 	bool allow_decopt_12;
+	bool ascii_debug;
 } TerminalConfigBundle;
 
 // Live config

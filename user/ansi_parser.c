@@ -5,10 +5,11 @@
 #include "ansi_parser_callbacks.h"
 #include "ascii.h"
 #include "apars_logging.h"
+#include "screen.h"
 
 /* Ragel constants block */
 
-/* #line 12 "user/ansi_parser.c" */
+/* #line 13 "user/ansi_parser.c" */
 static const char _ansi_actions[] ESP_CONST_DATA = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
@@ -32,7 +33,7 @@ static const int ansi_en_charsetcmd_body = 10;
 static const int ansi_en_main = 1;
 
 
-/* #line 11 "user/ansi_parser.rl" */
+/* #line 12 "user/ansi_parser.rl" */
 
 
 // Max nr of CSI parameters
@@ -114,15 +115,20 @@ ansi_parser(char newchar)
 	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
 
+	if (termconf->ascii_debug) {
+		apars_handle_plainchar(newchar);
+		return;
+	}
+
 	// Init Ragel on the first run
 	if (cs == -1) {
 		
-/* #line 121 "user/ansi_parser.c" */
+/* #line 127 "user/ansi_parser.c" */
 	{
 	cs = ansi_start;
 	}
 
-/* #line 95 "user/ansi_parser.rl" */
+/* #line 101 "user/ansi_parser.rl" */
 
 		#if DEBUG_ANSI
 			memset(history, 0, sizeof(history));
@@ -202,7 +208,7 @@ ansi_parser(char newchar)
 
 	// The parser
 	
-/* #line 206 "user/ansi_parser.c" */
+/* #line 212 "user/ansi_parser.c" */
 	{
 	const char *_acts;
 	unsigned int _nacts;
@@ -392,7 +398,7 @@ execFuncs:
 	while ( _nacts-- > 0 ) {
 		switch ( *_acts++ ) {
 	case 0:
-/* #line 182 "user/ansi_parser.rl" */
+/* #line 188 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
 			apars_show_context();
@@ -401,7 +407,7 @@ execFuncs:
 		}
 	break;
 	case 1:
-/* #line 191 "user/ansi_parser.rl" */
+/* #line 197 "user/ansi_parser.rl" */
 	{
 			if ((*p) != 0) {
 				apars_handle_plainchar((*p));
@@ -409,7 +415,7 @@ execFuncs:
 		}
 	break;
 	case 2:
-/* #line 199 "user/ansi_parser.rl" */
+/* #line 205 "user/ansi_parser.rl" */
 	{
 			// Reset the CSI builder
 			leadchar = NUL;
@@ -426,13 +432,13 @@ execFuncs:
 		}
 	break;
 	case 3:
-/* #line 214 "user/ansi_parser.rl" */
+/* #line 220 "user/ansi_parser.rl" */
 	{
 			leadchar = (*p);
 		}
 	break;
 	case 4:
-/* #line 218 "user/ansi_parser.rl" */
+/* #line 224 "user/ansi_parser.rl" */
 	{
 			if (arg_cnt == 0) arg_cnt = 1;
 			// x10 + digit
@@ -442,7 +448,7 @@ execFuncs:
 		}
 	break;
 	case 5:
-/* #line 226 "user/ansi_parser.rl" */
+/* #line 232 "user/ansi_parser.rl" */
 	{
 			if (arg_cnt == 0) arg_cnt = 1; // handle case when first arg is empty
 			arg_cnt++;
@@ -450,20 +456,20 @@ execFuncs:
 		}
 	break;
 	case 6:
-/* #line 232 "user/ansi_parser.rl" */
+/* #line 238 "user/ansi_parser.rl" */
 	{
 			interchar = (*p);
 		}
 	break;
 	case 7:
-/* #line 236 "user/ansi_parser.rl" */
+/* #line 242 "user/ansi_parser.rl" */
 	{
 			apars_handle_csi(leadchar, arg, arg_cnt, interchar, (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 8:
-/* #line 248 "user/ansi_parser.rl" */
+/* #line 254 "user/ansi_parser.rl" */
 	{
 			leadchar = (*p);
 			str_ni = 0;
@@ -473,13 +479,13 @@ execFuncs:
 		}
 	break;
 	case 9:
-/* #line 256 "user/ansi_parser.rl" */
+/* #line 262 "user/ansi_parser.rl" */
 	{
 			string_buffer[str_ni++] = (*p);
 		}
 	break;
 	case 10:
-/* #line 260 "user/ansi_parser.rl" */
+/* #line 266 "user/ansi_parser.rl" */
 	{
 			inside_string = false;
 			string_buffer[str_ni++] = '\0';
@@ -488,41 +494,41 @@ execFuncs:
 		}
 	break;
 	case 11:
-/* #line 273 "user/ansi_parser.rl" */
+/* #line 279 "user/ansi_parser.rl" */
 	{
 			apars_handle_hash_cmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 12:
-/* #line 278 "user/ansi_parser.rl" */
+/* #line 284 "user/ansi_parser.rl" */
 	{
 			apars_handle_short_cmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 13:
-/* #line 283 "user/ansi_parser.rl" */
+/* #line 289 "user/ansi_parser.rl" */
 	{
 			apars_handle_space_cmd((*p));
 			{cs = 1;goto _again;}
 		}
 	break;
 	case 14:
-/* #line 290 "user/ansi_parser.rl" */
+/* #line 296 "user/ansi_parser.rl" */
 	{
 			leadchar = (*p);
 			{cs = 10;goto _again;}
 		}
 	break;
 	case 15:
-/* #line 295 "user/ansi_parser.rl" */
+/* #line 301 "user/ansi_parser.rl" */
 	{
 			apars_handle_chs_designate(leadchar, (*p));
 			{cs = 1;goto _again;}
 		}
 	break;
-/* #line 526 "user/ansi_parser.c" */
+/* #line 532 "user/ansi_parser.c" */
 		}
 	}
 	goto _again;
@@ -540,7 +546,7 @@ _again:
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
 	case 0:
-/* #line 182 "user/ansi_parser.rl" */
+/* #line 188 "user/ansi_parser.rl" */
 	{
 			ansi_warn("Parser error.");
 			apars_show_context();
@@ -550,7 +556,7 @@ _again:
 goto _again;}
 		}
 	break;
-/* #line 554 "user/ansi_parser.c" */
+/* #line 560 "user/ansi_parser.c" */
 		}
 	}
 	}
@@ -558,6 +564,6 @@ goto _again;}
 	_out: {}
 	}
 
-/* #line 318 "user/ansi_parser.rl" */
+/* #line 324 "user/ansi_parser.rl" */
 
 }

@@ -3,6 +3,7 @@
 #include "ansi_parser_callbacks.h"
 #include "ascii.h"
 #include "apars_logging.h"
+#include "screen.h"
 
 /* Ragel constants block */
 %%{
@@ -88,6 +89,11 @@ ansi_parser(char newchar)
 
 	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
+
+	if (termconf->ascii_debug) {
+		apars_handle_plainchar(newchar);
+		return;
+	}
 
 	// Init Ragel on the first run
 	if (cs == -1) {

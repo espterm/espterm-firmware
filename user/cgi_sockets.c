@@ -69,7 +69,7 @@ updateNotify_do(Websock *ws, ScreenNotifyTopics topics)
 		}
 		httpd_cgi_state cont = screenSerializeToBuffer(sock_buff, SOCK_BUF_LEN, topics, &data);
 
-		int flg = 0;
+		int flg = WEBSOCK_FLAG_BIN;
 		if (cont == HTTPD_CGI_MORE) flg |= WEBSOCK_FLAG_MORE;
 		if (i > 0) flg |= WEBSOCK_FLAG_CONT;
 		if (ws) {
@@ -134,7 +134,7 @@ notify_growl(char *msg)
 
 	// here's some potential for a race error with the other broadcast functions
 	// - we assume app won't send notifications in the middle of updating content
-	cgiWebsockBroadcast(URL_WS_UPDATE, msg, (int) strlen(msg), 0);
+	cgiWebsockBroadcast(URL_WS_UPDATE, msg, (int) strlen(msg), WEBSOCK_FLAG_BIN);
 	resetHeartbeatTimer();
 }
 

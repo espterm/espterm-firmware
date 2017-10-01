@@ -222,6 +222,13 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 		termconf->allow_decopt_12 = (bool)n;
 	}
 
+	if (GET_ARG("ascii_debug")) {
+		cgi_dbg("ascii_debug: %s", buff);
+		n = atoi(buff);
+		termconf->ascii_debug = (bool)n;
+		shall_clear_screen = true;
+	}
+
 	if (GET_ARG("theme")) {
 		cgi_dbg("Screen color theme: %s", buff);
 		n = atoi(buff);
@@ -452,6 +459,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "allow_decopt_12")) {
 		sprintf(buff, "%d", (int)termconf->allow_decopt_12);
+	}
+	else if (streq(token, "ascii_debug")) {
+		sprintf(buff, "%d", (int)termconf->ascii_debug);
 	}
 	else if (streq(token, "loopback")) {
 		sprintf(buff, "%d", (int)termconf->loopback);
