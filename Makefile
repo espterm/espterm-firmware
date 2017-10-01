@@ -54,7 +54,7 @@ APPGEN		?= $(SDK_BASE)/tools/gen_appbin.py
 TARGET		= httpd
 
 # which modules (subdirectories) of the project to include in compiling
-MODULES		= user
+MODULES		= user esphttpclient
 EXTRA_INCDIR	= include libesphttpd/include
 
 # libraries used in this project, mainly provided by the SDK
@@ -192,6 +192,10 @@ endef
 .PHONY: all web parser checkdirs clean libesphttpd default-tgt espsize espmac
 
 web:
+	$(Q) ./build_web.sh
+
+updweb:
+	$(Q) cd front-end && git pull
 	$(Q) ./build_web.sh
 
 parser:

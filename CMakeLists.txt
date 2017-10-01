@@ -56,6 +56,8 @@ set(SOURCE_FILES
         libesphttpd/util/cgiwebsocket.c
         libesphttpd/util/cgiflash.c
         libesphttpd/util/captdns.c
+        libesphttpd/esphttpclient/httpclient.c
+        libesphttpd/include/httpclient.h
 
         esp_iot_sdk_v1.5.2/include/user_interface.h
         esp_iot_sdk_v1.5.2/include/upgrade.h
@@ -85,9 +87,9 @@ set(SOURCE_FILES
         esp_iot_sdk_v1.5.2/include/json/jsontree.h
         esp_iot_sdk_v1.5.2/include/json/jsonparse.h
         esp_iot_sdk_v1.5.2/include/json/json.h
-
         include/user_config.h
         include/ets_sys_extra.h
+        include/helpers.h
         user/io.c
         user/io.h
         user/cgi_wifi.c
@@ -121,7 +123,6 @@ set(SOURCE_FILES
         user/wifimgr.h
         user/persist.c
         user/persist.h
-        include/helpers.h
         user/syscfg.c
         user/syscfg.h
         user/ascii.h
@@ -139,9 +140,18 @@ set(SOURCE_FILES
         user/apars_osc.c
         user/apars_osc.h
         user/apars_dcs.c
-        user/apars_dcs.h user/uart_buffer.c user/uart_buffer.h user/jstring.c user/jstring.h user/character_sets.h user/utf8.h user/utf8.c user/cgi_logging.h)
+        user/apars_dcs.h
+        user/uart_buffer.c
+        user/uart_buffer.h
+        user/jstring.c
+        user/jstring.h
+        user/character_sets.h
+        user/utf8.h
+        user/utf8.c
+        user/cgi_logging.h)
 
 include_directories(include)
+include_directories(libesphttpd/esphttpclient)
 include_directories(user)
 include_directories(libesphttpd/include)
 include_directories(libesphttpd/espfs)
@@ -160,13 +170,33 @@ add_definitions(
         -DICACHE_FLASH_ATTR=
         -DICACHE_RODATA_ATTR=
         -DFLAG_GZIP=2
-        -DADMIN_PASSWORD="asdf"
+
         -DGIT_HASH_BACKEND="asdf"
         -DGIT_HASH_FRONTEND="asdf"
         -DGIT_HASH="blabla"
-        -DDEBUG_HEAP=1
-        -DDEBUG_MALLOC=1
+
         -D__TIMEZONE__="UTC"
-        -DESPFS_HEATSHRINK)
+        -DESPFS_HEATSHRINK
+
+        -DDEBUG_ANSI=1
+        -DDEBUG_ANSI_NOIMPL=1
+        -DDEBUG_CAPTDNS=1
+        -DDEBUG_CGI=0
+        -DDEBUG_ESPFS=1
+        -DDEBUG_HEAP=1
+        -DDEBUG_HTTP=1
+        -DDEBUG_HTTPC=1
+        -DDEBUG_INPUT=1
+        -DDEBUG_MALLOC=1
+        -DDEBUG_PERSIST=1
+        -DDEBUG_ROUTER=1
+        -DDEBUG_UTFCACHE=1
+        -DDEBUG_WIFI=1
+        -DDEBUG_WS=1
+        -DDEBUG_ROUTER=1
+)
+# all the debug keys should be listed here ^ so clion thinks they are used
+# and doesn't mess up the formatting and inspections
+
 
 add_executable(ESPTerm ${SOURCE_FILES})

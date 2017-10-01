@@ -42,6 +42,7 @@
 //
 
 #include <esp8266.h>
+#include <httpclient.h>
 #include "apars_short.h"
 #include "apars_logging.h"
 #include "screen.h"
@@ -101,6 +102,11 @@ void ICACHE_FLASH_ATTR apars_handle_hash_cmd(char c)
 
 		case '8':
 			screen_fill_with_E();
+			break;
+
+		// development codes - do not use!
+		case '7':
+			http_get("http://example.com", NULL);
 			break;
 
 		default:
