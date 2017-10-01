@@ -25,7 +25,7 @@ void ICACHE_FLASH_ATTR
 apars_handle_string_cmd(char leadchar, char *buffer)
 {
 	switch (leadchar) {
-		case 'k': // ESC k TITLE ST (defined in GNU screen manpage)
+		case 'k': // ESC k TITLE ST (defined in GNU screen manpage, probably not standard)
 			screen_set_title(buffer);
 			break;
 

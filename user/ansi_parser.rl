@@ -11,10 +11,6 @@
 	write data;
 }%%
 
-// Max nr of CSI parameters
-#define CSI_N_MAX 10
-#define ANSI_STR_LEN 64
-
 static volatile int cs = -1;
 static volatile bool inside_string = false;
 

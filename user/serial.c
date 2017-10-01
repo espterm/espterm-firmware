@@ -92,5 +92,4 @@ void ICACHE_FLASH_ATTR serialInit(void)
 void ICACHE_FLASH_ATTR UART_HandleRxByte(char c)
 {
 	ansi_parser(c);
-	system_soft_wdt_feed(); // so we survive long torrents
 }

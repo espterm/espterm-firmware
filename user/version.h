@@ -5,6 +5,8 @@
 #ifndef ESP_VT100_FIRMWARE_VERSION_H
 #define ESP_VT100_FIRMWARE_VERSION_H
 
+#include "helpers.h"
+
 #define FW_V_MAJOR 2
 #define FW_V_MINOR 1
 #define FW_V_PATCH 0

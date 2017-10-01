@@ -260,7 +260,7 @@ static void ICACHE_FLASH_ATTR updateSockRx(Websock *ws, char *data, int len, int
 
 			// TODO base this on the actual buffer empty space, not rx chunk size
 			if ((UART_AsyncTxGetEmptySpace() < 256) && !browser_wants_xon) {
-				UART_WriteChar(UART1, '-', 100);
+				//UART_WriteChar(UART1, '-', 100);
 				cgiWebsockBroadcast(URL_WS_UPDATE, "-", 1, 0);
 				browser_wants_xon = true;
 
@@ -365,7 +365,7 @@ ETSTimer xonTim;
 
 static void ICACHE_FLASH_ATTR notify_empty_txbuf_cb(void *unused)
 {
-	UART_WriteChar(UART1, '+', 100);
+	//UART_WriteChar(UART1, '+', 100);
 	cgiWebsockBroadcast(URL_WS_UPDATE, "+", 1, 0);
 	resetHeartbeatTimer();
 	browser_wants_xon = false;

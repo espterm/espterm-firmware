@@ -11,24 +11,24 @@
 //
 
 #include <esp8266.h>
+#include <httpclient.h>
 #include "apars_pm.h"
+#include "version.h"
 #include "ansi_parser_callbacks.h"
 #include "screen.h"
 #include "apars_logging.h"
+#include "cgi_d2d.h"
 
 /**
  * Helper function to parse incoming DCS (Device Control String)
- * @param buffer - the DCS body (after DCS and before ST)
+ * @param msg - the DCS body (after DCS and before ST)
  */
 void ICACHE_FLASH_ATTR
-apars_handle_pm(const char *buffer)
+apars_handle_pm(char *msg)
 {
-	size_t len = strlen(buffer);
-	if (false) {
-		//
-	}
-	else {
-		ansi_warn("Bad DCS: %s", buffer);
-		apars_show_context();
-	}
+	if (d2d_parse_command(msg)) return;
+
+	return;
+fail:
+	ansi_warn("D2D message error: %s", msg);
 }

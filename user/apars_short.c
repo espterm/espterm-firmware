@@ -46,6 +46,7 @@
 #include "apars_short.h"
 #include "apars_logging.h"
 #include "screen.h"
+#include "ansi_parser_callbacks.h"
 
 // ----- Character Set ---
 
