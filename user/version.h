@@ -6,7 +6,7 @@
 #define ESP_VT100_FIRMWARE_VERSION_H
 
 #define FW_V_MAJOR 2
-#define FW_V_MINOR 0
+#define FW_V_MINOR 1
 #define FW_V_PATCH 0
 
 #define FIRMWARE_VERSION STR(FW_V_MAJOR) "." STR(FW_V_MINOR) "." STR(FW_V_PATCH)
