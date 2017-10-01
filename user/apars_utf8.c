@@ -213,8 +213,12 @@ apars_handle_plainchar(char c)
 
 	return;
 fail:
-	hdump_bad((const char *) bytes, utf_j);
-	ansi_warn("BAD UTF8!");
-	apars_show_context();
+	if (termconf_live.ascii_debug) {
+		hdump_bad((const char *) bytes, utf_j);
+	} else {
+		screen_putchar("\xEF\xBF\xBD");
+	}
+	//ansi_warn("BAD UTF8!");
+	//apars_show_context();
 	apars_reset_utf8buffer();
 }
