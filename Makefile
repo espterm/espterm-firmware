@@ -216,7 +216,7 @@ libesphttpd/Makefile:
 	$(Q) [[ -e "libesphttpd/Makefile" ]] || echo -e "\e[31mlibesphttpd submodule missing.\nIf build fails, run \"git submodule init\" and \"git submodule update\".\e[0m"
 
 libesphttpd: libesphttpd/Makefile
-	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK) SERVERNAME_PREFIX="ESPTerm " -j4
+	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK) -j4
 
 $(APP_AR): libesphttpd $(OBJ)
 	$(vecho) "AR $@"

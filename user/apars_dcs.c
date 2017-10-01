@@ -30,7 +30,7 @@
  * @param buffer - the DCS body (after DCS and before ST)
  */
 void ICACHE_FLASH_ATTR
-apars_handle_dcs(const char *buffer)
+apars_handle_dcs(char *buffer)
 {
 	char buf[64]; // just about big enough for full-house SGR
 	size_t len = strlen(buffer);

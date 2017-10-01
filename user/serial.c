@@ -40,10 +40,10 @@ buf_pop(void *unused)
 	}
 }
 
-//LOCAL void my_putc(char c)
-//{
-//	UART_WriteCharCRLF(UART1, (u8) c, 10);
-//}
+LOCAL void my_putc(char c)
+{
+	UART_WriteCharCRLF(UART1, (u8) c, 10);
+}
 
 /**
  * Init the serial ports
@@ -56,8 +56,11 @@ void ICACHE_FLASH_ATTR serialInitBase(void)
 	UART_SetStopBits(UART1, ONE_STOP_BIT);
 	UART_SetBaudrate(UART1, BIT_RATE_115200);
 	UART_SetPrintPort(UART1);
+#if ASYNC_LOG
 	os_install_putc1(buf_putc);
-	//os_install_putc1(my_putc);
+#else
+	os_install_putc1(my_putc);
+#endif
 	UART_SetupAsyncReceiver();
 
 	// 1 ms timer
