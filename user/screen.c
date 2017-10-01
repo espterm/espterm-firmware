@@ -1152,6 +1152,14 @@ screen_cursor_get(int *y, int *x)
 	}
 }
 
+/* Report scrolling region */
+void ICACHE_FLASH_ATTR
+screen_region_get(int *pv0, int *pv1)
+{
+	*pv0 = TOP;
+	*pv1 = BTM;
+}
+
 /**
  * Set cursor X position
  */
@@ -1979,12 +1987,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(termconf_live.default_fg & 0xFFFF);
 			bufput_utf8((termconf_live.default_fg >> 16) & 0xFFFF);
 
-			dbg("Fg %04X,%04X", termconf_live.default_fg & 0xFFFF, (termconf_live.default_fg >> 16) & 0xFFFF);
-
 			bufput_utf8(termconf_live.default_bg & 0xFFFF);
 			bufput_utf8((termconf_live.default_bg >> 16) & 0xFFFF);
-
-			dbg("Bg %04X,%04X", termconf_live.default_bg & 0xFFFF, (termconf_live.default_bg >> 16) & 0xFFFF);
 
 			bufput_utf8(
 				(scr.cursor_visible << 0) |

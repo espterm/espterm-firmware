@@ -106,7 +106,7 @@ void ICACHE_FLASH_ATTR apars_handle_hash_cmd(char c)
 
 		// development codes - do not use!
 		case '7':
-			http_get("http://example.com", NULL);
+			http_get("http://wtfismyip.com/text", NULL, http_callback_example);
 			break;
 
 		default:

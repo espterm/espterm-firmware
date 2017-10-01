@@ -249,6 +249,8 @@ void screen_wrap_enable(bool enable);
 void screen_reverse_wrap_enable(bool enable);
 /** Set scrolling region */
 void screen_set_scrolling_region(int from, int to);
+/* Report scrolling region */
+void screen_region_get(int *pv0, int *pv1);
 /** Enable or disable origin remap to top left of scrolling region */
 void screen_set_origin_mode(bool region_origin);
 

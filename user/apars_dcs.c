@@ -47,7 +47,9 @@ apars_handle_dcs(const char *buffer)
 		}
 		else if (buffer[2] == 'r') {
 			// DECSTBM - Query scrolling region
-			sprintf(buf, "\033P1$r%d;%dr\033\\", 1, termconf_live.height); // 1-80 TODO real extent of scrolling region
+			int v0, v1;
+			screen_region_get(&v0, &v1);
+			sprintf(buf, "\033P1$r%d;%dr\033\\", v0+1, v1+1);
 			apars_respond(buf);
 		}
 		else if (buffer[2] == 's') {
@@ -64,7 +66,7 @@ apars_handle_dcs(const char *buffer)
 		}
 		else if (strneq(buffer+2, " q", 2)) {
 			// DECSCUSR - Query cursor style
-			sprintf(buf, "\033P1$r%d q\033\\", 1);
+			sprintf(buf, "\033P1$r%d q\033\\", termconf_live.cursor_shape);
 			/*
 				Ps = 0  -> blinking block.
 				Ps = 1  -> blinking block (default).
