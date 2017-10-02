@@ -210,6 +210,21 @@ espmac:
 all: checkdirs
 	$(Q) make actual_all -j4 -B
 
+release:
+	ESP_LANG=cs make web
+	make actual_all -j4
+	cp firmware/0x00000.bin release/0x00000.bin
+	cp firmware/0x40000.bin release/0x40000-CS.bin
+
+	ESP_LANG=en make web
+	make actual_all -j4
+	cp firmware/0x40000.bin release/0x40000-EN.bin
+
+	ESP_LANG=de make web
+	make actual_all -j4
+	cp firmware/0x40000.bin release/0x40000-DE.bin
+
+
 actual_all: parser $(TARGET_OUT) $(FW_BASE)
 
 libesphttpd/Makefile:
