@@ -14,7 +14,7 @@
 #define D2D_TIMEOUT_MS 2000
 
 #define D2D_HEADERS \
-	"User-Agent: ESPTerm "FIRMWARE_VERSION" like curl wget HTTPie\r\n" \
+	"User-Agent: ESPTerm "VERSION_STRING" like curl wget HTTPie\r\n" \
 	"Content-Type: text/plain; charset=utf-8\r\n" \
 	"Accept-Encoding: identity\r\n" \
 	"Accept-Charset: utf-8\r\n" \

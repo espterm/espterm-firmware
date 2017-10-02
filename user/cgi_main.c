@@ -44,7 +44,7 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 	if (token == NULL) return HTTPD_CGI_DONE;
 
 	if (streq(token, "vers_fw")) {
-		tplSend(connData, FIRMWARE_VERSION, -1);
+		tplSend(connData, VERSION_STRING, -1);
 	}
 	else if (streq(token, "date")) {
 		tplSend(connData, __DATE__, -1);

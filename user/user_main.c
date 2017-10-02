@@ -104,14 +104,22 @@ void ICACHE_FLASH_ATTR user_init(void)
 	wifi_station_set_auto_connect(false);
 	wifi_set_opmode(NULL_MODE); // saves to flash if changed - this might avoid the current spike on startup?
 
-	printf("\r\n");
-	banner("====== ESPTerm ======");
-	banner_info("Firmware (c) Ondrej Hruska, 2017");
-	banner_info(TERMINAL_GITHUB_REPO);
-	banner_info("");
-	banner_info("Version "FIRMWARE_VERSION",");
-	banner_info("built " __DATE__ " at " __TIME__ " " __TIMEZONE__);
-	printf("\r\n");
+	u8 mac[6];
+	wifi_get_macaddr(SOFTAP_IF, mac);
+
+	banner_gap();
+	banner("================ ESPTerm ================");
+	banner_info();
+	banner_info("Project by Ondrej Hruska, 2017");
+	banner_info();
+	banner_info(TERMINAL_GITHUB_REPO_NOPROTO);
+	banner_info();
+	banner_info("Version "FW_VERSION", code name "FW_CODENAME_QUOTED);
+	banner_info(" back-end #"GIT_HASH_BACKEND" front-end #"GIT_HASH_FRONTEND);
+	banner_info(" built "__DATE__" at "__TIME__" "__TIMEZONE__);
+	banner_info();
+	banner_info("Device ID: %02X%02X%02X", mac[3], mac[4], mac[5]);
+	banner_gap();
 
 	ioInit();
 
@@ -139,7 +147,7 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 
 	captdnsInit();
 	httpdInit(routes, 80);
-	httpdSetName("ESPTerm " FIRMWARE_VERSION);
+	httpdSetName("ESPTerm " VERSION_STRING);
 
 	ansi_parser_inhibit = false;
 

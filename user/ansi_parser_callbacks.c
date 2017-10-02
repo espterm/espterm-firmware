@@ -47,8 +47,14 @@ apars_handle_enq(void)
 {
 	if (enquiry_suppressed) return;
 
+	u8 mac[6];
+	wifi_get_macaddr(SOFTAP_IF, mac);
+
+	char buf100[100];
+	sprintf(buf100, "\x1bXESPTerm "VERSION_STRING" #"GIT_HASH_BACKEND"+"GIT_HASH_FRONTEND" id=%02X%02X%02X\x1b\\", mac[3], mac[4], mac[5]);
+
 	// version encased in SOS and ST
-	apars_respond("\x1bXESPTerm " FIRMWARE_VERSION "\x1b\\");
+	apars_respond(buf100);
 
 	// Throttle enquiry - this is a single-character-invoked response,
 	// so it tends to happen randomly when throwing garbage at the ESP.
