@@ -170,6 +170,7 @@ add_definitions(
         -DICACHE_FLASH_ATTR=
         -DICACHE_RODATA_ATTR=
         -DFLAG_GZIP=2
+        -DESP_LANG="en"
 
         -DGIT_HASH_BACKEND="asdf"
         -DGIT_HASH_FRONTEND="asdf"

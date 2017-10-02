@@ -62,6 +62,10 @@ LIBS		= c gcc hal phy pp net80211 wpa main lwip crypto
 #Add in esphttpd lib
 LIBS += esphttpd
 
+ifndef ESP_LANG
+ESP_LANG = en
+endif
+
 # compiler flags using during compilation of source files -ggdb
 CFLAGS		= -Os -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
@@ -69,7 +73,7 @@ CFLAGS		= -Os -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inli
 
 CFLAGS += -DGIT_HASH_BACKEND='"$(shell git rev-parse --short HEAD)"'
 CFLAGS += -DGIT_HASH_FRONTEND='"$(shell cd front-end && git rev-parse --short HEAD)"'
-CFLAGS += -D__TIMEZONE__='"$(shell date +%Z)"'
+CFLAGS += -D__TIMEZONE__='"$(shell date +%Z)"' -DESP_LANG='"$(ESP_LANG)"'
 
 ifdef GLOBAL_CFLAGS
 CFLAGS += $(GLOBAL_CFLAGS)
@@ -211,19 +215,7 @@ all: checkdirs
 	$(Q) make actual_all -j4 -B
 
 release:
-	ESP_LANG=cs make web
-	make actual_all -j4
-	cp firmware/0x00000.bin release/0x00000.bin
-	cp firmware/0x40000.bin release/0x40000-CS.bin
-
-	ESP_LANG=en make web
-	make actual_all -j4
-	cp firmware/0x40000.bin release/0x40000-EN.bin
-
-	ESP_LANG=de make web
-	make actual_all -j4
-	cp firmware/0x40000.bin release/0x40000-DE.bin
-
+	$(Q) ./release.sh
 
 actual_all: parser $(TARGET_OUT) $(FW_BASE)
 

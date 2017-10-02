@@ -114,7 +114,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	banner_info();
 	banner_info(TERMINAL_GITHUB_REPO_NOPROTO);
 	banner_info();
-	banner_info("Version "FW_VERSION", code name "FW_CODENAME_QUOTED);
+	banner_info("Version "FW_VERSION" ("ESP_LANG"), code name "FW_CODENAME_QUOTED);
 	banner_info(" back-end #"GIT_HASH_BACKEND" front-end #"GIT_HASH_FRONTEND);
 	banner_info(" built "__DATE__" at "__TIME__" "__TIMEZONE__);
 	banner_info();
