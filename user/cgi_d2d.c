@@ -7,6 +7,7 @@
 #include "version.h"
 #include "ansi_parser_callbacks.h"
 #include "api.h"
+#include "uart_driver.h"
 #include <httpclient.h>
 #include <esp_utils.h>
 
@@ -28,6 +29,14 @@ struct d2d_request_opts {
 };
 
 volatile bool request_pending = false;
+
+// NOTE! We bypass the async buffer here - used for user input and
+// responses to queries {apars_respond()}. In rare situations this could
+// lead to a race condition and mixing two different messages
+static inline void ICACHE_FLASH_ATTR sendResponseToUART(const char *str)
+{
+	UART_WriteString(UART0, str, UART_TIMEOUT_US);
+}
 
 static void ICACHE_FLASH_ATTR
 requestNoopCb(int http_status,
@@ -95,7 +104,7 @@ requestCb(int http_status,
 	// semicolon only if more data is to be sent
 	if (opts->want_head || opts->want_body)	sprintf(bb, ";");
 
-	apars_respond(buff100);
+	sendResponseToUART(buff100);
 
 	//d2d_dbg("Headers (part) %100s", response_headers);
 	//d2d_dbg("Body (part) %100s", response_body);
@@ -107,8 +116,8 @@ requestCb(int http_status,
 			response_headers[len] = 0;
 			opts->want_body = false; // soz, it wouldn't fit
 		}
-		apars_respond(response_headers);
-		if(opts->want_body) apars_respond("\r\n");
+		sendResponseToUART(response_headers);
+		if(opts->want_body) sendResponseToUART("\r\n");
 	}
 
 	if(opts->want_body) {
@@ -117,10 +126,10 @@ requestCb(int http_status,
 			response_body[len - (opts->want_head*(headers_size+2))] = 0;
 		}
 
-		apars_respond(response_body);
+		sendResponseToUART(response_body);
 	}
 
-	apars_respond("\a");
+	sendResponseToUART("\a");
 
 	free(opts->nonce);
 	free(opts);
@@ -290,14 +299,14 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiD2DMessage(HttpdConnData *connData)
 	u8 *ip = connData->remote_ip;
 	char buf[20];
 	sprintf(buf, "\x1b^m;"IPSTR";L=%d;", ip[0], ip[1], ip[2], ip[3], (int)len);
-	apars_respond(buf);
+	sendResponseToUART(buf);
 
 	if (connData->post && connData->post->buff)
-		apars_respond(connData->post->buff);
+		sendResponseToUART(connData->post->buff);
 	else if (connData->getArgs)
-		apars_respond(connData->getArgs);
+		sendResponseToUART(connData->getArgs);
 
-	apars_respond("\a");
+	sendResponseToUART("\a");
 
 	d2d_dbg("D2D Rx src="IPSTR",len=%d", ip[0], ip[1], ip[2], ip[3],len);
 
