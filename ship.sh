@@ -16,6 +16,7 @@ function buildlang() {
 
     echo -e "\n\e[33;1m------ Building \"${lang}\" package ------\e[0m\n"
 
+    make clean
     ESP_LANG=${lang} make web
     ESP_LANG=${lang} make actual_all -B -j4
 
