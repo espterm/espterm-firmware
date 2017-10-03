@@ -62,6 +62,8 @@ apars_handle_enq(void)
 	else buf--; // remove the trailing space
 	buf += sprintf(buf, "\x1b\\");
 
+	(void)buf;
+
 	// version encased in SOS and ST
 	apars_respond(buf100);
 

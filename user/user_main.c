@@ -74,12 +74,12 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 	if (diff == 0) {
 		if (cnt == 5) {
 			// only every 5 secs if no change
-			dbg("Rx: %2d%c, Tx: %2d%c, Hp: %d", rxp, '%', txp, '%', heap);
+			dbg("Rx/Tx: %d/%d%c, Hp: %d", rxp, txp, '%', heap);
 			cnt = 0;
 		}
 	} else {
 		// report change
-		dbg("Rx: %2d%c, Tx: %2d%c, Hp: %d (%s%d)", rxp, '%', txp, '%', heap, cc, diff);
+		dbg("Rx/Tx: %d/%d%c, Hp: %d (%s%d)", rxp, txp, '%', heap, cc, diff);
 		cnt = 0;
 	}
 
@@ -131,11 +131,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 	espFsInit((void *) (webpages_espfs_start));
 #endif
 
-#if DEBUG_HEAP
-	// Heap use timer & blink
-	TIMER_START(&prHeapTimer, prHeapTimerCb, HEAP_TIMER_MS, 1);
-#endif
-
 	// do later (some functions do not work if called from user_init)
 	TIMER_START(&userStartTimer, user_start, 10, 0);
 }
@@ -154,6 +149,11 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 	// Print the CANCEL character to indicate the module has restarted
 	// Critically important for client application if any kind of screen persistence / content re-use is needed
 	UART_WriteChar(UART0, CAN, UART_TIMEOUT_US); // 0x18 - 24 - CAN
+
+#if DEBUG_HEAP
+	// Heap use timer & blink
+	TIMER_START(&prHeapTimer, prHeapTimerCb, HEAP_TIMER_MS, 1);
+#endif
 }
 
 // ---- unused funcs removed from sdk to save space ---

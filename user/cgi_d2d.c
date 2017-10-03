@@ -63,8 +63,6 @@ requestCb(int http_status,
 
 	struct d2d_request_opts *opts = userArg;
 
-	d2d_dbg("Rx url response, code %d, nonce \"%s\"", http_status, opts->nonce?opts->nonce:"");
-
 	// ensure positive - would be hard to parse
 	if (http_status < 0) http_status = -http_status;
 
@@ -76,6 +74,8 @@ requestCb(int http_status,
 	if (opts->want_body) len += body_size + (opts->want_head*2);
 	if (opts->max_result_len > 0 && len > opts->max_result_len)
 		len = (int) opts->max_result_len;
+
+	d2d_info("Rx HTTP response, code %d, len %d, nonce \"%s\"", http_status, len, opts->nonce?opts->nonce:"");
 
 	char *bb = buff100;
 	bb += sprintf(bb, "\x1b^h;%d;", http_status);
@@ -160,7 +160,7 @@ d2d_parse_command(char *msg)
 		FIND_NEXT(ip, ';');
 		const char *payload = msg;
 
-		d2d_dbg("D2D Tx,dest=%s,msg=%s", ip, payload);
+		d2d_info("D2D Tx,dest=%s,msg=%s", ip, payload);
 		sprintf(buff40, "http://%s" API_D2D_MSG, ip);
 
 		httpclient_args args;
@@ -203,9 +203,8 @@ d2d_parse_command(char *msg)
 
 		FIND_NEXT(params, ';');
 
+		d2d_info("HTTP request");
 		d2d_dbg("Method %s", method);
-		d2d_dbg("Params %s", params);
-
 		size_t max_buf_len = HTTPCLIENT_DEF_MAX_LEN;
 		size_t max_result_len = 0; // 0 = no truncate
 		uint timeout = HTTPCLIENT_DEF_TIMEOUT_MS;
@@ -274,7 +273,7 @@ d2d_parse_command(char *msg)
 		request_pending = true;
 		http_request(&args, no_resp ? requestNoopCb : requestCb);
 
-		d2d_dbg("Done");
+		d2d_dbg("Request sent.");
 		return true;
 	}
 
@@ -308,7 +307,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiD2DMessage(HttpdConnData *connData)
 
 	sendResponseToUART("\a");
 
-	d2d_dbg("D2D Rx src="IPSTR",len=%d", ip[0], ip[1], ip[2], ip[3],len);
+	d2d_info("D2D Rx src="IPSTR",len=%d", ip[0], ip[1], ip[2], ip[3],len);
 
 	// Received a msg
 
