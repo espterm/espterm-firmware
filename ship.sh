@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 
-echo -n -e "\e[1;36m Version number (for file names): \e[0m"
-read vers
-echo
-
-if [ -z "$vers" ]
-    then
-        echo -e "\e[0;31m Aborted.\e[0m"
-        echo
-        exit
+if [ -z "$1" ]; then
+    vers=$(tcc -run get_version.c)
+else
+    vers=$1
 fi
+
+git pull
+
+echo -n -e "\e[1;36mBuilding packages for version $vers\e[0m"
+
+cd front-end
+git pull
+cd ..
 
 function buildlang() {
     lang=$1
@@ -20,8 +23,6 @@ function buildlang() {
     ESP_LANG=${lang} make web
     ESP_LANG=${lang} make actual_all -B -j4
 
-    cp firmware/0x00000.bin release/0x00000.bin
-    cp firmware/0x40000.bin release/0x40000.bin
     cd release
 
     destdir="$vers-$lang"
@@ -56,12 +57,13 @@ function buildlang() {
     [[ -e ${targetfile}.zip ]] && rm ${targetfile}.zip
     pwd
     zip -9 ${targetfile} ${destdir}/*
-    #rm -r ${destdir}
-
-    rm 0x00000.bin 0x40000.bin
     cd ..
 }
 
-buildlang cs
-buildlang en
-buildlang de
+if [ -z "$ESP_LANG" ]; then
+    buildlang cs
+    buildlang en
+    buildlang de
+else
+    buildlang ${ESP_LANG}
+fi
