@@ -45,7 +45,7 @@ function buildlang() {
     cp ../rel-tpl/README.txt ${readmefil}
     sed -i s/%VERS%/${vers}/ ${readmefil}
     sed -i s/%LANG%/${lang}/ ${readmefil}
-    dt=$(LC_TIME=en_US.UTF-8 date '+%c %Z')
+    dt=$(LC_TIME=en_US.UTF-8 date '+%c')
     sed -i "s#%DATETIME%#${dt}#" ${readmefil}
     unix2dos ${readmefil}
 
