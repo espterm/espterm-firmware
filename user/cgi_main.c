@@ -25,24 +25,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplScreen(HttpdConnData *connData, char *token
 
 	char buff[150];
 
-	if (streq(token, "labels_seq")) {
-		screenSerializeLabelsToBuffer(buff, 150);
-		tplSend(connData, buff, -1);
-	}
-	else if (streq(token, "theme")) {
-		sprintf(buff, "%d", termconf->theme);
-		tplSend(connData, buff, -1);
-	}
-	else if (streq(token, "want_all_fn")) {
+	if (streq(token, "want_all_fn")) {
 		sprintf(buff, "%d", termconf->want_all_fn);
 		tplSend(connData, buff, -1);
 	}
-	else if (streq(token, "default_fg")) {
-		sprintf(buff, "%d", termconf->default_fg);
-		tplSend(connData, buff, -1);
-	}
-	else if (streq(token, "default_bg")) {
-		sprintf(buff, "%d", termconf->default_bg);
+	else if (streq(token, "debugbar")) {
+		sprintf(buff, "%d", termconf->debugbar);
 		tplSend(connData, buff, -1);
 	}
 
@@ -56,7 +44,7 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 	if (token == NULL) return HTTPD_CGI_DONE;
 
 	if (streq(token, "vers_fw")) {
-		tplSend(connData, FIRMWARE_VERSION, -1);
+		tplSend(connData, VERSION_STRING, -1);
 	}
 	else if (streq(token, "date")) {
 		tplSend(connData, __DATE__, -1);
@@ -68,7 +56,6 @@ tplAbout(HttpdConnData *connData, char *token, void **arg)
 		tplSend(connData, httpdGetVersion(), -1);
 	}
 	else if (streq(token, "vers_sdk")) {
-		//tplSend(connData, STR(ESP_SDK_VERSION), -1);
 		tplSend(connData, system_get_sdk_version(), -1);
 	}
 	else if (streq(token, "hash_backend")) {

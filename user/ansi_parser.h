@@ -3,6 +3,11 @@
 
 #include <stdlib.h>
 
+#define CSI_N_MAX 12
+#define ANSI_STR_LEN 256
+
+extern volatile bool ansi_parser_inhibit; // discard all characters
+
 void ansi_parser_reset(void);
 
 extern volatile u32 ansi_parser_char_cnt;

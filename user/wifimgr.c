@@ -8,6 +8,22 @@
 WiFiConfigBundle * const wificonf = &persist.current.wificonf;
 WiFiConfChangeFlags wifi_change_flags;
 
+int ICACHE_FLASH_ATTR getStaIpAsString(char *buffer)
+{
+	WIFI_MODE x = wifi_get_opmode();
+	STATION_STATUS connectStatus = wifi_station_get_connect_status();
+
+	if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP || wificonf->opmode == SOFTAP_MODE) {
+		strcpy(buffer, "");
+		return 0;
+	}
+	else {
+		struct ip_info info;
+		wifi_get_ip_info(STATION_IF, &info);
+		return sprintf(buffer, IPSTR, GOOD_IP2STR(info.ip.addr));
+	}
+}
+
 /**
  * Restore defaults in the WiFi config block.
  * This is to be called if the WiFi config is corrupted on startup,

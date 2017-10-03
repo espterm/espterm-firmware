@@ -28,6 +28,9 @@
 #include "ansi_parser_callbacks.h"
 #include "wifimgr.h"
 #include "persist.h"
+#include "ansi_parser.h"
+#include "ascii.h"
+#include "uart_buffer.h"
 
 #ifdef ESPFS_POS
 CgiUploadFlashDef uploadParams={
@@ -49,6 +52,7 @@ CgiUploadFlashDef uploadParams={
 #define INCLUDE_FLASH_FNS
 #endif
 
+#define HEAP_TIMER_MS 1000
 /** Periodically show heap usage */
 static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 {
@@ -58,18 +62,24 @@ static void ICACHE_FLASH_ATTR prHeapTimerCb(void *arg)
 	int heap = system_get_free_heap_size();
 	int diff = (heap-last);
 
+	int rxc = UART_AsyncRxCount();
+	int txc = UART_AsyncTxCount();
+
+	int rxp = ((rxc*10000) / UART_RX_BUFFER_SIZE)/100;
+	int txp = ((txc*10000) / UART_TX_BUFFER_SIZE)/100;
+
 	const char *cc = "+";
 	if (diff<0) cc = "";
 
 	if (diff == 0) {
 		if (cnt == 5) {
 			// only every 5 secs if no change
-			dbg("FH: %d", heap);
+			dbg("Rx/Tx: %d/%d%c, Hp: %d", rxp, txp, '%', heap);
 			cnt = 0;
 		}
 	} else {
 		// report change
-		dbg("FH: %d (%s%d)", heap, cc, diff);
+		dbg("Rx/Tx: %d/%d%c, Hp: %d (%s%d)", rxp, txp, '%', heap, cc, diff);
 		cnt = 0;
 	}
 
@@ -86,6 +96,7 @@ static ETSTimer prHeapTimer;
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
 void ICACHE_FLASH_ATTR user_init(void)
 {
+	ansi_parser_inhibit = true;
 	serialInitBase();
 
 	// Prevent WiFi starting and connecting by default
@@ -93,13 +104,22 @@ void ICACHE_FLASH_ATTR user_init(void)
 	wifi_station_set_auto_connect(false);
 	wifi_set_opmode(NULL_MODE); // saves to flash if changed - this might avoid the current spike on startup?
 
-	printf("\r\n");
-	banner("====== ESPTerm ======");
-	banner_info("Firmware (c) Ondrej Hruska, 2017");
-	banner_info(TERMINAL_GITHUB_REPO);
-	banner_info("");
-	banner_info("Version "FIRMWARE_VERSION", built " __DATE__ " at " __TIME__ " " __TIMEZONE__);
-	printf("\r\n");
+	u8 mac[6];
+	wifi_get_macaddr(SOFTAP_IF, mac);
+
+	banner_gap();
+	banner("================ ESPTerm ================");
+	banner_info();
+	banner_info("Project by Ondrej Hruska, 2017");
+	banner_info();
+	banner_info(TERMINAL_GITHUB_REPO_NOPROTO);
+	banner_info();
+	banner_info("Version "FW_VERSION" ("ESP_LANG"), code name "FW_CODENAME_QUOTED);
+	banner_info(" back-end #"GIT_HASH_BACKEND" front-end #"GIT_HASH_FRONTEND);
+	banner_info(" built "__DATE__" at "__TIME__" "__TIMEZONE__);
+	banner_info();
+	banner_info("Device ID: %02X%02X%02X", mac[3], mac[4], mac[5]);
+	banner_gap();
 
 	ioInit();
 
@@ -109,11 +129,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 	espFsInit((void*)(0x40200000 + ESPFS_POS));
 #else
 	espFsInit((void *) (webpages_espfs_start));
-#endif
-
-#if DEBUG_HEAP
-	// Heap use timer & blink
-	TIMER_START(&prHeapTimer, prHeapTimerCb, 1000, 1);
 #endif
 
 	// do later (some functions do not work if called from user_init)
@@ -127,10 +142,18 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 
 	captdnsInit();
 	httpdInit(routes, 80);
+	httpdSetName("ESPTerm " VERSION_STRING);
+
+	ansi_parser_inhibit = false;
 
 	// Print the CANCEL character to indicate the module has restarted
 	// Critically important for client application if any kind of screen persistence / content re-use is needed
-	UART_WriteChar(UART0, 24, UART_TIMEOUT_US); // 0x18 - 24 - CAN
+	UART_WriteChar(UART0, CAN, UART_TIMEOUT_US); // 0x18 - 24 - CAN
+
+#if DEBUG_HEAP
+	// Heap use timer & blink
+	TIMER_START(&prHeapTimer, prHeapTimerCb, HEAP_TIMER_MS, 1);
+#endif
 }
 
 // ---- unused funcs removed from sdk to save space ---

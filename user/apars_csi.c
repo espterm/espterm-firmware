@@ -709,6 +709,8 @@ do_csi_set_private_option(CSI_Data *opts)
 				mouse_tracking.mode,
 				mouse_tracking.encoding,
 				mouse_tracking.focus_tracking);
+
+			screen_notifyChange(TOPIC_CHANGE_SCREEN_OPTS);
 		}
 		else if (n == 12) {
 			screen_cursor_blink(yn);
@@ -757,11 +759,11 @@ do_csi_set_private_option(CSI_Data *opts)
 		}
 		else if (n == 800) { // ESPTerm: Toggle display of buttons
 			termconf_live.show_buttons = yn;
-			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
+			screen_notifyChange(TOPIC_CHANGE_SCREEN_OPTS); // this info is included in the screen preamble
 		}
 		else if (n == 801) { // ESPTerm: Toggle display of config links
 			termconf_live.show_config_links = yn;
-			screen_notifyChange(CHANGE_CONTENT); // this info is included in the screen preamble
+			screen_notifyChange(TOPIC_CHANGE_SCREEN_OPTS); // this info is included in the screen preamble
 		}
 		else {
 			ansi_noimpl("?OPTION %d", n);

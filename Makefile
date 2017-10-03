@@ -62,6 +62,10 @@ LIBS		= c gcc hal phy pp net80211 wpa main lwip crypto
 #Add in esphttpd lib
 LIBS += esphttpd
 
+ifndef ESP_LANG
+ESP_LANG = en
+endif
+
 # compiler flags using during compilation of source files -ggdb
 CFLAGS		= -Os -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inline-functions \
 		-nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH \
@@ -69,7 +73,7 @@ CFLAGS		= -Os -std=gnu99 -Werror -Wpointer-arith -Wundef -Wall -Wl,-EL -fno-inli
 
 CFLAGS += -DGIT_HASH_BACKEND='"$(shell git rev-parse --short HEAD)"'
 CFLAGS += -DGIT_HASH_FRONTEND='"$(shell cd front-end && git rev-parse --short HEAD)"'
-CFLAGS += -D__TIMEZONE__='"$(shell date +%Z)"'
+CFLAGS += -D__TIMEZONE__='"$(shell date +%Z)"' -DESP_LANG='"$(ESP_LANG)"'
 
 ifdef GLOBAL_CFLAGS
 CFLAGS += $(GLOBAL_CFLAGS)
@@ -194,6 +198,10 @@ endef
 web:
 	$(Q) ./build_web.sh
 
+updweb:
+	$(Q) cd front-end && git pull
+	$(Q) ./build_web.sh
+
 parser:
 	$(Q) ./build_parser.sh
 
@@ -206,13 +214,16 @@ espmac:
 all: checkdirs
 	$(Q) make actual_all -j4 -B
 
+release:
+	$(Q) ./release.sh
+
 actual_all: parser $(TARGET_OUT) $(FW_BASE)
 
 libesphttpd/Makefile:
 	$(Q) [[ -e "libesphttpd/Makefile" ]] || echo -e "\e[31mlibesphttpd submodule missing.\nIf build fails, run \"git submodule init\" and \"git submodule update\".\e[0m"
 
 libesphttpd: libesphttpd/Makefile
-	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK) SERVERNAME_PREFIX="ESPTerm " -j4
+	$(Q) make -C libesphttpd USE_OPENSDK=$(USE_OPENSDK) -j4
 
 $(APP_AR): libesphttpd $(OBJ)
 	$(vecho) "AR $@"

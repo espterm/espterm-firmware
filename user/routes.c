@@ -14,6 +14,8 @@
 #include "cgi_persist.h"
 #include "syscfg.h"
 #include "persist.h"
+#include "api.h"
+#include "cgi_d2d.h"
 
 /**
  * Password for WiFi config
@@ -45,7 +47,8 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiOptionalPwLock(HttpdConnData *connData)
 			break;
 
 		case PWLOCK_SETTINGS_NOTERM:
-			protect = strstarts(connData->url, "/cfg") && !strstarts(connData->url, "/cfg/term");
+			protect = strstarts(connData->url, "/cfg") &&
+				      !strstarts(connData->url, "/cfg/term");
 			break;
 
 		case PWLOCK_SETTINGS_ALL:
@@ -53,7 +56,9 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiOptionalPwLock(HttpdConnData *connData)
 			break;
 
 		case PWLOCK_MENUS:
-			protect = strstarts(connData->url, "/cfg") || strstarts(connData->url, "/about") || strstarts(connData->url, "/help");
+			protect = strstarts(connData->url, "/cfg") ||
+					  strstarts(connData->url, "/about") ||
+					  strstarts(connData->url, "/help");
 			break;
 
 		default:
@@ -64,11 +69,11 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiOptionalPwLock(HttpdConnData *connData)
 	// pages outside the normal scope
 
 	if (sysconf->pwlock > PWLOCK_NONE) {
-		if (strstarts(connData->url, "/system/reset")) protect = true;
+		if (strstarts(connData->url, "/api/v1/reboot")) protect = true;
 	}
 
 	if (sysconf->pwlock > PWLOCK_SETTINGS_NOTERM) {
-		if (strstarts(connData->url, "/system/cls")) protect = true;
+		if (strstarts(connData->url, "/api/v1/clear")) protect = true;
 	}
 
 	if (sysconf->access_pw[0] == 0) {
@@ -103,9 +108,12 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),
 
 	// --- System control ---
-	ROUTE_CGI("/system/reset/?", cgiResetDevice),
-	ROUTE_CGI("/system/ping/?", cgiPing),
-	ROUTE_CGI("/system/cls/?", cgiResetScreen),
+
+	// API endpoints
+	ROUTE_CGI(API_REBOOT"/?", cgiResetDevice),
+	ROUTE_CGI(API_PING"/?", cgiPing),
+	ROUTE_CGI(API_CLEAR"/?", cgiResetScreen),
+	ROUTE_CGI(API_D2D_MSG"/?", cgiD2DMessage),
 
 	ROUTE_REDIRECT("/cfg/?", "/cfg/wifi"),
 

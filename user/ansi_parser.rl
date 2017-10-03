@@ -3,6 +3,7 @@
 #include "ansi_parser_callbacks.h"
 #include "ascii.h"
 #include "apars_logging.h"
+#include "screen.h"
 
 /* Ragel constants block */
 %%{
@@ -10,15 +11,12 @@
 	write data;
 }%%
 
-// Max nr of CSI parameters
-#define CSI_N_MAX 10
-#define ANSI_STR_LEN 64
-
 static volatile int cs = -1;
 static volatile bool inside_string = false;
 
 // public
 volatile u32 ansi_parser_char_cnt = 0;
+volatile bool ansi_parser_inhibit = 0;
 
 void ICACHE_FLASH_ATTR
 ansi_parser_reset(void) {
@@ -83,8 +81,15 @@ ansi_parser(char newchar)
 	static char string_buffer[ANSI_STR_LEN];
 	static int  str_ni;
 
+	if (ansi_parser_inhibit) return;
+
 	// This is used to detect timeout delay (time since last rx char)
 	ansi_parser_char_cnt++;
+
+	if (termconf->ascii_debug) {
+		apars_handle_plainchar(newchar);
+		return;
+	}
 
 	// Init Ragel on the first run
 	if (cs == -1) {
@@ -101,6 +106,13 @@ ansi_parser(char newchar)
 		}
 		history[HISTORY_LEN-1] = newchar;
 	#endif
+
+	// THose should work always, even inside a string
+	if (newchar == CAN || newchar == SUB) {
+		// Cancel the active sequence
+		cs = ansi_start;
+		return;
+	}
 
 	// Handle simple characters immediately (bypass parser)
 	if (newchar < ' ' && !inside_string) {
@@ -141,12 +153,6 @@ ansi_parser(char newchar)
 
 			case ENQ:
 				apars_handle_enq();
-				return;
-
-				// Cancel the active sequence
-			case CAN:
-			case SUB:
-				cs = ansi_start;
 				return;
 
 			default:

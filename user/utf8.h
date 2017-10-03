@@ -63,9 +63,10 @@ bool unicode_cache_remove(UnicodeCacheRef ref);
  *
  * @param out - output buffer (min 4 characters), will be 0-terminated if shorten than 4
  * @param utf - code point 0-0x10FFFF
+ * @param surrogateFix - add 0x800 to 0xD800-0xDFFF to avoid invalid code points
  * @return number of bytes on success, 0 on failure (also produces U+FFFD, which uses 3 bytes)
  */
-int utf8_encode(char *out, uint32_t utf);
+int utf8_encode(char *out, uint32_t utf, bool surrogateFix);
 
 #if DEBUG_UTFCACHE
 #define utfc_warn warn
