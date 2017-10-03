@@ -60,6 +60,8 @@ void wifimgr_restore_defaults(void);
 
 void wifimgr_apply_settings(void);
 
+int getStaIpAsString(char *buffer);
+
 #if DEBUG_WIFI
 #define wifi_warn warn
 #define wifi_dbg dbg

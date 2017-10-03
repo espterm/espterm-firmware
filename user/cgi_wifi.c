@@ -617,22 +617,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 		}
 	}
 	else if (streq(token, "sta_active_ip")) {
-		x = wifi_get_opmode();
-		connectStatus = wifi_station_get_connect_status();
-
-		if (x == SOFTAP_MODE || connectStatus != STATION_GOT_IP || wificonf->opmode == SOFTAP_MODE) {
-			strcpy(buff, "");
-		}
-		else {
-			struct ip_info info;
-			wifi_get_ip_info(STATION_IF, &info);
-			sprintf(buff, IPSTR, GOOD_IP2STR(info.ip.addr));
-
-//			sprintf(buff, "ip: "IPSTR", mask: "IPSTR", gw: "IPSTR,
-//					GOOD_IP2STR(info.ip.addr),
-//					GOOD_IP2STR(info.netmask.addr),
-//					GOOD_IP2STR(info.gw.addr));
-		}
+		getStaIpAsString(buff);
 	}
 
 	tplSend(connData, buff, -1);

@@ -11,6 +11,7 @@
 #include "version.h"
 #include "uart_buffer.h"
 #include "screen.h"
+#include "wifimgr.h"
 
 volatile bool enquiry_suppressed = false;
 ETSTimer enqTimer;
@@ -51,7 +52,15 @@ apars_handle_enq(void)
 	wifi_get_macaddr(SOFTAP_IF, mac);
 
 	char buf100[100];
-	sprintf(buf100, "\x1bXESPTerm "VERSION_STRING" #"GIT_HASH_BACKEND"+"GIT_HASH_FRONTEND" id=%02X%02X%02X\x1b\\", mac[3], mac[4], mac[5]);
+	char *buf = buf100;
+	buf += sprintf(buf, "\x1bX");
+	buf += sprintf(buf, "ESPTerm "VERSION_STRING" ");
+	buf += sprintf(buf, "#"GIT_HASH_BACKEND"+"GIT_HASH_FRONTEND" ");
+	buf += sprintf(buf, "id=%02X%02X%02X ", mac[3], mac[4], mac[5]);
+	int x = getStaIpAsString(buf);
+	if (x) buf += x;
+	else buf--; // remove the trailing space
+	buf += sprintf(buf, "\x1b\\");
 
 	// version encased in SOS and ST
 	apars_respond(buf100);
