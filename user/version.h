@@ -10,9 +10,9 @@
 
 #define FW_V_MAJOR 2
 #define FW_V_MINOR 1
-#define FW_V_PATCH 0
+#define FW_V_PATCH 1
 #define FW_V_SUFFIX ""
-#define FW_CODENAME "Anthill" // 2.1.0
+#define FW_CODENAME "Anthill" // 2.1
 #define FW_CODENAME_QUOTED "\""FW_CODENAME"\""
 
 #define FW_VERSION STR(FW_V_MAJOR) "." STR(FW_V_MINOR) "." STR(FW_V_PATCH) FW_V_SUFFIX
