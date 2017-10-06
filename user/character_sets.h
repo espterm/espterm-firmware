@@ -146,10 +146,10 @@ static const u16 codepage_1[] ESP_CONST_DATA =
 		u'╱',	// 0x0,	114	r - right up diagonal
 		u'╲',	// 0x0,	115	s - right down diagonal
 		u'╳',	// 0x0,	116	t
-		0,	// 0x0,	117	u
-		0,	// 0x0,	118	v
-		0,	// 0x0,	119	w
-		0,	// 0x0,	120	x
+		u'↺',	// 0x0,	117	u
+		u'↻',	// 0x0,	118	v
+		u'¶',	// 0x0,	119	w
+		u'⏻',	// 0x0,	120	x
 		0xE0B0,	// powerline right triangle (filled), 121 y
 		0xE0B1,	// powerline right triangle (hollow), 122	z
 		0xE0B2,	// powerline left triangle (filled), 123	{
