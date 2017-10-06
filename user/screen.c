@@ -1794,6 +1794,20 @@ utf8_remap(char *out, char g, char charset)
 			}
 			break;
 
+		case CS_2_BLOCKS_LINES: /* ESPTerm Character Rom 2 */
+			if ((g >= CODEPAGE_2_BEGIN) && (g <= CODEPAGE_2_END)) {
+				n = codepage_2[g - CODEPAGE_2_BEGIN];
+				if (n) utf = n;
+			}
+			break;
+
+		case CS_3_LINES_EXTRA: /* ESPTerm Character Rom 3 */
+			if ((g >= CODEPAGE_3_BEGIN) && (g <= CODEPAGE_3_END)) {
+				n = codepage_3[g - CODEPAGE_3_BEGIN];
+				if (n) utf = n;
+			}
+			break;
+
 		case CS_A_UKASCII: /* UK, replaces # with GBP */
 			if (g == '#') utf = 0x20a4; // £
 			break;

@@ -58,6 +58,7 @@ static const u16 codepage_0[] ESP_CONST_DATA =
 #define CODEPAGE_1_BEGIN 33
 #define CODEPAGE_1_END 126
 
+// DOS, thin and double lines, arrows, angles, diagonals, thick border
 static const u16 codepage_1[] ESP_CONST_DATA =
 	{//            Unicode  ASCII  DOS
 		// %%BEGIN:1%%
@@ -142,20 +143,228 @@ static const u16 codepage_1[] ESP_CONST_DATA =
 		u'╮',	// 0x256E,	111	o
 		u'╯',	// 0x256F,	112	p
 		u'╰',	// 0x2570,	113	q
-		u'▖',	// 0x259,	114	r
-		u'▗',	// 0x259,	115	s
-		u'▘',	// 0x259,	116	t
-		u'▙',	// 0x259,	117	u
-		u'▚',	// 0x259,	118	v
-		u'▛',	// 0x259,	119	w
-		u'▜',	// 0x259,	120	x
-		u'▝',	// 0x259,	121	y
-		u'▞',	// 0x259,	122	z
-		u'▟',	// 0x259,	123	{
-		0,		// 0x0,  	124	|	- reserved
+		u'╱',	// 0x0,	114	r - right up diagonal
+		u'╲',	// 0x0,	115	s - right down diagonal
+		u'╳',	// 0x0,	116	t
+		0,	// 0x0,	117	u
+		0,	// 0x0,	118	v
+		0,	// 0x0,	119	w
+		0,	// 0x0,	120	x
+		0xE0B0,	// powerline right triangle (filled), 121 y
+		0xE0B1,	// powerline right triangle (hollow), 122	z
+		0xE0B2,	// powerline left triangle (filled), 123	{
+		0xE0B3,	// powerline left triangle (hollow), 124	|	- reserved
 		u'✔',	// 0x2714,	125	}	- checkboxes or checklist items
 		u'✘',	// 0x2718,	126	~
 		// %%END:1%%
+	};
+
+#define CODEPAGE_2_BEGIN 33
+#define CODEPAGE_2_END 126
+
+// blocks, thick and split lines, line butts
+static const u16 codepage_2[] ESP_CONST_DATA =
+	{//            Unicode  ASCII  DOS
+		// %%BEGIN:2%%
+		u'▁',	// 0x2581,	33	! - those are ordered this way to allow easy calculating of the right code (for graphs)
+		u'▂',	// 0x2582,	34	"
+		u'▃',	// 0x2583,	35	#
+		u'▄',	// 0x2584,	36	$
+		u'▅',	// 0x2585,	37	%
+		u'▆',	// 0x2586,	38	&
+		u'▇',	// 0x2587,	39	' - 7-eighths
+		u'█',	// 0x2588,	40	( - full block, shared by both sequences
+		u'▉',	// 0x2589,	41	) - those grow thinner, to re-use the full block
+		u'▊',	// 0x258A,	42	*
+		u'▋',	// 0x258B,	43	+
+		u'▌',	// 0x258C,	44	,
+		u'▍',	// 0x258D,	45	-
+		u'▎',	// 0x258E,	46	.
+		u'▏',	// 0x258F,	47	/
+		u'▔',	// 0x2594,	48	0 - complementary symbols
+		u'▕',	// 0x2595,	49	1
+		u'▐',	// 0x2590,	50	2
+		u'▀',	// 0x2580,	51	3
+		u'▘',	// 0x2598,	52	4 - top-left, top-right, bottom-right, bottom-left
+		u'▝',	// 0x259D,	53	5
+		u'▗',	// 0x2597,	54	6
+		u'▖',	// 0x2596,	55	7
+		u'▟',	// 0x259F,	56	8
+		u'▙',	// 0x2599,	57	9
+		u'▛',	// 0x259B,	58	:
+		u'▜',	// 0x259C,	59	;
+		u'▞',	// 0x259E,	60	< - complementary diagonals
+		u'▚',	// 0x259A,	61	=
+		u'━',	// 0x,	62	> - here are thick and thin lines and their joins. it's really quite arbitrary, based on the unicode order, excluding single lines
+		u'┃',	// 0x,	63	?
+		u'┍',	// 0x,	64	@
+		u'┎',	// 0x,	65	A
+		u'┏',	// 0x,	66	B
+		u'┑',	// 0x,	67	C
+		u'┒',	// 0x,	68	D
+		u'┓',	// 0x,	69	E
+		u'┕',	// 0x,	70	F
+		u'┖',	// 0x,	71	G
+		u'┗',	// 0x,	72	H
+		u'┙',	// 0x,	73	I
+		u'┚',	// 0x,	74	J
+		u'┛',	// 0x,	75	K
+		u'┝',	// 0x,	76	L
+		u'┞',	// 0x,	77	M
+		u'┟',	// 0x,	78	N
+		u'┠',	// 0x,	79	O
+		u'┡',	// 0x,	80	P
+		u'┢',	// 0x,	81	Q
+		u'┣',	// 0x,	82	R
+		u'┥',	// 0x,	83	S
+		u'┦',	// 0x,	84	T
+		u'┧',	// 0x,	85	U
+		u'┨',	// 0x,	86	V
+		u'┩',	// 0x,	87	W
+		u'┪',	// 0x,	88	X
+		u'┫',	// 0x,	89	Y
+		u'┭',	// 0x,	90	Z
+		u'┮',	// 0x,	91	[
+		u'┯',	// 0x,	92	\ .
+		u'┰',	// 0x,	93	]
+		u'┱',	// 0x,	94	^
+		u'┲',	// 0x,	95	_
+		u'┳',	// 0x,	96	`
+		u'┵',	// 0x,	97	a
+		u'┶',	// 0x,	98	b
+		u'┷',	// 0x,	99	c
+		u'┸',	// 0x,	100	d
+		u'┹',	// 0x,	101	e
+		u'┺',	// 0x,	102	f
+		u'┻',	// 0x,	103	g
+		u'┽',	// 0x,	104	h
+		u'┾',	// 0x,	105	i
+		u'┿',	// 0x,	106	j
+		u'╀',	// 0x,	107	k
+		u'╁',	// 0x,	108	l
+		u'╂',	// 0x,	109	m
+		u'╃',	// 0x,	110	n
+		u'╄',	// 0x,	111	o
+		u'╅',	// 0x,	112	p
+		u'╆',	// 0x,	113	q
+		u'╇',	// 0x,	114	r
+		u'╈',	// 0x,	115	s
+		u'╉',	// 0x,	116	t
+		u'╊',	// 0x,	117	u
+		u'╋',	// 0x,	118	v
+		u'╴',	// 0x,	119	w - butts
+		u'╵',	// 0x,	120	x
+		u'╶',	// 0x,	121	y
+		u'╷',	// 0x,	122	z
+		u'╸',	// 0x,	123	{
+		u'╹',	// 0x,  124	|
+		u'╺',	// 0x,	125	}
+		u'╻',	// 0x,	126	~
+		// %%END:2%%
+	};
+
+#define CODEPAGE_3_BEGIN 33
+#define CODEPAGE_3_END 48
+
+// dashed lines, split straight lines
+static const u16 codepage_3[] ESP_CONST_DATA =
+	{//            Unicode  ASCII  DOS
+		// %%BEGIN:3%%
+		u'╌',	// 0x,	33	!
+		u'┄',	// 0x,	34	"
+		u'┈',	// 0x,	35	#
+		u'╍',	// 0x,	36	$
+		u'┅',	// 0x,	37	%
+		u'┉',	// 0x,	38	&
+		u'╎',	// 0x,	39	'
+		u'┆',	// 0x,	40	(
+		u'┊',	// 0x,	41	)
+		u'╏',	// 0x,	42	*
+		u'┇',	// 0x,	43	+
+		u'┋',	// 0x,	44	,
+		u'╼',	// 0x,	45	-
+		u'╽',	// 0x,	46	.
+		u'╾',	// 0x,	47	/
+		u'╿',	// 0x,	48	0
+		// %%END:3%%
+//		u'\0',	// 0x,	49	1
+//		u'\0',	// 0x,	50	2
+//		u'\0',	// 0x,	51	3
+//		u'\0',	// 0x,	52	4
+//		u'\0',	// 0x,	53	5
+//		u'\0',	// 0x,	54	6
+//		u'\0',	// 0x,	55	7
+//		u'\0',	// 0x,	56	8
+//		u'\0',	// 0x,	57	9
+//		u'\0',	// 0x,	58	:
+//		u'\0',	// 0x,	59	;
+//		u'\0',	// 0x,	60	<
+//		u'\0',	// 0x,	61	=
+//		u'\0',	// 0x,	62	>
+//		u'\0',	// 0x,	63	?
+//		u'\0',	// 0x,	64	@
+//		u'\0',	// 0x,	65	A
+//		u'\0',	// 0x,	66	B
+//		u'\0',	// 0x,	67	C
+//		u'\0',	// 0x,	68	D
+//		u'\0',	// 0x,	69	E
+//		u'\0',	// 0x,	70	F
+//		u'\0',	// 0x,	71	G
+//		u'\0',	// 0x,	72	H
+//		u'\0',	// 0x,	73	I
+//		u'\0',	// 0x,	74	J
+//		u'\0',	// 0x,	75	K
+//		u'\0',	// 0x,	76	L
+//		u'\0',	// 0x,	77	M
+//		u'\0',	// 0x,	78	N
+//		u'\0',	// 0x,	79	O
+//		u'\0',	// 0x,	80	P
+//		u'\0',	// 0x,	81	Q
+//		u'\0',	// 0x,	82	R
+//		u'\0',	// 0x,	83	S
+//		u'\0',	// 0x,	84	T
+//		u'\0',	// 0x,	85	U
+//		u'\0',	// 0x,	86	V
+//		u'\0',	// 0x,	87	W
+//		u'\0',	// 0x,	88	X
+//		u'\0',	// 0x,	89	Y
+//		u'\0',	// 0x,	90	Z
+//		u'\0',	// 0x,	91	[
+//		u'\0',	// 0x,	92	\ .
+//		u'\0',	// 0x,	93	]
+//		u'\0',	// 0x,	94	^
+//		u'\0',	// 0x,	95	_
+//		u'\0',	// 0x,	96	`
+//		u'\0',	// 0x,	97	a
+//		u'\0',	// 0x,	98	b
+//		u'\0',	// 0x,	99	c
+//		u'\0',	// 0x,	100	d
+//		u'\0',	// 0x,	101	e
+//		u'\0',	// 0x,	102	f
+//		u'\0',	// 0x,	103	g
+//		u'\0',	// 0x,	104	h
+//		u'\0',	// 0x,	105	i
+//		u'\0',	// 0x,	106	j
+//		u'\0',	// 0x,	107	k
+//		u'\0',	// 0x,	108	l
+//		u'\0',	// 0x,	109	m
+//		u'\0',	// 0x,	110	n
+//		u'\0',	// 0x,	111	o
+//		u'\0',	// 0x,	112	p
+//		u'\0',	// 0x,	113	q
+//		u'\0',	// 0x,	114	r
+//		u'\0',	// 0x,	115	s
+//		u'\0',	// 0x,	116	t
+//		u'\0',	// 0x,	117	u
+//		u'\0',	// 0x,	118	v
+//		u'\0',	// 0x,	119	w
+//		u'\0',	// 0x,	120	x
+//		u'\0',	// 0x,	121	y
+//		u'\0',	// 0x,	122	z
+//		u'\0',	// 0x,	123	{
+//		u'\0',	// 0x,  124	|
+//		u'\0',	// 0x,	125	}
+//		u'\0',	// 0x,	126	~
 	};
 
 #endif //ESPTERM_CHARACTER_SETS_H_H
