@@ -156,6 +156,8 @@ typedef enum {
 	CS_A_UKASCII = 'A',
 	CS_0_DEC_SUPPLEMENTAL = '0',
 	CS_1_DOS_437 = '1',
+	CS_2_BLOCKS_LINES = '2',
+	CS_3_LINES_EXTRA = '3',
 } CHARSET;
 
 enum ScreenSerializeTopic {
