@@ -38,6 +38,7 @@
 #define TERM_BTN_MSG_LEN 10
 #define TERM_TITLE_LEN 64
 #define TERM_BTN_COUNT 5
+#define TERM_BACKDROP_LEN 100
 
 #define SCR_DEF_DISPLAY_TOUT_MS 12
 #define SCR_DEF_DISPLAY_COOLDOWN_MS 35
@@ -74,8 +75,8 @@ enum CursorShape {
 
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
-#define TERMCONF_SIZE 300
-#define TERMCONF_VERSION 3
+#define TERMCONF_SIZE 400
+#define TERMCONF_VERSION 4
 
 typedef struct {
 	u32 width;
@@ -100,6 +101,7 @@ typedef struct {
 	bool debugbar;
 	bool allow_decopt_12;
 	bool ascii_debug;
+	char backdrop[TERM_BACKDROP_LEN];
 } TerminalConfigBundle;
 
 // Live config
@@ -148,6 +150,8 @@ void screen_resize(int rows, int cols);
 void screen_set_title(const char *title);
 /** Set a button text */
 void screen_set_button_text(int num, const char *text);
+/** Change backdrop */
+void screen_set_backdrop(const char *url);
 
 // --- Encoding ---
 
@@ -169,6 +173,7 @@ enum ScreenSerializeTopic {
 	TOPIC_CHANGE_CURSOR       = (1<<5),
 	TOPIC_INTERNAL            = (1<<6), // debugging internal state
 	TOPIC_BELL                = (1<<7), // beep
+	TOPIC_CHANGE_BACKDROP     = (1<<8),
 	TOPIC_FLAG_NOCLEAN        = (1<<15), // do not clean dirty extents
 
 	// combos
@@ -177,6 +182,7 @@ enum ScreenSerializeTopic {
 		TOPIC_CHANGE_CONTENT_ALL |
 		TOPIC_CHANGE_CURSOR |
 		TOPIC_CHANGE_TITLE |
+		TOPIC_CHANGE_BACKDROP |
 		TOPIC_CHANGE_BUTTONS,
 };
 

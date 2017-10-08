@@ -213,6 +213,7 @@ terminal_restore_defaults(void)
 	termconf->debugbar = SCR_DEF_DEBUGBAR;
 	termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 	termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
+	termconf->backdrop[0] = 0;
 }
 
 /**
@@ -245,6 +246,11 @@ terminal_apply_settings_noclear(void)
 	if (termconf->config_version < 3) {
 		persist_dbg("termconf: Updating to version %d", 1);
 		termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
+		changed = 1;
+	}
+	if (termconf->config_version < 4) {
+		persist_dbg("termconf: Updating to version %d", 1);
+		termconf->backdrop[0] = 0;
 		changed = 1;
 	}
 
@@ -385,6 +391,7 @@ screen_reset_do(bool size, bool labels)
 
 	if (labels) {
 		strcpy(termconf_live.title, termconf->title);
+		strcpy(termconf_live.backdrop, termconf->backdrop);
 
 		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
 			strcpy(termconf_live.btn[i], termconf->btn[i]);
@@ -394,7 +401,7 @@ screen_reset_do(bool size, bool labels)
 		termconf_live.show_buttons = termconf->show_buttons;
 		termconf_live.show_config_links = termconf->show_config_links;
 
-		topics |= TOPIC_CHANGE_TITLE | TOPIC_CHANGE_BUTTONS;
+		topics |= TOPIC_CHANGE_TITLE | TOPIC_CHANGE_BUTTONS | TOPIC_CHANGE_BACKDROP;
 	}
 
 	// initial values in the save buffer in case of receiving restore without storing first
@@ -1007,6 +1014,18 @@ screen_set_button_text(int num, const char *text)
 	NOTIFY_LOCK();
 	strncpy(termconf_live.btn[num-1], text, TERM_BTN_LEN);
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Helper function to set terminalbackdrop
+ * @param url - url
+ */
+void ICACHE_FLASH_ATTR
+screen_set_backdrop(const char *url)
+{
+	NOTIFY_LOCK();
+	strncpy(termconf_live.backdrop, url, TERM_BACKDROP_LEN);
+	NOTIFY_DONE(TOPIC_CHANGE_BACKDROP);
 }
 
 /**
@@ -1907,6 +1926,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define TOPICMARK_BELL    '!'
 #define TOPICMARK_CURSOR  'C'
 #define TOPICMARK_SCREEN   'S'
+#define TOPICMARK_BACKDROP 'W'
 
 	if (ss == NULL) {
 		// START!
@@ -2025,9 +2045,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_c(TOPICMARK_TITLE);
 
 			int len = (int) strlen(termconf_live.title);
-			memcpy(bb, termconf_live.title, len);
-			bb += len;
-			remain -= len;
+			if (len > 0) {
+				memcpy(bb, termconf_live.title, len);
+				bb += len;
+				remain -= len;
+			}
 			bufput_c('\x01');
 		END_TOPIC
 
@@ -2038,11 +2060,25 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 
 			for (int i = 0; i < TERM_BTN_COUNT; i++) {
 				int len = (int) strlen(termconf_live.btn[i]);
-				memcpy(bb, termconf_live.btn[i], len);
-				bb += len;
-				remain -= len;
+				if (len > 0) {
+					memcpy(bb, termconf_live.btn[i], len);
+					bb += len;
+					remain -= len;
+				}
 				bufput_c('\x01');
 			}
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_CHANGE_BACKDROP, TERM_BACKDROP_LEN+1+1)
+			bufput_c(TOPICMARK_BACKDROP);
+
+			int len = (int) strlen(termconf_live.backdrop);
+			if (len > 0) {
+				memcpy(bb, termconf_live.backdrop, len);
+				bb += len;
+				remain -= len;
+			}
+			bufput_c('\x01');
 		END_TOPIC
 
 		BEGIN_TOPIC(TOPIC_INTERNAL, 45)

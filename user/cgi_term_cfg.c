@@ -256,8 +256,14 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 
 	if (GET_ARG("term_title")) {
 		cgi_dbg("Terminal title default text: \"%s\"", buff);
-		strncpy_safe(termconf->title, buff, 64); // ATTN those must match the values in
+		strncpy_safe(termconf->title, buff, TERM_TITLE_LEN); // ATTN those must match the values in
 		topics |= TOPIC_CHANGE_TITLE;
+	}
+
+	if (GET_ARG("backdrop")) {
+		cgi_dbg("Terminal backdrop url: \"%s\"", buff);
+		strncpy_safe(termconf->backdrop, buff, TERM_BACKDROP_LEN); // ATTN those must match the values in
+		topics |= TOPIC_CHANGE_BACKDROP;
 	}
 
 	for (int btn_i = 1; btn_i <= TERM_BTN_COUNT; btn_i++) {
@@ -416,7 +422,7 @@ cgiTermCfgSetParams(HttpdConnData *connData)
 httpd_cgi_state ICACHE_FLASH_ATTR
 tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 {
-#define BUFLEN TERM_TITLE_LEN
+#define BUFLEN 100 // large enough for backdrop
 	char buff[BUFLEN];
 	char buff2[10];
 
@@ -491,6 +497,9 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "term_title")) {
 		strncpy_safe(buff, termconf->title, BUFLEN);
+	}
+	else if (streq(token, "backdrop")) {
+		strncpy_safe(buff, termconf->backdrop, BUFLEN);
 	}
 	else if (streq(token, "uart_baud")) {
 		sprintf(buff, "%d", sysconf->uart_baudrate);
