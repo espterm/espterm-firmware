@@ -49,6 +49,10 @@ apars_handle_osc(char *buffer)
 			buffer[0] = 'G';
 			notify_growl(buffer);
 		}
+		else if (n == 70) {
+			// ESPTerm: backdrop
+			screen_set_backdrop(buffer);
+		}
 		else if (n >= 81 && n <= 85) {
 			// ESPTerm: action button label
 			screen_set_button_text(n - 80, buffer);
