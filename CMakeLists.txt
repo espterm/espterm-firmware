@@ -146,6 +146,9 @@ set(SOURCE_FILES
         user/jstring.c
         user/jstring.h
         user/character_sets.h
+        user/ini_parser.h
+        user/ini_parser.c
+        user/ini_parser.rl
         user/utf8.h
         user/utf8.c
         user/cgi_logging.h user/config_xmacros.h user/config_xmacros.c)

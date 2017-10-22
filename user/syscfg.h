@@ -25,7 +25,7 @@ enum pwlock {
 	PWLOCK_MAX = 5,
 };
 
-//....Type................Name..Suffix...............Deref..XGET..........Cast..XSET.........................NOTIFY....Allow
+//....Type................Name..Suffix...............Deref..XGET............XSET.........................NOTIFY....Allow
 // Deref is used to pass the field to xget. Cast is used to convert the &'d field to what xset wants (needed for static arrays)
 #define XTABLE_SYSCONF \
 	X(u32,             uart_baudrate,  /**/,          /**/, xget_dec,      xset_sys_baudrate, NULL,   uart_changed=true, 1) \

@@ -132,6 +132,7 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_TPL_FILE("/cfg/system/?", tplSystemCfg, "/cfg_system.tpl"),
 	ROUTE_CGI("/cfg/system/set", cgiSystemCfgSetParams),
 	ROUTE_CGI("/cfg/system/export", cgiPersistExport),
+	ROUTE_CGI("/cfg/system/import", cgiPersistImport),
 	ROUTE_CGI("/cfg/system/write_defaults", cgiPersistWriteDefaults),
 	ROUTE_CGI("/cfg/system/restore_defaults", cgiPersistRestoreDefaults),
 	ROUTE_CGI("/cfg/system/restore_hard", cgiPersistRestoreHard),

@@ -10,6 +10,7 @@ Cgi/template routines for configuring non-wifi settings
 #include "version.h"
 #include "screen.h"
 #include "config_xmacros.h"
+#include "ini_parser.h"
 
 #define SET_REDIR_SUC "/cfg/system"
 
@@ -155,10 +156,17 @@ cgiPersistExport(HttpdConnData *connData)
 		httpdSend(connData, buff, -1);
 	}
 
+	// do not export SSID if unchanged - embeds unique ID that should
+	// not be overwritten in target.
+
+	char defSSID[20];
+	sprintf(defSSID, "TERM-%02X%02X%02X", mac[3], mac[4], mac[5]);
+
 	bool quoted;
 #define X(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
-        if (allow) { \
+        do { if (allow) { \
             xget(buff, deref XSTRUCT->name); \
+			if (streq(#name, "ap_ssid") && streq(buff, defSSID)) break; \
 			\
             quoted = false; \
             quoted |= streq(#type, "char"); \
@@ -173,7 +181,7 @@ cgiPersistExport(HttpdConnData *connData)
             } else { \
                 httpdSend(connData, buff, -1); \
             } \
-		}
+		} } while(0);
 
 #define admin 1
 #define tpl 1
@@ -206,4 +214,53 @@ cgiPersistExport(HttpdConnData *connData)
 #undef X
 	connData->cgiData = (void *) (step + 1);
 	return HTTPD_CGI_MORE;
+}
+
+
+void iniCb(const char *section, const char *key, const char *value, void *userData)
+{
+	dbg(">>> SET: [%s] %s = %s", section, key, value);
+}
+
+
+httpd_cgi_state ICACHE_FLASH_ATTR
+postRecvHdl(HttpdConnData *connData, char *data, int len)
+{
+	ini_parse(data, (size_t) len);
+	ini_parse_end();
+	return HTTPD_CGI_DONE;
+}
+
+/**
+ * Import settings from INI
+ *
+ * @param connData
+ * @return status
+ */
+httpd_cgi_state ICACHE_FLASH_ATTR
+cgiPersistImport(HttpdConnData *connData)
+{
+	if (connData->conn == NULL) {
+		//Connection aborted. Clean up.
+		return HTTPD_CGI_DONE;
+	}
+
+	httpdStartResponse(connData, 200);
+	httpdHeader(connData, "Content-Type", "text/plain");
+	httpdEndHeaders(connData);
+
+	char *start = strstr(connData->post->buff, "\r\n\r\n");
+	if (start == NULL) {
+		error("Malformed attachment POST!");
+		goto end;
+	}
+
+	ini_parse_begin(iniCb, NULL);
+	ini_parse(start, (size_t) connData->post->buffLen - (start - connData->post->buff));
+
+	connData->recvHdl = postRecvHdl;
+
+end:
+	// TODO redirect
+	return HTTPD_CGI_DONE;
 }
