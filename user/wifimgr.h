@@ -8,6 +8,7 @@
 #define ESP_VT100_FIRMWARE_WIFI_MANAGER_H
 
 #include <esp8266.h>
+#include "config_xmacros.h"
 #include "cgi_wifi.h"
 
 #define SSID_LEN 32
@@ -64,14 +65,8 @@
  * This block can be used eg. for WiFi config backup.
  */
 typedef struct {
-#define X( \
-	type, name, suffix, \
-	deref, xget, \
-	cast, xset, xsarg, \
-	xnotify) type name suffix;
-
+#define X XSTRUCT_FIELD
 	XTABLE_WIFI
-
 #undef X
 } WiFiConfigBundle;
 

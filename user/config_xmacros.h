@@ -82,4 +82,7 @@ enum xset_result xset_string(const char *name, char *field, const char *buff, co
 #define XGET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify) \
 	if (streq(token, #name)) xget(buff, deref wificonf->name);
 
+#define XSTRUCT_FIELD(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify) \
+	type name suffix;
+
 #endif //ESPTERM_CONFIG_XMACROS_H
