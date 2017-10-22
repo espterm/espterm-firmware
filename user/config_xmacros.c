@@ -81,7 +81,7 @@ xset_u8(const char *name, u8 *field, const char *buff, const void *arg)
 }
 
 enum xset_result ICACHE_FLASH_ATTR
-xset_string(const char *name, char *field, const char *buff, const void *arg)
+xset_string(const char *name, s8 **field, const char *buff, const void *arg)
 {
 	cgi_dbg("Setting %s = %s", name, buff);
 	u32 maxlen = (u32) arg;
@@ -92,6 +92,25 @@ xset_string(const char *name, char *field, const char *buff, const void *arg)
 	}
 
 	if (!streq(field, buff)) {
+		strncpy_safe(field, buff, (u32)arg);
+		return XSET_SET;
+	}
+	return XSET_UNCHANGED;
+}
+
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_ustring(const char *name, u8 **field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u32 maxlen = (u32) arg;
+
+	if (arg > 0 && (u32)strlen(buff) > maxlen) {
+		cgi_warn("String too long, max %d", maxlen);
+		return XSET_FAIL;
+	}
+
+	if (!streq((char *)field, buff)) {
 		strncpy_safe(field, buff, (u32)arg);
 		return XSET_SET;
 	}

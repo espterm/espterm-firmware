@@ -23,8 +23,8 @@
 static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
 {
 	if (no == 0) {
-		os_strcpy(user, sysconf->access_name);
-		os_strcpy(pass, sysconf->access_pw);
+		os_strcpy(user, (const char *) sysconf->access_name);
+		os_strcpy(pass, (const char *) sysconf->access_pw);
 		return 1;
 	}
 	if (no == 1) {

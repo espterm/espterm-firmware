@@ -49,6 +49,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 
 	// ---- AP DHCP server lease time ----
 
+#define XSTRUCT wificonf
 #define X XSET_CGI_FUNC
 	XTABLE_WIFI
 #undef X
@@ -98,6 +99,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplNetwork(HttpdConnData *connData, char *toke
 
 	strcpy(buff, ""); // fallback
 
+#define XSTRUCT wificonf
 #define X XGET_CGI_FUNC
 	XTABLE_WIFI
 #undef X

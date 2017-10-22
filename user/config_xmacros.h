@@ -64,7 +64,8 @@ enum xset_result xset_u8(const char *name, u8 *field, const char *buff, const vo
 /**
  * @param arg - max string length
  */
-enum xset_result xset_string(const char *name, char *field, const char *buff, const void *arg);
+enum xset_result xset_string(const char *name, s8 **field, const char *buff, const void *arg);
+enum xset_result xset_ustring(const char *name, u8 **field, const char *buff, const void *arg);
 
 /**
  * Helper template macro for CGI functions that load GET args to structs using XTABLE
@@ -72,17 +73,20 @@ enum xset_result xset_string(const char *name, char *field, const char *buff, co
  * If 'name' is found in connData->getArgs, xset() is called.
  * If the result is SET, xnotify() is fired. Else, 'name,' is appended to the redir_url buffer.
  */
-#define XSET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify) \
-	if (GET_ARG(#name)) { \
-		enum xset_result res = xset(#name, cast &wificonf->name, buff, (const void*) (xsarg)); \
+#define XSET_CGI_FUNC(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+	if ((allow) && GET_ARG(#name)) { \
+		enum xset_result res = xset(#name, cast &XSTRUCT->name, buff, (const void*) (xsarg)); \
 		if (res == XSET_SET) { xnotify(); } \
 		else if (res == XSET_FAIL) { redir_url += sprintf(redir_url, #name","); } \
 	}
 
-#define XGET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify) \
-	if (streq(token, #name)) xget(buff, deref wificonf->name);
+#define XGET_CGI_FUNC(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+	if ((allow) && streq(token, #name)) xget(buff, deref XSTRUCT->name);
 
-#define XSTRUCT_FIELD(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify) \
+#define XSTRUCT_FIELD(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
 	type name suffix;
+
+#define XDUMP_FIELD(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+	{ xget(buff, deref XSTRUCT->name); dbg(#name " = %s", buff); }
 
 #endif //ESPTERM_CONFIG_XMACROS_H

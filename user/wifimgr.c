@@ -300,6 +300,12 @@ wifimgr_apply_settings(void)
 {
 	wifi_info("[WiFi] Initializing...");
 
+//	char buff[64];
+//#define XSTRUCT wificonf
+//#define X XDUMP_FIELD
+//	XTABLE_WIFICONF
+//#undef X
+
 	// !!! Update to current version !!!
 
 	// Force wifi cycle

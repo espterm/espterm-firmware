@@ -324,6 +324,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	bool sta_turned_on = false;
 	bool sta_ssid_pw_changed = false;
 
+#define XSTRUCT wificonf
 #define X XSET_CGI_FUNC
 	XTABLE_WIFI
 #undef X
@@ -414,6 +415,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 
 	strcpy(buff, ""); // fallback
 
+#define XSTRUCT wificonf
 #define X XGET_CGI_FUNC
 	XTABLE_WIFI
 #undef X
