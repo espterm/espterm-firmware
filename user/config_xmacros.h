@@ -60,6 +60,8 @@ static inline enum xset_result xset_dummy(const char *name, void *field, const c
 enum xset_result xset_ip(const char *name, struct ip_addr *field, const char *buff, const void *arg);
 enum xset_result xset_bool(const char *name, bool *field, const char *buff, const void *arg);
 enum xset_result xset_u8(const char *name, u8 *field, const char *buff, const void *arg);
+enum xset_result xset_u32(const char *name, u32 *field, const char *buff, const void *arg);
+enum xset_result xset_u16(const char *name, u16 *field, const char *buff, const void *arg);
 
 /**
  * @param arg - max string length
@@ -73,17 +75,17 @@ enum xset_result xset_ustring(const char *name, u8 **field, const char *buff, co
  * If 'name' is found in connData->getArgs, xset() is called.
  * If the result is SET, xnotify() is fired. Else, 'name,' is appended to the redir_url buffer.
  */
-#define XSET_CGI_FUNC(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+#define XSET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
 	if ((allow) && GET_ARG(#name)) { \
 		enum xset_result res = xset(#name, cast &XSTRUCT->name, buff, (const void*) (xsarg)); \
-		if (res == XSET_SET) { xnotify(); } \
+		if (res == XSET_SET) { xnotify; } \
 		else if (res == XSET_FAIL) { redir_url += sprintf(redir_url, #name","); } \
 	}
 
-#define XGET_CGI_FUNC(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+#define XGET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
 	if ((allow) && streq(token, #name)) xget(buff, deref XSTRUCT->name);
 
-#define XSTRUCT_FIELD(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+#define XSTRUCT_FIELD(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
 	type name suffix;
 
 #define XDUMP_FIELD(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \

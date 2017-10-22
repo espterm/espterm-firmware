@@ -81,6 +81,32 @@ xset_u8(const char *name, u8 *field, const char *buff, const void *arg)
 }
 
 enum xset_result ICACHE_FLASH_ATTR
+xset_u32(const char *name, u32 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u32 val = (u32) atoi(buff);
+
+	if (*field != val) {
+		*field = (u32) val;
+		return XSET_SET;
+	}
+	return XSET_UNCHANGED;
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_u16(const char *name, u16 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u16 val = (u16) atoi(buff);
+
+	if (*field != val) {
+		*field = (u16) val;
+		return XSET_SET;
+	}
+	return XSET_UNCHANGED;
+}
+
+enum xset_result ICACHE_FLASH_ATTR
 xset_string(const char *name, s8 **field, const char *buff, const void *arg)
 {
 	cgi_dbg("Setting %s = %s", name, buff);

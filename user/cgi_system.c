@@ -12,9 +12,6 @@
 #define SET_REDIR_SUC "/cfg/system"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
 
-// Select which struct we want to use for X tables
-#define XSTRUCT sysconf
-
 static ETSTimer tmr;
 
 static void ICACHE_FLASH_ATTR tmrCb(void *arg)
@@ -99,7 +96,9 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 	memcpy(sysconf_backup, sysconf, sizeof(SystemConfigBundle));
 
 	// flags for the template builder
-	bool admin = false, tpl = false;
+	bool uart_changed = false; //!< this is set in uart notify, for use in terminal settings (dummy here)
+	bool admin = false;
+	const bool tpl = false; // this optionally disables some fields
 	do {
 		// Check admin PW
 		if (GET_ARG("pw")) {
@@ -164,13 +163,16 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 		}
 
 		// Settings in the system config block
+#define XSTRUCT sysconf
 #define X XSET_CGI_FUNC
 		XTABLE_SYSCONF
 #undef X
+#undef XSTRUCT
 
 	} while (0);
 
 	(void)redir_url;
+	(void)uart_changed; // unused
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
@@ -210,11 +212,14 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 
 	strcpy(buff, ""); // fallback
 
-	const bool admin = false, tpl=true;
+	const bool admin = false;
+	const bool tpl=true;
 
+#define XSTRUCT sysconf
 #define X XGET_CGI_FUNC
 	XTABLE_SYSCONF
 #undef X
+#undef XSTRUCT
 
 	if (streq(token, "def_access_name")) {
 		sprintf(buff, "%s", DEF_ACCESS_NAME);

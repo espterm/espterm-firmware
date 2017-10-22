@@ -8,6 +8,7 @@
 #include "character_sets.h"
 #include "utf8.h"
 #include "cgi_sockets.h"
+#include "cgi_logging.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_live;
@@ -106,8 +107,19 @@ bool cursor_saved = false;
 static struct {
 	bool alternate_active;
 	char title[TERM_TITLE_LEN];
-	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
-	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
+
+	char btn1[TERM_BTN_LEN];
+	char btn2[TERM_BTN_LEN];
+	char btn3[TERM_BTN_LEN];
+	char btn4[TERM_BTN_LEN];
+	char btn5[TERM_BTN_LEN];
+
+	char btn1_msg[TERM_BTN_MSG_LEN];
+	char btn2_msg[TERM_BTN_MSG_LEN];
+	char btn3_msg[TERM_BTN_MSG_LEN];
+	char btn4_msg[TERM_BTN_MSG_LEN];
+	char btn5_msg[TERM_BTN_MSG_LEN];
+
 	u32 width;
 	u32 height;
 	int vm0;
@@ -143,45 +155,193 @@ static struct {
 	int x_min, y_min, x_max, y_max;
 } scr_dirty;
 
-#define reset_screen_dirty() do { \
-		scr_dirty.x_min = W; \
-		scr_dirty.x_max = -1; \
-		scr_dirty.y_min = H; \
-		scr_dirty.y_max = -1; \
-	} while(0)
+static void ICACHE_FLASH_ATTR reset_screen_dirty(void)
+{
+	scr_dirty.x_min = W;
+	scr_dirty.x_max = -1;
+	scr_dirty.y_min = H;
+	scr_dirty.y_max = -1;
+}
 
-#define expand_dirty(y0, y1, x0, x1)  do { \
-		seri_dbg("Expand: X: (%d..%d) -> %d..%d, Y: (%d..%d) -> %d..%d", scr_dirty.x_min, scr_dirty.x_max, x0, x1, scr_dirty.y_min, scr_dirty.y_max, y0, y1); \
-		if ((int)(y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0); \
-		if ((int)(x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0); \
-		if ((int)(y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1); \
-		if ((int)(x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1); \
-	} while(0)
+static void ICACHE_FLASH_ATTR expand_dirty(int y0, int y1, int x0, int x1)
+{
+	seri_dbg("Expand: X: (%d..%d) -> %d..%d, Y: (%d..%d) -> %d..%d",
+			 scr_dirty.x_min, scr_dirty.x_max, x0, x1, scr_dirty.y_min, scr_dirty.y_max, y0, y1);
 
-#define NOTIFY_LOCK() do { \
-							notifyLock++; \
-						} while(0)
-            
-#define NOTIFY_DONE(updateTopics) do { \
-							lockTopics |= (updateTopics); \
-							if (notifyLock > 0) notifyLock--; \
-							if (notifyLock == 0) { \
-								screen_notifyChange(lockTopics); \
-								lockTopics = 0;\
-							} \
-						} while(0)
+	if ((y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0);
+	if ((x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0);
+	if ((y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1);
+	if ((x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1);
+}
+
+#define NOTIFY_LOCK() { notifyLock++; }
+
+static void ICACHE_FLASH_ATTR NOTIFY_DONE(u32 updateTopics)
+{
+	lockTopics |= (updateTopics);
+	if (notifyLock > 0) notifyLock--;
+	if (notifyLock == 0) {
+		screen_notifyChange(lockTopics);
+		lockTopics = 0;
+	}
+}
 
 /** Clear the hanging attribute if the cursor is no longer >= W */
-#define clear_invalid_hanging() do { \
-									if (cursor.hanging && cursor.x != W-1) { \
-										cursor.hanging = false; \
-										screen_notifyChange(TOPIC_CHANGE_CURSOR); \
-									} \
-								} while(false)
+static void ICACHE_FLASH_ATTR clear_invalid_hanging(void)
+{
+	if (cursor.hanging && cursor.x != W-1) {
+		cursor.hanging = false;
+		screen_notifyChange(TOPIC_CHANGE_CURSOR);
+	}
+}
 
 #define cursor_inside_region() (cursor.y >= TOP && cursor.y <= BTM)
 
 //region --- Settings ---
+
+/** Export color for config */
+void ICACHE_FLASH_ATTR
+xget_term_color(char *buff, u32 value)
+{
+	if (value < 256) {
+		sprintf(buff, "%d", value);
+	} else {
+		sprintf(buff, "#%06X", value - 256);
+	}
+}
+
+/** Export button message as stirng for config */
+void ICACHE_FLASH_ATTR
+xget_term_bm(char *buff, char *value)
+{
+	u8 c;
+	char *bp = buff;
+	char *cp = value;
+	int n = 0;
+	while((c = (u8) *cp++) != 0) {
+		if(n>0) {
+			*bp = ',';
+			bp++;
+		}
+		bp += sprintf(bp, "%d", c);
+		n++;
+	}
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_term_bm(const char *name, s8 **field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+
+	// parse: comma,space or semicolon separated decimal values of ASCII codes
+	char c;
+	const char *cp = buff;
+	int char_i = 0;
+	int acu = 0;
+	bool lastsp = 1;
+	char buff_bm[TERM_BTN_MSG_LEN];
+	while ((c = *cp++) != 0) {
+		if (c == ' ' || c == ',' || c == ';') {
+			if(lastsp) continue;
+
+			if (acu==0 || acu>255) {
+				cgi_warn("Bad value! %d", acu);
+				return XSET_FAIL;
+			}
+
+			if (char_i >= TERM_BTN_MSG_LEN-1) {
+				cgi_warn("Too long! %d", acu);
+				return XSET_FAIL;
+			}
+
+			cgi_dbg("acu %d", acu);
+			buff_bm[char_i++] = (char)acu;
+
+			// prepare for next char
+			acu = 0;
+			lastsp = 1;
+		} else if (c>='0'&&c<='9') {
+			lastsp = 0;
+			acu *= 10;
+			acu += c - '0';
+		} else {
+			cgi_warn("Bad syntax!");
+			return XSET_FAIL;
+		}
+	}
+	if (lastsp && char_i == 0) {
+		cgi_warn("Required!");
+		return XSET_FAIL;
+	}
+	if (!lastsp) {
+		buff_bm[char_i++] = (char)acu;
+	}
+	buff_bm[char_i] = 0;
+	cgi_dbg("%s, chari = %d", buff_bm, char_i);
+
+	if (!streq(*field, buff_bm)) {
+		strncpy((char*)*field, buff_bm, TERM_BTN_MSG_LEN);
+		return XSET_SET;
+	}
+	return XSET_UNCHANGED;
+}
+
+/** convert hex number to int */
+static ICACHE_FLASH_ATTR u32
+decodehex(const char *buf) {
+	u32 n = 0;
+	char c;
+	while ((c = *buf++) != 0) {
+		if (c >= '0' && c <= '9') c -= '0';
+		else if (c >= 'a' && c <= 'f') c -= 'a'-10;
+		else if (c >= 'A' && c <= 'F') c -= 'A'-10;
+		else c = 0;
+		n *= 16;
+		n += c;
+	}
+	return n;
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_term_color(const char *name, u32 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u32 n;
+
+	if (buff[0] == '#') {
+		// decode hex
+		n = decodehex(buff+1);
+		n += 256;
+	} else {
+		n = atoi(buff);
+	}
+
+	if (*field != n) {
+		*field = n;
+		return XSET_SET;
+	}
+
+	return XSET_UNCHANGED;
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_term_cursorshape(const char *name, u32 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u32 n = atoi(buff);
+
+	if (n >= 0 && n <= 6 && n != 1) {
+		if (*field != n) {
+			*field = n;
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("Bad cursor_shape num: %s", buff);
+		return XSET_FAIL;
+	}
+}
+
 
 /**
  * Restore hard defaults
@@ -194,10 +354,19 @@ terminal_restore_defaults(void)
 	termconf->default_bg = 0;
 	termconf->default_fg = 7;
 	sprintf(termconf->title, SCR_DEF_TITLE);
-	for(int i=1; i <= TERM_BTN_COUNT; i++) {
-		sprintf(termconf->btn[i-1], "%d", i);
-		sprintf(termconf->btn_msg[i-1], "%c", i);
-	}
+
+	strcpy(termconf->btn1, "1");
+	strcpy(termconf->btn2, "2");
+	strcpy(termconf->btn3, "3");
+	strcpy(termconf->btn4, "4");
+	strcpy(termconf->btn5, "5");
+
+	strcpy(termconf->bm1, "\x01");
+	strcpy(termconf->bm2, "\x02");
+	strcpy(termconf->bm3, "\x03");
+	strcpy(termconf->bm4, "\x04");
+	strcpy(termconf->bm5, "\x05");
+
 	termconf->theme = 0;
 	termconf->parser_tout_ms = SCR_DEF_PARSER_TOUT_MS;
 	termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
@@ -231,6 +400,13 @@ void ICACHE_FLASH_ATTR
 terminal_apply_settings_noclear(void)
 {
 	bool changed = false;
+
+//		char buff[64];
+//#define XSTRUCT termconf
+//#define X XDUMP_FIELD
+//	XTABLE_TERMCONF
+//#undef X
+//	return;
 
 	// Migrate
 	if (termconf->config_version < 1) {
@@ -393,10 +569,11 @@ screen_reset_do(bool size, bool labels)
 		strcpy(termconf_live.title, termconf->title);
 		strcpy(termconf_live.backdrop, termconf->backdrop);
 
-		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
-			strcpy(termconf_live.btn[i], termconf->btn[i]);
-			strcpy(termconf_live.btn_msg[i], termconf->btn_msg[i]);
-		}
+		strcpy(termconf_live.btn1, termconf->btn1);
+		strcpy(termconf_live.btn2, termconf->btn2);
+		strcpy(termconf_live.btn3, termconf->btn3);
+		strcpy(termconf_live.btn4, termconf->btn4);
+		strcpy(termconf_live.btn5, termconf->btn5);
 
 		termconf_live.show_buttons = termconf->show_buttons;
 		termconf_live.show_config_links = termconf->show_config_links;
@@ -452,8 +629,11 @@ screen_swap_state(bool alternate)
 		ansi_dbg("Swap to alternate");
 		// store old state
 		memcpy(state_backup.title, termconf_live.title, TERM_TITLE_LEN);
-		memcpy(state_backup.btn, termconf_live.btn, sizeof(termconf_live.btn));
-		memcpy(state_backup.btn_msg, termconf_live.btn_msg, sizeof(termconf_live.btn_msg));
+
+		// copy multiple fields at once
+		memcpy(state_backup.btn1, termconf_live.btn1, sizeof(termconf_live.btn1)*TERM_BTN_COUNT);
+		memcpy(state_backup.btn1_msg, termconf_live.bm1, sizeof(termconf_live.bm1)*TERM_BTN_COUNT);
+
 		memcpy(state_backup.tab_stops, scr.tab_stops, sizeof(scr.tab_stops));
 		state_backup.vm0 = scr.vm0;
 		state_backup.vm1 = scr.vm1;
@@ -465,8 +645,11 @@ screen_swap_state(bool alternate)
 	else {
 		ansi_dbg("Unswap from alternate");
 		memcpy(termconf_live.title, state_backup.title, TERM_TITLE_LEN);
-		memcpy(termconf_live.btn, state_backup.btn, sizeof(termconf_live.btn));
-		memcpy(termconf_live.btn_msg, state_backup.btn_msg, sizeof(termconf_live.btn_msg));
+
+		// copy multiple fields at once
+		memcpy(termconf_live.btn1, state_backup.btn1, sizeof(termconf_live.btn1)*TERM_BTN_COUNT);
+		memcpy(termconf_live.bm1, state_backup.btn1_msg, sizeof(termconf_live.bm1)*TERM_BTN_COUNT);
+
 		memcpy(scr.tab_stops, state_backup.tab_stops, sizeof(scr.tab_stops));
 		scr.vm0 = state_backup.vm0;
 		scr.vm1 = state_backup.vm1;
@@ -989,8 +1172,8 @@ screen_resize(int rows, int cols)
 	if (W == cols && H == rows) return; // Do nothing
 
 	NOTIFY_LOCK();
-	W = cols;
-	H = rows;
+	W = (u32) cols;
+	H = (u32) rows;
 	screen_reset_on_resize();
 	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS|TOPIC_CHANGE_CONTENT_ALL|TOPIC_CHANGE_CURSOR);
 }
@@ -1012,7 +1195,28 @@ void ICACHE_FLASH_ATTR
 screen_set_button_text(int num, const char *text)
 {
 	NOTIFY_LOCK();
-	strncpy(termconf_live.btn[num-1], text, TERM_BTN_LEN);
+	if (num == 1) strncpy(termconf_live.btn1, text, TERM_BTN_LEN);
+	else if (num == 2) strncpy(termconf_live.btn2, text, TERM_BTN_LEN);
+	else if (num == 3) strncpy(termconf_live.btn3, text, TERM_BTN_LEN);
+	else if (num == 4) strncpy(termconf_live.btn4, text, TERM_BTN_LEN);
+	else if (num == 5) strncpy(termconf_live.btn5, text, TERM_BTN_LEN);
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Helper function to set terminal button label
+ * @param num - button number 1-5
+ * @param str - button text
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_message(int num, const char *msg)
+{
+	NOTIFY_LOCK();
+	if (num == 1) strncpy(termconf_live.bm1, msg, TERM_BTN_MSG_LEN);
+	else if (num == 2) strncpy(termconf_live.bm2, msg, TERM_BTN_MSG_LEN);
+	else if (num == 3) strncpy(termconf_live.bm3, msg, TERM_BTN_MSG_LEN);
+	else if (num == 4) strncpy(termconf_live.bm4, msg, TERM_BTN_MSG_LEN);
+	else if (num == 5) strncpy(termconf_live.bm5, msg, TERM_BTN_MSG_LEN);
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
 }
 
@@ -1121,7 +1325,7 @@ void ICACHE_FLASH_ATTR
 screen_cursor_shape(enum CursorShape shape)
 {
 	NOTIFY_LOCK();
-	if (shape == CURSOR_DEFAULT) shape = termconf->cursor_shape;
+	if (shape == CURSOR_DEFAULT) shape = (enum CursorShape) termconf->cursor_shape;
 	termconf_live.cursor_shape = shape;
 	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
@@ -1356,7 +1560,7 @@ screen_back_index(int count)
 		cursor.x = new_x;
 	} else {
 		cursor.x = 0;
-		screen_insert_characters(-new_x);
+		screen_insert_characters((unsigned int) -new_x);
 		topics |= TOPIC_CHANGE_CONTENT_PART;
 	}
 	NOTIFY_DONE(topics);
@@ -1548,7 +1752,7 @@ do_save_private_opt(int n, bool save)
 {
 	ScreenNotifyTopics topics = TOPIC_INTERNAL;
 	if (!save) NOTIFY_LOCK();
-#define SAVE_RESTORE(sf, of) do { if (save) sf=(of); else of=(sf); } while(0)
+#define SAVE_RESTORE(sf, of) do { if (save) (sf)=(of); else (of)=(sf); } while(0)
 	switch (n) {
 		case 1:
 			SAVE_RESTORE(opt_backup.cursors_alt_mode, scr.cursors_alt_mode);
@@ -2044,7 +2248,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		BEGIN_TOPIC(TOPIC_CHANGE_TITLE, TERM_TITLE_LEN+4+1)
 			bufput_c(TOPICMARK_TITLE);
 
-			int len = (int) strlen(termconf_live.title);
+			size_t len = strlen(termconf_live.title);
 			if (len > 0) {
 				memcpy(bb, termconf_live.title, len);
 				bb += len;
@@ -2059,20 +2263,21 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(TERM_BTN_COUNT);
 
 			for (int i = 0; i < TERM_BTN_COUNT; i++) {
-				int len = (int) strlen(termconf_live.btn[i]);
+				size_t len = strlen(TERM_BTN_N(&termconf_live, i));
 				if (len > 0) {
-					memcpy(bb, termconf_live.btn[i], len);
+					memcpy(bb, TERM_BTN_N(&termconf_live, i), len);
 					bb += len;
 					remain -= len;
 				}
 				bufput_c('\x01');
 			}
+
 		END_TOPIC
 
 		BEGIN_TOPIC(TOPIC_CHANGE_BACKDROP, TERM_BACKDROP_LEN+1+1)
 			bufput_c(TOPICMARK_BACKDROP);
 
-			int len = (int) strlen(termconf_live.backdrop);
+			size_t len = strlen(termconf_live.backdrop);
 			if (len > 0) {
 				memcpy(bb, termconf_live.backdrop, len);
 				bb += len;

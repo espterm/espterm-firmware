@@ -25,21 +25,20 @@ enum pwlock {
 	PWLOCK_MAX = 5,
 };
 
-
-//....Type................Name..Suffix...............Deref..XGET........Allow..Cast..XSET.........................NOTIFY
+//....Type................Name..Suffix...............Deref..XGET..........Cast..XSET.........................NOTIFY....Allow
 // Deref is used to pass the field to xget. Cast is used to convert the &'d field to what xset wants (needed for static arrays)
 #define XTABLE_SYSCONF \
-	X(u32,             uart_baudrate,  /**/,          /**/, xget_dec,      1,         /**/,   xset_sys_baudrate, NULL,   xnoop) \
-	X(u8,              uart_parity, /**/,             /**/, xget_dec,      1,         /**/,   xset_sys_parity, NULL,     xnoop) \
-	X(u8,              uart_stopbits,  /**/,          /**/, xget_dec,      1,         /**/,   xset_sys_stopbits, NULL,   xnoop) \
+	X(u32,             uart_baudrate,  /**/,          /**/, xget_dec,      /**/,   xset_sys_baudrate, NULL,   uart_changed=true, 1) \
+	X(u8,              uart_parity, /**/,             /**/, xget_dec,      /**/,   xset_sys_parity, NULL,     uart_changed=true, 1) \
+	X(u8,              uart_stopbits,  /**/,          /**/, xget_dec,      /**/,   xset_sys_stopbits, NULL,   uart_changed=true, 1) \
 	\
-	X(u8,              config_version, /**/,          /**/, xget_dec,      0,         /**/,   xset_u8, NULL,             xnoop) \
+	X(u8,              config_version, /**/,          /**/, xget_dec,      /**/,   xset_u8, NULL,             /**/, 1) \
 	\
-	X(u8,              pwlock, /**/,                  /**/, xget_dec,      admin|tpl, /**/,   xset_sys_pwlock, NULL,     xnoop) \
-	X(u8,              access_pw, [64],               /**/, xget_ustring,  admin,     (u8**), xset_sys_accesspw, NULL,   xnoop) \
-	X(u8,              access_name, [32],             /**/, xget_ustring,  admin|tpl, (u8**), xset_ustring, NULL,        xnoop) \
+	X(u8,              pwlock, /**/,                  /**/, xget_dec,      /**/,   xset_sys_pwlock, NULL,     /**/, admin|tpl) \
+	X(u8,              access_pw, [64],               /**/, xget_ustring,  (u8**), xset_sys_accesspw, NULL,   /**/, admin) \
+	X(u8,              access_name, [32],             /**/, xget_ustring,  (u8**), xset_ustring, NULL,        /**/, admin|tpl) \
 	\
-	X(bool,            overclock, /**/,               /**/, xget_bool,     1,         /**/,   xset_bool, NULL,           xnoop) \
+	X(bool,            overclock, /**/,               /**/, xget_bool,     /**/,   xset_bool, NULL,           /**/, 1) \
 
 
 typedef struct {

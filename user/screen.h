@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <esp8266.h>
 #include <httpd.h>
+#include "config_xmacros.h"
 
 /**
  * This module handles the virtual screen and operations on it.
@@ -78,30 +79,59 @@ enum CursorShape {
 #define TERMCONF_SIZE 400
 #define TERMCONF_VERSION 4
 
+//....Type................Name..Suffix...............Deref..XGET.........Cast..XSET.........................NOTIFY................Allow
+// Deref is used to pass the field to xget. Cast is used to convert the &'d field to what xset wants (needed for static arrays)
+#define XTABLE_TERMCONF \
+	X(u32,            width, /**/,                  /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
+	X(u32,            height, /**/,                 /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
+	X(u32,            default_bg, /**/,             /**/, xget_term_color,  /**/, xset_term_color, NULL,      /**/, 1) \
+	X(u32,            default_fg, /**/,             /**/, xget_term_color,  /**/, xset_term_color, NULL,      /**/, 1) \
+	X(char,           title, [TERM_TITLE_LEN],      /**/, xget_string,   (s8**), xset_string, TERM_TITLE_LEN, /**/, 1) \
+	X(char,           btn1, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn2, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn3, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn4, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn5, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(u8,             theme, /**/,                  /**/, xget_dec,      /**/, xset_u8, NULL,       /**/, 1) \
+	X(u32,            parser_tout_ms, /**/,         /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
+	X(u32,            display_tout_ms, /**/,        /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
+	X(bool,           fn_alt_mode, /**/,            /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(u8,             config_version, /**/,         /**/, xget_dec,      /**/, xset_u8, NULL,       /**/, 1) \
+	X(u32,            display_cooldown_ms, /**/,    /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
+	X(bool,           loopback, /**/,               /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(bool,           show_buttons, /**/,           /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(bool,           show_config_links, /**/,      /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(char,           bm1, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm2, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm3, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm4, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm5, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
+	X(u32,            cursor_shape, /**/,           /**/, xget_dec,      /**/, xset_term_cursorshape, NULL,      /**/, 1) \
+	X(bool,           crlf_mode, /**/,              /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(bool,           want_all_fn, /**/,            /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(bool,           debugbar, /**/,               /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(bool,           allow_decopt_12, /**/,        /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(bool,           ascii_debug, /**/,            /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
+	X(char,           backdrop, [TERM_BACKDROP_LEN], /**/, xget_string,  (s8**), xset_string, TERM_BACKDROP_LEN,  /**/, 1)
+
+#define TERM_BM_N(tc, n) ((tc)->bm1+(TERM_BTN_MSG_LEN*n))
+#define TERM_BTN_N(tc, n) ((tc)->btn1+(TERM_BTN_LEN*n))
+
+/** Export color for config */
+void xget_term_color(char *buff, u32 value);
+/** Export button message as stirng for config */
+void xget_term_bm(char *buff, char *value);
+/** Set button message */
+enum xset_result xset_term_bm(const char *name, s8 **field, const char *buff, const void *arg);
+/** Set color */
+enum xset_result xset_term_color(const char *name, u32 *field, const char *buff, const void *arg);
+/** Set cursor shape */
+enum xset_result xset_term_cursorshape(const char *name, u32 *field, const char *buff, const void *arg);
+
 typedef struct {
-	u32 width;
-	u32 height;
-	u32 default_bg; // 00-FFh - ANSI colors, (00:00:00-FF:FF:FF)+256 - True Color
-	u32 default_fg;
-	char title[TERM_TITLE_LEN];
-	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
-	u8 theme;
-	u32 parser_tout_ms;
-	u32 display_tout_ms;
-	bool fn_alt_mode; // xterm compatibility mode (alternate codes for some FN keys)
-	u8 config_version;
-	u32 display_cooldown_ms;
-	bool loopback;
-	bool show_buttons;
-	bool show_config_links;
-	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
-	enum CursorShape cursor_shape;
-	bool crlf_mode;
-	bool want_all_fn;
-	bool debugbar;
-	bool allow_decopt_12;
-	bool ascii_debug;
-	char backdrop[TERM_BACKDROP_LEN];
+#define X XSTRUCT_FIELD
+	XTABLE_TERMCONF
+#undef X
 } TerminalConfigBundle;
 
 // Live config
@@ -150,6 +180,7 @@ void screen_resize(int rows, int cols);
 void screen_set_title(const char *title);
 /** Set a button text */
 void screen_set_button_text(int num, const char *text);
+void screen_set_button_message(int num, const char *msg);
 /** Change backdrop */
 void screen_set_backdrop(const char *url);
 
