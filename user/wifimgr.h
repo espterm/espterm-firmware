@@ -19,6 +19,43 @@
 
 #define WIFICONF_VERSION 0
 
+#define wifimgr_notify_ap() { wifi_change_flags.ap = true; }
+#define wifimgr_notify_sta() { wifi_change_flags.ap = true; }
+
+//....Type................Name..Suffix...............Deref..XGET.........Cast..XSET.........................NOTIFY
+#define XTABLE_WIFI \
+	X(u8,                 opmode, ,                     ,  xget_dec,      , xset_wifi_opmode, NULL,      xnoop) \
+	\
+	X(u8,                 tpw, ,                        ,  xget_dec,      , xset_wifi_tpw, NULL,         wifimgr_notify_ap) \
+	X(u8,                 ap_channel, ,                 ,  xget_dec,      , xset_wifi_ap_channel, NULL,  wifimgr_notify_ap) \
+	X(u8,                 ap_ssid, [SSID_LEN],          ,  xget_ustring,  (u8**), xset_wifi_ssid, 1,      wifimgr_notify_ap) \
+	X(u8,                 ap_password, [PASSWORD_LEN],  ,  xget_ustring,  (u8**), xset_wifi_pwd, NULL,    wifimgr_notify_ap) \
+	X(bool,               ap_hidden, ,                  ,  xget_bool,     , xset_bool, NULL,             wifimgr_notify_ap) \
+	\
+	X(u16,                ap_dhcp_time, ,               ,  xget_dec,      , xset_wifi_lease_time, NULL,  wifimgr_notify_ap) \
+	X(u32,                unused1, ,                    ,  xget_dummy,    , xset_dummy, NULL,            xnoop) \
+	X(struct ip_addr,     ap_dhcp_start, ,              &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_ap) \
+	X(struct ip_addr,     ap_dhcp_end, ,                &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_ap) \
+	\
+	X(struct ip_addr,     ap_addr_ip, ,                 &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_ap) \
+	X(struct ip_addr,     ap_addr_mask, ,               &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_ap) \
+	\
+	\
+	X(u32,                unused2, ,                    ,  xget_dummy,    , xset_dummy, NULL,            xnoop) \
+	X(u8,                 sta_ssid, [SSID_LEN],         ,  xget_ustring,  (u8**), xset_wifi_ssid, 0,      wifimgr_notify_sta) \
+	X(u8,                 sta_password, [PASSWORD_LEN], ,  xget_ustring,  (u8**), xset_wifi_pwd, NULL,    wifimgr_notify_sta) \
+	X(bool,               sta_dhcp_enable, ,            ,  xget_bool,     , xset_bool, NULL,             wifimgr_notify_sta) \
+	\
+	X(struct ip_addr,     sta_addr_ip, ,                &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_sta) \
+	X(struct ip_addr,     sta_addr_mask, ,              &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_sta) \
+	X(struct ip_addr,     sta_addr_gw, ,                &, xget_ip,       , xset_ip, NULL,               wifimgr_notify_sta) \
+	\
+	\
+	X(u8,                 config_version, ,             ,  xget_dec,      , xset_u8, NULL,               xnoop)
+
+// unused1 - replaces 'enabled' bit from old dhcps_lease struct
+// unused2 - gap after 'ap_gw' which isn't used and doesn't make sense
+
 /**
  * A structure holding all configured WiFi parameters
  * and the active state.
@@ -26,25 +63,15 @@
  * This block can be used eg. for WiFi config backup.
  */
 typedef struct {
-	WIFI_MODE opmode : 8;
-	u8 tpw;
+#define X( \
+	type, name, suffix, \
+	deref, xget, \
+	cast, xset, xsarg, \
+	xnotify) type name suffix;
 
-	// AP config
-	u8 ap_channel;
-	u8 ap_ssid[SSID_LEN];
-	u8 ap_password[PASSWORD_LEN];
-	bool ap_hidden;
-	//
-	u16 ap_dhcp_time; // in minutes
-	struct dhcps_lease ap_dhcp_range;
-	struct ip_info ap_addr;
+	XTABLE_WIFI
 
-	// Client config
-	u8 sta_ssid[SSID_LEN];
-	u8 sta_password[PASSWORD_LEN];
-	bool sta_dhcp_enable;
-	struct ip_info sta_addr;
-	u8 config_version;
+#undef X
 } WiFiConfigBundle;
 
 typedef struct  {
@@ -61,6 +88,13 @@ void wifimgr_restore_defaults(void);
 void wifimgr_apply_settings(void);
 
 int getStaIpAsString(char *buffer);
+
+enum xset_result xset_wifi_lease_time(const char *name, u16 *field, const char *buff, const void *arg);
+enum xset_result xset_wifi_opmode(const char *name, u8 *field, const char *buff, const void *arg);
+enum xset_result xset_wifi_tpw(const char *name, u8 *field, const char *buff, const void *arg);
+enum xset_result xset_wifi_ap_channel(const char *name, u8 *field, const char *buff, const void *arg);
+enum xset_result xset_wifi_ssid(const char *name, u8 **field, const char *buff, const void *arg);
+enum xset_result xset_wifi_pwd(const char *name, u8 **field, const char *buff, const void *arg);
 
 #if DEBUG_WIFI
 #define wifi_warn warn

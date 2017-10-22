@@ -148,7 +148,7 @@ set(SOURCE_FILES
         user/character_sets.h
         user/utf8.h
         user/utf8.c
-        user/cgi_logging.h)
+        user/cgi_logging.h user/config_xmacros.h user/config_xmacros.c)
 
 include_directories(include)
 include_directories(libesphttpd/esphttpclient)

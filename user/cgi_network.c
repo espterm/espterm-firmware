@@ -9,6 +9,7 @@ configuring the network settings
 #include "persist.h"
 #include "helpers.h"
 #include "cgi_logging.h"
+#include "config_xmacros.h"
 
 #define SET_REDIR_SUC "/cfg/network"
 #define SET_REDIR_ERR SET_REDIR_SUC"?err="
@@ -48,138 +49,9 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 
 	// ---- AP DHCP server lease time ----
 
-	if (GET_ARG("ap_dhcp_time")) {
-		cgi_dbg("Setting DHCP lease time to: %s min.", buff);
-		int min = atoi(buff);
-		if (min >= 1 && min <= 2880) {
-			if (wificonf->ap_dhcp_time != min) {
-				wificonf->ap_dhcp_time = (u16) min;
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Lease time %s out of allowed range 1-2880.", buff);
-			redir_url += sprintf(redir_url, "ap_dhcp_time,");
-		}
-	}
-
-	// ---- AP DHCP start and end IP ----
-
-	if (GET_ARG("ap_dhcp_start")) {
-		cgi_dbg("Setting DHCP range start IP to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0) {
-			if (wificonf->ap_dhcp_range.start_ip.addr != ip) {
-				wificonf->ap_dhcp_range.start_ip.addr = ip;
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad IP: %s", buff);
-			redir_url += sprintf(redir_url, "ap_dhcp_start,");
-		}
-	}
-
-	if (GET_ARG("ap_dhcp_end")) {
-		cgi_dbg("Setting DHCP range end IP to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0) {
-			if (wificonf->ap_dhcp_range.end_ip.addr != ip) {
-				wificonf->ap_dhcp_range.end_ip.addr = ip;
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad IP: %s", buff);
-			redir_url += sprintf(redir_url, "ap_dhcp_end,");
-		}
-	}
-
-	// ---- AP local address & config ----
-
-	if (GET_ARG("ap_addr_ip")) {
-		cgi_dbg("Setting AP local IP to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0) {
-			if (wificonf->ap_addr.ip.addr != ip) {
-				wificonf->ap_addr.ip.addr = ip;
-				wificonf->ap_addr.gw.addr = ip; // always the same, we're the router here
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad IP: %s", buff);
-			redir_url += sprintf(redir_url, "ap_addr_ip,");
-		}
-	}
-
-	if (GET_ARG("ap_addr_mask")) {
-		cgi_dbg("Setting AP local IP netmask to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0) {
-			if (wificonf->ap_addr.netmask.addr != ip) {
-				// ideally this should be checked to match the IP.
-				// Let's hope users know what they're doing
-				wificonf->ap_addr.netmask.addr = ip;
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad IP mask: %s", buff);
-			redir_url += sprintf(redir_url, "ap_addr_mask,");
-		}
-	}
-
-	// ---- Station enable/disable DHCP ----
-
-	// DHCP enable / disable (disable means static IP is enabled)
-	if (GET_ARG("sta_dhcp_enable")) {
-		cgi_dbg("DHCP enable = %s", buff);
-		int enable = atoi(buff);
-		if (wificonf->sta_dhcp_enable != enable) {
-			wificonf->sta_dhcp_enable = (bool)enable;
-			wifi_change_flags.sta = true;
-		}
-	}
-
-	// ---- Station IP config (Static IP) ----
-
-	if (GET_ARG("sta_addr_ip")) {
-		cgi_dbg("Setting Station mode static IP to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0) {
-			if (wificonf->sta_addr.ip.addr != ip) {
-				wificonf->sta_addr.ip.addr = ip;
-				wifi_change_flags.sta = true;
-			}
-		} else {
-			cgi_warn("Bad IP: %s", buff);
-			redir_url += sprintf(redir_url, "sta_addr_ip,");
-		}
-	}
-
-	if (GET_ARG("sta_addr_mask")) {
-		cgi_dbg("Setting Station mode static IP netmask to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0 && ip != 0xFFFFFFFFUL) {
-			if (wificonf->sta_addr.netmask.addr != ip) {
-				wificonf->sta_addr.netmask.addr = ip;
-				wifi_change_flags.sta = true;
-			}
-		} else {
-			cgi_warn("Bad IP mask: %s", buff);
-			redir_url += sprintf(redir_url, "sta_addr_mask,");
-		}
-	}
-
-	if (GET_ARG("sta_addr_gw")) {
-		cgi_dbg("Setting Station mode static IP default gateway to: \"%s\"", buff);
-		u32 ip = ipaddr_addr(buff);
-		if (ip != 0) {
-			if (wificonf->sta_addr.gw.addr != ip) {
-				wificonf->sta_addr.gw.addr = ip;
-				wifi_change_flags.sta = true;
-			}
-		} else {
-			cgi_warn("Bad gw IP: %s", buff);
-			redir_url += sprintf(redir_url, "sta_addr_gw,");
-		}
-	}
+#define X XSET_CGI_FUNC
+	XTABLE_WIFI
+#undef X
 
 	(void) redir_url;
 
@@ -216,7 +88,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 //Template code for the WLAN page.
 httpd_cgi_state ICACHE_FLASH_ATTR tplNetwork(HttpdConnData *connData, char *token, void **arg)
 {
-	char buff[20];
+	char buff[64];
 	u8 mac[6];
 
 	if (token == NULL) {
@@ -226,34 +98,12 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplNetwork(HttpdConnData *connData, char *toke
 
 	strcpy(buff, ""); // fallback
 
-	if (streq(token, "ap_dhcp_time")) {
-		sprintf(buff, "%d", wificonf->ap_dhcp_time);
-	}
-	else if (streq(token, "ap_dhcp_start")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
-	}
-	else if (streq(token, "ap_dhcp_end")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
-	}
-	else if (streq(token, "ap_addr_ip")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_addr.ip.addr));
-	}
-	else if (streq(token, "ap_addr_mask")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->ap_addr.netmask.addr));
-	}
-	else if (streq(token, "sta_dhcp_enable")) {
-		sprintf(buff, "%d", wificonf->sta_dhcp_enable);
-	}
-	else if (streq(token, "sta_addr_ip")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
-	}
-	else if (streq(token, "sta_addr_mask")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
-	}
-	else if (streq(token, "sta_addr_gw")) {
-		sprintf(buff, IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
-	}
-	else if (streq(token, "sta_mac")) {
+#define X XGET_CGI_FUNC
+	XTABLE_WIFI
+#undef X
+
+	// non-config
+	if (streq(token, "sta_mac")) {
 		wifi_get_macaddr(STATION_IF, mac);
 		sprintf(buff, MACSTR, MAC2STR(mac));
 	}

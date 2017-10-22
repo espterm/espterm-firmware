@@ -19,6 +19,7 @@ Cgi/template routines for the /wifi url.
 #include "wifimgr.h"
 #include "persist.h"
 #include "helpers.h"
+#include "config_xmacros.h"
 #include "cgi_logging.h"
 
 #define SET_REDIR_SUC "/cfg/wifi"
@@ -64,46 +65,6 @@ int ICACHE_FLASH_ATTR rssi2perc(int rssi)
 	if (r < 0) r = 0;
 
 	return r;
-}
-
-/**
- * Convert Auth type to string
- */
-const ICACHE_FLASH_ATTR char *auth2str(AUTH_MODE auth)
-{
-	switch (auth) {
-		case AUTH_OPEN:
-			return "Open";
-		case AUTH_WEP:
-			return "WEP";
-		case AUTH_WPA_PSK:
-			return "WPA";
-		case AUTH_WPA2_PSK:
-			return "WPA2";
-		case AUTH_WPA_WPA2_PSK:
-			return "WPA/WPA2";
-		default:
-			return "Unknown";
-	}
-}
-
-/**
- * Convert WiFi opmode to string
- */
-const ICACHE_FLASH_ATTR char *opmode2str(WIFI_MODE opmode)
-{
-	switch (opmode) {
-		case NULL_MODE:
-			return "Disabled";
-		case STATION_MODE:
-			return "Client";
-		case SOFTAP_MODE:
-			return "AP only";
-		case STATIONAP_MODE:
-			return "Client+AP";
-		default:
-			return "Unknown";
-	}
 }
 
 /**
@@ -363,18 +324,13 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	bool sta_turned_on = false;
 	bool sta_ssid_pw_changed = false;
 
+#define X XSET_CGI_FUNC
+	XTABLE_WIFI
+#undef X
+
 	// ---- WiFi opmode ----
 
-	if (GET_ARG("opmode")) {
-		cgi_dbg("Setting WiFi opmode to: %s", buff);
-		int mode = atoi(buff);
-		if (mode > NULL_MODE && mode < MAX_MODE) {
-			wificonf->opmode = (WIFI_MODE) mode;
-		} else {
-			cgi_warn("Bad opmode value \"%s\"", buff);
-			redir_url += sprintf(redir_url, "opmode,");
-		}
-	}
+	// those are helpers, not a real prop
 
 	if (GET_ARG("ap_enable")) {
 		cgi_dbg("Enable AP: %s", buff);
@@ -396,114 +352,6 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 			sta_turned_on = true;
 		} else {
 			wificonf->opmode &= ~STATION_MODE;
-		}
-	}
-
-	// ---- AP transmit power ----
-
-	if (GET_ARG("tpw")) {
-		cgi_dbg("Setting AP power to: %s", buff);
-		int tpw = atoi(buff);
-		if (tpw >= 0 && tpw <= 82) { // 0 actually isn't 0 but quite low. 82 is very strong
-			if (wificonf->tpw != tpw) {
-				wificonf->tpw = (u8) tpw;
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("tpw %s out of allowed range 0-82.", buff);
-			redir_url += sprintf(redir_url, "tpw,");
-		}
-	}
-
-	// ---- AP channel (applies in AP-only mode) ----
-
-	if (GET_ARG("ap_channel")) {
-		cgi_info("ap_channel = %s", buff);
-		int channel = atoi(buff);
-		if (channel > 0 && channel < 15) {
-			if (wificonf->ap_channel != channel) {
-				wificonf->ap_channel = (u8) channel;
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad channel value \"%s\", allowed 1-14", buff);
-			redir_url += sprintf(redir_url, "ap_channel,");
-		}
-	}
-
-	// ---- SSID name in AP mode ----
-
-	if (GET_ARG("ap_ssid")) {
-		// Replace all invalid ASCII with underscores
-		int i;
-		for (i = 0; i < 32; i++) {
-			char c = buff[i];
-			if (c == 0) break;
-			if (c < 32 || c >= 127) buff[i] = '_';
-		}
-		buff[i] = 0;
-
-		if (strlen(buff) > 0) {
-			if (!streq(wificonf->ap_ssid, buff)) {
-				cgi_info("Setting SSID to \"%s\"", buff);
-				strncpy_safe(wificonf->ap_ssid, buff, SSID_LEN);
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad SSID len.");
-			redir_url += sprintf(redir_url, "ap_ssid,");
-		}
-	}
-
-	// ---- AP password ----
-
-	if (GET_ARG("ap_password")) {
-		// Users are free to use any stupid shit in ther password,
-		// but it may lock them out.
-		if (strlen(buff) == 0 || (strlen(buff) >= 8 && strlen(buff) < PASSWORD_LEN-1)) {
-			if (!streq(wificonf->ap_password, buff)) {
-				cgi_info("Setting AP password to \"%s\"", buff);
-				strncpy_safe(wificonf->ap_password, buff, PASSWORD_LEN);
-				wifi_change_flags.ap = true;
-			}
-		} else {
-			cgi_warn("Bad password len.");
-			redir_url += sprintf(redir_url, "ap_password,");
-		}
-	}
-
-	// ---- Hide AP network (do not announce) ----
-
-	if (GET_ARG("ap_hidden")) {
-		cgi_dbg("AP hidden = %s", buff);
-		int hidden = atoi(buff);
-		if (hidden != wificonf->ap_hidden) {
-			wificonf->ap_hidden = (hidden != 0);
-			wifi_change_flags.ap = true;
-		}
-	}
-
-	// ---- Station SSID (to connect to) ----
-
-	if (GET_ARG("sta_ssid")) {
-		if (!streq(wificonf->sta_ssid, buff)) {
-			// No verification needed, at worst it fails to connect
-			cgi_info("Setting station SSID to: \"%s\"", buff);
-			strncpy_safe(wificonf->sta_ssid, buff, SSID_LEN);
-			wifi_change_flags.sta = true;
-			sta_ssid_pw_changed = true;
-		}
-	}
-
-	// ---- Station password (empty for none is allowed) ----
-
-	if (GET_ARG("sta_password")) {
-		if (!streq(wificonf->sta_password, buff)) {
-			// No verification needed, at worst it fails to connect
-			cgi_info("Setting station password to: \"%s\"", buff);
-			strncpy_safe(wificonf->sta_password, buff, PASSWORD_LEN);
-			wifi_change_flags.sta = true;
-			sta_ssid_pw_changed = true;
 		}
 	}
 
@@ -552,7 +400,6 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 	return HTTPD_CGI_DONE;
 }
 
-
 //Template code for the WLAN page.
 httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, void **arg)
 {
@@ -567,38 +414,16 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 
 	strcpy(buff, ""); // fallback
 
-	if (streq(token, "opmode_name")) {
-		strcpy(buff, opmode2str(wificonf->opmode));
-	}
-	else if (streq(token, "opmode")) {
-		sprintf(buff, "%d", wificonf->opmode);
-	}
-	else if (streq(token, "sta_enable")) {
+#define X XGET_CGI_FUNC
+	XTABLE_WIFI
+#undef X
+
+	// non-config
+	if (streq(token, "sta_enable")) {
 		sprintf(buff, "%d", (wificonf->opmode & STATION_MODE) != 0);
 	}
 	else if (streq(token, "ap_enable")) {
 		sprintf(buff, "%d", (wificonf->opmode & SOFTAP_MODE) != 0);
-	}
-	else if (streq(token, "tpw")) {
-		sprintf(buff, "%d", wificonf->tpw);
-	}
-	else if (streq(token, "ap_channel")) {
-		sprintf(buff, "%d", wificonf->ap_channel);
-	}
-	else if (streq(token, "ap_ssid")) {
-		sprintf(buff, "%s", wificonf->ap_ssid);
-	}
-	else if (streq(token, "ap_password")) {
-		sprintf(buff, "%s", wificonf->ap_password);
-	}
-	else if (streq(token, "ap_hidden")) {
-		sprintf(buff, "%d", wificonf->ap_hidden);
-	}
-	else if (streq(token, "sta_ssid")) {
-		sprintf(buff, "%s", wificonf->sta_ssid);
-	}
-	else if (streq(token, "sta_password")) {
-		sprintf(buff, "%s", wificonf->sta_password);
 	}
 	else if (streq(token, "sta_rssi")) {
 		sprintf(buff, "%d", wifi_station_get_rssi());
