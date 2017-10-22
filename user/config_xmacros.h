@@ -76,21 +76,21 @@ enum xset_result xset_ustring(const char *name, u8 *field, const char *buff, con
  * If 'name' is found in connData->getArgs, xset() is called.
  * If the result is SET, xnotify() is fired. Else, 'name,' is appended to the redir_url buffer.
  */
-#define XSET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
+#define XSET_CGI_FUNC(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
 	if ((allow) && GET_ARG(#name)) { \
 		type *_p = (type *) &XSTRUCT->name; \
-		enum xset_result res = xset(#name, cast _p, buff, (const void*) (xsarg)); \
+		enum xset_result res = xset(#name, _p, buff, (const void*) (xsarg)); \
 		if (res == XSET_SET) { xnotify; } \
 		else if (res == XSET_FAIL) { redir_url += sprintf(redir_url, #name","); } \
 	}
 
-#define XGET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
+#define XGET_CGI_FUNC(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
 	if ((allow) && streq(token, #name)) xget(buff, deref XSTRUCT->name);
 
-#define XSTRUCT_FIELD(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
+#define XSTRUCT_FIELD(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
 	type name suffix;
 
-#define XDUMP_FIELD(type, name, suffix, deref, xget, allow, cast, xset, xsarg, xnotify) \
+#define XDUMP_FIELD(type, name, suffix, deref, xget, allow, xset, xsarg, xnotify) \
 	{ xget(buff, deref XSTRUCT->name); dbg(#name " = %s", buff); }
 
 #endif //ESPTERM_CONFIG_XMACROS_H

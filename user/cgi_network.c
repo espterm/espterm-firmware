@@ -51,7 +51,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiNetworkSetParams(HttpdConnData *connData)
 
 #define XSTRUCT wificonf
 #define X XSET_CGI_FUNC
-	XTABLE_WIFI
+	XTABLE_WIFICONF
 #undef X
 
 	(void) redir_url;
@@ -101,7 +101,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplNetwork(HttpdConnData *connData, char *toke
 
 #define XSTRUCT wificonf
 #define X XGET_CGI_FUNC
-	XTABLE_WIFI
+	XTABLE_WIFICONF
 #undef X
 
 	// non-config

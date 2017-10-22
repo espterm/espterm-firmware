@@ -28,17 +28,17 @@ enum pwlock {
 //....Type................Name..Suffix...............Deref..XGET..........Cast..XSET.........................NOTIFY....Allow
 // Deref is used to pass the field to xget. Cast is used to convert the &'d field to what xset wants (needed for static arrays)
 #define XTABLE_SYSCONF \
-	X(u32,             uart_baudrate,  /**/,          /**/, xget_dec,      /**/,   xset_sys_baudrate, NULL,   uart_changed=true, 1) \
-	X(u8,              uart_parity, /**/,             /**/, xget_dec,      /**/,   xset_sys_parity, NULL,     uart_changed=true, 1) \
-	X(u8,              uart_stopbits,  /**/,          /**/, xget_dec,      /**/,   xset_sys_stopbits, NULL,   uart_changed=true, 1) \
+	X(u32,             uart_baudrate,  /**/,          /**/, xget_dec,      xset_sys_baudrate, NULL,   uart_changed=true, 1) \
+	X(u8,              uart_parity, /**/,             /**/, xget_dec,      xset_sys_parity, NULL,     uart_changed=true, 1) \
+	X(u8,              uart_stopbits,  /**/,          /**/, xget_dec,      xset_sys_stopbits, NULL,   uart_changed=true, 1) \
 	\
-	X(u8,              config_version, /**/,          /**/, xget_dec,      /**/,   xset_u8, NULL,             /**/, 1) \
+	X(u8,              config_version, /**/,          /**/, xget_dec,      xset_u8, NULL,             /**/, 1) \
 	\
-	X(u8,              pwlock, /**/,                  /**/, xget_dec,      /**/,   xset_sys_pwlock, NULL,     /**/, admin|tpl) \
-	X(uchar,           access_pw, [64],               /**/, xget_ustring,  /**/,   xset_sys_accesspw, NULL,   /**/, admin) \
-	X(uchar,           access_name, [32],             /**/, xget_ustring,  /**/,   xset_ustring, NULL,        /**/, admin|tpl) \
+	X(u8,              pwlock, /**/,                  /**/, xget_dec,      xset_sys_pwlock, NULL,     /**/, admin|tpl) \
+	X(uchar,           access_pw, [64],               /**/, xget_ustring,  xset_sys_accesspw, NULL,   /**/, admin) \
+	X(uchar,           access_name, [32],             /**/, xget_ustring,  xset_ustring, NULL,        /**/, admin|tpl) \
 	\
-	X(bool,            overclock, /**/,               /**/, xget_bool,     /**/,   xset_bool, NULL,           /**/, 1) \
+	X(bool,            overclock, /**/,               /**/, xget_bool,     xset_bool, NULL,           /**/, 1) \
 
 
 typedef struct {

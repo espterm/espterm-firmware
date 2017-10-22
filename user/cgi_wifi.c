@@ -326,7 +326,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiWiFiSetParams(HttpdConnData *connData)
 
 #define XSTRUCT wificonf
 #define X XSET_CGI_FUNC
-	XTABLE_WIFI
+	XTABLE_WIFICONF
 #undef X
 
 	// ---- WiFi opmode ----
@@ -417,7 +417,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR tplWlan(HttpdConnData *connData, char *token, 
 
 #define XSTRUCT wificonf
 #define X XGET_CGI_FUNC
-	XTABLE_WIFI
+	XTABLE_WIFICONF
 #undef X
 
 	// non-config
