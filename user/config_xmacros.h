@@ -8,6 +8,8 @@
 #include <esp8266.h>
 #include <helpers.h>
 
+typedef unsigned char uchar;
+
 #define XJOIN(a, b) a##b
 
 /**Do nothing xnotify */
@@ -63,11 +65,10 @@ enum xset_result xset_u8(const char *name, u8 *field, const char *buff, const vo
 enum xset_result xset_u32(const char *name, u32 *field, const char *buff, const void *arg);
 enum xset_result xset_u16(const char *name, u16 *field, const char *buff, const void *arg);
 
-/**
- * @param arg - max string length
- */
-enum xset_result xset_string(const char *name, s8 **field, const char *buff, const void *arg);
-enum xset_result xset_ustring(const char *name, u8 **field, const char *buff, const void *arg);
+// static string arrays are not &'d, so we don't get **
+/** @param arg - max string length */
+enum xset_result xset_string(const char *name, char *field, const char *buff, const void *arg);
+enum xset_result xset_ustring(const char *name, u8 *field, const char *buff, const void *arg);
 
 /**
  * Helper template macro for CGI functions that load GET args to structs using XTABLE
@@ -77,7 +78,8 @@ enum xset_result xset_ustring(const char *name, u8 **field, const char *buff, co
  */
 #define XSET_CGI_FUNC(type, name, suffix, deref, xget, cast, xset, xsarg, xnotify, allow) \
 	if ((allow) && GET_ARG(#name)) { \
-		enum xset_result res = xset(#name, cast &XSTRUCT->name, buff, (const void*) (xsarg)); \
+		type *_p = (type *) &XSTRUCT->name; \
+		enum xset_result res = xset(#name, cast _p, buff, (const void*) (xsarg)); \
 		if (res == XSET_SET) { xnotify; } \
 		else if (res == XSET_FAIL) { redir_url += sprintf(redir_url, #name","); } \
 	}

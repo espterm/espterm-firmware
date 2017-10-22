@@ -95,7 +95,7 @@ xset_sys_pwlock(const char *name, u8 *field, const char *buff, const void *arg)
 }
 
 enum xset_result ICACHE_FLASH_ATTR
-xset_sys_accesspw(const char *name, u8 **field, const char *buff, const void *arg)
+xset_sys_accesspw(const char *name, uchar *field, const char *buff, const void *arg)
 {
 	// Do not overwrite pw if empty
 	if (strlen(buff) == 0) return XSET_UNCHANGED;

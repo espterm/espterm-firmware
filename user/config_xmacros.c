@@ -107,7 +107,7 @@ xset_u16(const char *name, u16 *field, const char *buff, const void *arg)
 }
 
 enum xset_result ICACHE_FLASH_ATTR
-xset_string(const char *name, s8 **field, const char *buff, const void *arg)
+xset_string(const char *name, char *field, const char *buff, const void *arg)
 {
 	cgi_dbg("Setting %s = %s", name, buff);
 	u32 maxlen = (u32) arg;
@@ -126,7 +126,7 @@ xset_string(const char *name, s8 **field, const char *buff, const void *arg)
 
 
 enum xset_result ICACHE_FLASH_ATTR
-xset_ustring(const char *name, u8 **field, const char *buff, const void *arg)
+xset_ustring(const char *name, uchar *field, const char *buff, const void *arg)
 {
 	cgi_dbg("Setting %s = %s", name, buff);
 	u32 maxlen = (u32) arg;
@@ -136,7 +136,7 @@ xset_ustring(const char *name, u8 **field, const char *buff, const void *arg)
 		return XSET_FAIL;
 	}
 
-	if (!streq((char *)field, buff)) {
+	if (!streq(field, buff)) {
 		strncpy_safe(field, buff, (u32)arg);
 		return XSET_SET;
 	}

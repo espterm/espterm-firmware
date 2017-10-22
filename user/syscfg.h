@@ -35,8 +35,8 @@ enum pwlock {
 	X(u8,              config_version, /**/,          /**/, xget_dec,      /**/,   xset_u8, NULL,             /**/, 1) \
 	\
 	X(u8,              pwlock, /**/,                  /**/, xget_dec,      /**/,   xset_sys_pwlock, NULL,     /**/, admin|tpl) \
-	X(u8,              access_pw, [64],               /**/, xget_ustring,  (u8**), xset_sys_accesspw, NULL,   /**/, admin) \
-	X(u8,              access_name, [32],             /**/, xget_ustring,  (u8**), xset_ustring, NULL,        /**/, admin|tpl) \
+	X(uchar,           access_pw, [64],               /**/, xget_ustring,  /**/,   xset_sys_accesspw, NULL,   /**/, admin) \
+	X(uchar,           access_name, [32],             /**/, xget_ustring,  /**/,   xset_ustring, NULL,        /**/, admin|tpl) \
 	\
 	X(bool,            overclock, /**/,               /**/, xget_bool,     /**/,   xset_bool, NULL,           /**/, 1) \
 
@@ -66,6 +66,6 @@ enum xset_result xset_sys_baudrate(const char *name, u32 *field, const char *buf
 enum xset_result xset_sys_parity(const char *name, u8 *field, const char *buff, const void *arg);
 enum xset_result xset_sys_stopbits(const char *name, u8 *field, const char *buff, const void *arg);
 enum xset_result xset_sys_pwlock(const char *name, u8 *field, const char *buff, const void *arg);
-enum xset_result xset_sys_accesspw(const char *name, u8 **field, const char *buff, const void *arg);
+enum xset_result xset_sys_accesspw(const char *name, uchar *field, const char *buff, const void *arg);
 
 #endif //ESP_VT100_FIRMWARE_SYSCFG_H

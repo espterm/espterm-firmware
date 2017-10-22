@@ -30,8 +30,8 @@
 	\
 	X(u8,              tpw, /**/,                     /**/, xget_dec,      /**/, xset_wifi_tpw, NULL,         wifimgr_notify_ap(),  1) \
 	X(u8,              ap_channel, /**/,              /**/, xget_dec,      /**/, xset_wifi_ap_channel, NULL,  wifimgr_notify_ap(),  1) \
-	X(u8,              ap_ssid, [SSID_LEN],           /**/, xget_ustring,  (u8**), xset_wifi_ssid, 1,         wifimgr_notify_ap(),  1) \
-	X(u8,              ap_password, [PASSWORD_LEN],   /**/, xget_ustring,  (u8**), xset_wifi_pwd, NULL,       wifimgr_notify_ap(),  1) \
+	X(u8,              ap_ssid, [SSID_LEN],           /**/, xget_ustring,  /**/, xset_wifi_ssid, 1,         wifimgr_notify_ap(),  1) \
+	X(u8,              ap_password, [PASSWORD_LEN],   /**/, xget_ustring,  /**/, xset_wifi_pwd, NULL,       wifimgr_notify_ap(),  1) \
 	X(bool,            ap_hidden, /**/,               /**/, xget_bool,     /**/, xset_bool, NULL,             wifimgr_notify_ap(),  1) \
 	\
 	X(u16,             ap_dhcp_time, /**/,            /**/, xget_dec,      /**/, xset_wifi_lease_time, NULL,  wifimgr_notify_ap(),  1) \
@@ -44,8 +44,8 @@
 	\
 	\
 	X(u32,             unused2, /**/,                 /**/, xget_dummy,    /**/, xset_dummy, NULL,            /**/,                 0) \
-	X(u8,              sta_ssid, [SSID_LEN],          /**/, xget_ustring,  (u8**), xset_wifi_ssid, 0,         wifimgr_notify_sta(), 1) \
-	X(u8,              sta_password, [PASSWORD_LEN],  /**/, xget_ustring,  (u8**), xset_wifi_pwd, NULL,       wifimgr_notify_sta(), 1) \
+	X(u8,              sta_ssid, [SSID_LEN],          /**/, xget_ustring,  /**/, xset_wifi_ssid, 0,         wifimgr_notify_sta(), 1) \
+	X(u8,              sta_password, [PASSWORD_LEN],  /**/, xget_ustring,  /**/, xset_wifi_pwd, NULL,       wifimgr_notify_sta(), 1) \
 	X(bool,            sta_dhcp_enable, /**/,         /**/, xget_bool,     /**/, xset_bool, NULL,             wifimgr_notify_sta(), 1) \
 	\
 	X(struct ip_addr,  sta_addr_ip, /**/,             &,    xget_ip,       /**/, xset_ip, NULL,               wifimgr_notify_sta(), 1) \
@@ -89,8 +89,8 @@ enum xset_result xset_wifi_lease_time(const char *name, u16 *field, const char *
 enum xset_result xset_wifi_opmode(const char *name, u8 *field, const char *buff, const void *arg);
 enum xset_result xset_wifi_tpw(const char *name, u8 *field, const char *buff, const void *arg);
 enum xset_result xset_wifi_ap_channel(const char *name, u8 *field, const char *buff, const void *arg);
-enum xset_result xset_wifi_ssid(const char *name, u8 **field, const char *buff, const void *arg);
-enum xset_result xset_wifi_pwd(const char *name, u8 **field, const char *buff, const void *arg);
+enum xset_result xset_wifi_ssid(const char *name, uchar *field, const char *buff, const void *arg);
+enum xset_result xset_wifi_pwd(const char *name, uchar *field, const char *buff, const void *arg);
 
 #if DEBUG_WIFI
 #define wifi_warn warn

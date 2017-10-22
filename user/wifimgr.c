@@ -79,7 +79,7 @@ xset_wifi_ap_channel(const char *name, u8 *field, const char *buff, const void *
 }
 
 enum xset_result ICACHE_FLASH_ATTR
-xset_wifi_ssid(const char *name, u8 **field, const char *buff, const void *arg)
+xset_wifi_ssid(const char *name, uchar *field, const char *buff, const void *arg)
 {
 	u8 buff2[SSID_LEN];
 
@@ -96,8 +96,8 @@ xset_wifi_ssid(const char *name, u8 **field, const char *buff, const void *arg)
 
 	cgi_dbg("Setting %s = %s", name, buff);
 	if (strlen((char *)buff2) > 0) {
-		if (!streq(*field, buff2)) {
-			strncpy_safe(*field, buff2, SSID_LEN);
+		if (!streq(field, buff2)) {
+			strncpy_safe(field, buff2, SSID_LEN);
 			return XSET_SET;
 		}
 		return XSET_UNCHANGED;
@@ -109,12 +109,12 @@ xset_wifi_ssid(const char *name, u8 **field, const char *buff, const void *arg)
 
 /** Set PW - allow len 0 or 8-64 */
 enum xset_result ICACHE_FLASH_ATTR
-xset_wifi_pwd(const char *name, u8 **field, const char *buff, const void *arg)
+xset_wifi_pwd(const char *name, uchar *field, const char *buff, const void *arg)
 {
 	cgi_dbg("Setting %s = %s", name, buff);
 	if (strlen(buff) == 0 || (strlen(buff) >= 8 && strlen(buff) < PASSWORD_LEN-1)) {
-		if (!streq(*field, buff)) {
-			strncpy_safe(*field, buff, PASSWORD_LEN);
+		if (!streq(field, buff)) {
+			strncpy_safe(field, buff, PASSWORD_LEN);
 			return XSET_SET;
 		}
 		return XSET_UNCHANGED;

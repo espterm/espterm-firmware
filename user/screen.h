@@ -86,12 +86,12 @@ enum CursorShape {
 	X(u32,            height, /**/,                 /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
 	X(u32,            default_bg, /**/,             /**/, xget_term_color,  /**/, xset_term_color, NULL,      /**/, 1) \
 	X(u32,            default_fg, /**/,             /**/, xget_term_color,  /**/, xset_term_color, NULL,      /**/, 1) \
-	X(char,           title, [TERM_TITLE_LEN],      /**/, xget_string,   (s8**), xset_string, TERM_TITLE_LEN, /**/, 1) \
-	X(char,           btn1, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
-	X(char,           btn2, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
-	X(char,           btn3, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
-	X(char,           btn4, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
-	X(char,           btn5, [TERM_BTN_LEN],         /**/, xget_string,   (s8**), xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           title, [TERM_TITLE_LEN],      /**/, xget_string,   /**/, xset_string, TERM_TITLE_LEN, /**/, 1) \
+	X(char,           btn1, [TERM_BTN_LEN],         /**/, xget_string,   /**/, xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn2, [TERM_BTN_LEN],         /**/, xget_string,   /**/, xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn3, [TERM_BTN_LEN],         /**/, xget_string,   /**/, xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn4, [TERM_BTN_LEN],         /**/, xget_string,   /**/, xset_string, TERM_BTN_LEN,   /**/, 1) \
+	X(char,           btn5, [TERM_BTN_LEN],         /**/, xget_string,   /**/, xset_string, TERM_BTN_LEN,   /**/, 1) \
 	X(u8,             theme, /**/,                  /**/, xget_dec,      /**/, xset_u8, NULL,       /**/, 1) \
 	X(u32,            parser_tout_ms, /**/,         /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
 	X(u32,            display_tout_ms, /**/,        /**/, xget_dec,      /**/, xset_u32, NULL,      /**/, 1) \
@@ -101,18 +101,18 @@ enum CursorShape {
 	X(bool,           loopback, /**/,               /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
 	X(bool,           show_buttons, /**/,           /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
 	X(bool,           show_config_links, /**/,      /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
-	X(char,           bm1, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
-	X(char,           bm2, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
-	X(char,           bm3, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
-	X(char,           bm4, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
-	X(char,           bm5, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  (s8**), xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm1, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  /**/, xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm2, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  /**/, xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm3, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  /**/, xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm4, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  /**/, xset_term_bm, NULL,  /**/, 1) \
+	X(char,           bm5, [TERM_BTN_MSG_LEN],      /**/, xget_term_bm,  /**/, xset_term_bm, NULL,  /**/, 1) \
 	X(u32,            cursor_shape, /**/,           /**/, xget_dec,      /**/, xset_term_cursorshape, NULL,      /**/, 1) \
 	X(bool,           crlf_mode, /**/,              /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
 	X(bool,           want_all_fn, /**/,            /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
 	X(bool,           debugbar, /**/,               /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
 	X(bool,           allow_decopt_12, /**/,        /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
 	X(bool,           ascii_debug, /**/,            /**/, xget_bool,     /**/, xset_bool, NULL,     /**/, 1) \
-	X(char,           backdrop, [TERM_BACKDROP_LEN], /**/, xget_string,  (s8**), xset_string, TERM_BACKDROP_LEN,  /**/, 1)
+	X(char,           backdrop, [TERM_BACKDROP_LEN], /**/, xget_string,  /**/, xset_string, TERM_BACKDROP_LEN,  /**/, 1)
 
 #define TERM_BM_N(tc, n) ((tc)->bm1+(TERM_BTN_MSG_LEN*n))
 #define TERM_BTN_N(tc, n) ((tc)->btn1+(TERM_BTN_LEN*n))
@@ -122,7 +122,7 @@ void xget_term_color(char *buff, u32 value);
 /** Export button message as stirng for config */
 void xget_term_bm(char *buff, char *value);
 /** Set button message */
-enum xset_result xset_term_bm(const char *name, s8 **field, const char *buff, const void *arg);
+enum xset_result xset_term_bm(const char *name, char *field, const char *buff, const void *arg);
 /** Set color */
 enum xset_result xset_term_color(const char *name, u32 *field, const char *buff, const void *arg);
 /** Set cursor shape */

@@ -214,22 +214,22 @@ xget_term_color(char *buff, u32 value)
 void ICACHE_FLASH_ATTR
 xget_term_bm(char *buff, char *value)
 {
-	u8 c;
+	char c;
 	char *bp = buff;
 	char *cp = value;
 	int n = 0;
-	while((c = (u8) *cp++) != 0) {
+	while((c = *cp++) != 0) {
 		if(n>0) {
 			*bp = ',';
 			bp++;
 		}
-		bp += sprintf(bp, "%d", c);
+		bp += sprintf(bp, "%d", (u8)c);
 		n++;
 	}
 }
 
 enum xset_result ICACHE_FLASH_ATTR
-xset_term_bm(const char *name, s8 **field, const char *buff, const void *arg)
+xset_term_bm(const char *name, char *field, const char *buff, const void *arg)
 {
 	cgi_dbg("Setting %s = %s", name, buff);
 
@@ -279,8 +279,8 @@ xset_term_bm(const char *name, s8 **field, const char *buff, const void *arg)
 	buff_bm[char_i] = 0;
 	cgi_dbg("%s, chari = %d", buff_bm, char_i);
 
-	if (!streq(*field, buff_bm)) {
-		strncpy((char*)*field, buff_bm, TERM_BTN_MSG_LEN);
+	if (!streq(field, buff_bm)) {
+		strncpy(field, buff_bm, TERM_BTN_MSG_LEN);
 		return XSET_SET;
 	}
 	return XSET_UNCHANGED;
@@ -361,11 +361,11 @@ terminal_restore_defaults(void)
 	strcpy(termconf->btn4, "4");
 	strcpy(termconf->btn5, "5");
 
-	strcpy(termconf->bm1, "\x01");
-	strcpy(termconf->bm2, "\x02");
-	strcpy(termconf->bm3, "\x03");
-	strcpy(termconf->bm4, "\x04");
-	strcpy(termconf->bm5, "\x05");
+	strcpy((char*)termconf->bm1, "\x01");
+	strcpy((char*)termconf->bm2, "\x02");
+	strcpy((char*)termconf->bm3, "\x03");
+	strcpy((char*)termconf->bm4, "\x04");
+	strcpy((char*)termconf->bm5, "\x05");
 
 	termconf->theme = 0;
 	termconf->parser_tout_ms = SCR_DEF_PARSER_TOUT_MS;

@@ -125,6 +125,13 @@ tplTermCfg(HttpdConnData *connData, char *token, void **arg)
 #undef X
 #undef XSTRUCT
 
+	// for uart
+#define XSTRUCT sysconf
+#define X XGET_CGI_FUNC
+	XTABLE_SYSCONF
+#undef X
+#undef XSTRUCT
+
 	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }
