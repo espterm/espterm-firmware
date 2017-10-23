@@ -13,6 +13,7 @@ Cgi/template routines for configuring non-wifi settings
 #include "ini_parser.h"
 
 #define SET_REDIR_SUC "/cfg/system"
+#define SET_REDIR_ERR SET_REDIR_SUC"?err="
 
 static bool ICACHE_FLASH_ATTR
 verify_admin_pw(const char *pw)
@@ -79,7 +80,7 @@ cgiPersistRestoreHard(HttpdConnData *connData)
 	return HTTPD_CGI_DONE;
 }
 
-
+// -------------- Export --------------
 
 #define httpdSend_orDie(conn, data, len) do { if (!httpdSend((conn), (data), (len))) return false; } while (0)
 
@@ -217,17 +218,154 @@ cgiPersistExport(HttpdConnData *connData)
 }
 
 
-void iniCb(const char *section, const char *key, const char *value, void *userData)
+// -------------- IMPORT --------------
+
+struct IniUpload {
+	TerminalConfigBundle *term_backup;
+	WiFiConfigBundle *wifi_backup;
+	SystemConfigBundle *sys_backup;
+	bool term_ok;
+	bool wifi_ok;
+	bool sys_ok;
+};
+
+static void ICACHE_FLASH_ATTR iniCb(const char *section, const char *key, const char *value, void *userData)
 {
-	dbg(">>> SET: [%s] %s = %s", section, key, value);
+	HttpdConnData *connData = (HttpdConnData *)userData;
+	struct IniUpload *state;
+	if (!connData || !connData->cgiData) {
+		error("userData or state is NULL!");
+		return;
+	}
+	state = connData->cgiData;
+
+//	cgi_dbg("%s.%s = %s", section, key, value);
+
+#define X XSET_ASSIGN
+
+	bool suc = true;
+	bool found = false;
+
+	// notify flag, unused here
+	bool uart_changed = false;
+
+	if (streq(section, "terminal")) {
+#define XSTRUCT termconf
+		XTABLE_TERMCONF
+#undef XSTRUCT
+		if (!suc) state->term_ok = false;
+	}
+	else if (streq(section, "wifi")) {
+#define XSTRUCT wificonf
+		XTABLE_WIFICONF
+#undef XSTRUCT
+		if (!suc) state->wifi_ok = false;
+	}
+	else if (streq(section, "system")) {
+#define XSTRUCT sysconf
+		XTABLE_SYSCONF
+#undef XSTRUCT
+		if (!suc) state->sys_ok = false;
+	}
+
+	if (!found) cgi_warn("Unknown key %s.%s!", section, key);
+
+#undef X
 }
 
+static void ICACHE_FLASH_ATTR
+freeIniUploadStruct(HttpdConnData *connData)
+{
+	cgi_dbg("Free struct...");
+	struct IniUpload *state;
+	if (connData && connData->cgiData) {
+		state = connData->cgiData;
+		if (state->sys_backup != NULL) free(state->sys_backup);
+		if (state->wifi_backup != NULL) free(state->wifi_backup);
+		if (state->term_backup != NULL) free(state->term_backup);
+		free(state);
+		connData->cgiData = NULL;
+	}
+}
 
-httpd_cgi_state ICACHE_FLASH_ATTR
+static httpd_cgi_state ICACHE_FLASH_ATTR
 postRecvHdl(HttpdConnData *connData, char *data, int len)
 {
+	struct IniUpload *state = connData->cgiData;
+	if (!state) return HTTPD_CGI_DONE;
+
+	// Discard the boundary marker (there is only one)
+	char *bdr = connData->post->multipartBoundary;
+	char *foundat = strstr(data, bdr);
+	if (foundat != NULL) {
+		*foundat = '#'; // make it a comment
+	}
+
+	cgi_dbg("INI parse - postRecvHdl");
+
 	ini_parse(data, (size_t) len);
+
+	cgi_dbg("Closing parser");
 	ini_parse_end();
+
+	cgi_dbg("INI parse - end.");
+
+	// abort if bad screen size
+	bool tooLarge = (termconf->width*termconf->height > MAX_SCREEN_SIZE);
+	state->term_ok &= !tooLarge;
+	if (tooLarge) cgi_warn("Bad term screen size!");
+
+	bool suc = state->term_ok && state->wifi_ok && state->sys_ok;
+
+	cgi_dbg("Evaluating results...");
+
+	if (!state->term_ok) cgi_warn("Terminal settings rejected.");
+	if (!state->wifi_ok) cgi_warn("WiFi settings rejected.");
+	if (!state->sys_ok) cgi_warn("System settings rejected.");
+
+	if (!suc) {
+		cgi_warn("Some validation failed, reverting all!");
+		memcpy(termconf, state->term_backup, sizeof(TerminalConfigBundle));
+		memcpy(wificonf, state->wifi_backup, sizeof(WiFiConfigBundle));
+		memcpy(sysconf, state->sys_backup, sizeof(SystemConfigBundle));
+	}
+	else {
+		cgi_dbg("Applying terminal settings");
+		terminal_apply_settings();
+		cgi_dbg("Applying system  settings");
+		sysconf_apply_settings();
+		cgi_dbg("Applying WiFi settings (scheduling...)");
+		wifimgr_apply_settings_later(1000);
+
+		cgi_dbg("Persisting results");
+		persist_store();
+	}
+
+	cgi_dbg("Redirect");
+	char buff[100];
+	char *b = buff;
+	if (suc) {
+		httpdRedirect(connData, SET_REDIR_SUC"?msg=Settings%20loaded%20and%20applied.");
+	} else {
+		b += sprintf(b, SET_REDIR_SUC"?errmsg=Errors%%20in:%%20");
+		bool comma = false;
+		if (!state->sys_ok) {
+			b += sprintf(b, "System%%20config");
+			comma = true;
+		}
+		if (!state->wifi_ok) {
+			if (comma) b += sprintf(b, ",%%20");
+			b += sprintf(b, "WiFi%%20config");
+		}
+		if (!state->term_ok) {
+			if (comma) b += sprintf(b, ",%%20");
+			b += sprintf(b, "Terminal%%20config");
+		}
+		httpdRedirect(connData, buff);
+	}
+
+	// Clean up.
+	freeIniUploadStruct(connData);
 	return HTTPD_CGI_DONE;
 }
 
@@ -240,27 +378,59 @@ postRecvHdl(HttpdConnData *connData, char *data, int len)
 httpd_cgi_state ICACHE_FLASH_ATTR
 cgiPersistImport(HttpdConnData *connData)
 {
+	struct IniUpload *state = NULL;
+
 	if (connData->conn == NULL) {
 		//Connection aborted. Clean up.
+		freeIniUploadStruct(connData);
 		return HTTPD_CGI_DONE;
 	}
-
-	httpdStartResponse(connData, 200);
-	httpdHeader(connData, "Content-Type", "text/plain");
-	httpdEndHeaders(connData);
 
 	char *start = strstr(connData->post->buff, "\r\n\r\n");
 	if (start == NULL) {
 		error("Malformed attachment POST!");
-		goto end;
+
+		httpdStartResponse(connData, 400);
+		httpdHeader(connData, "Content-Type", "text/plain");
+		httpdEndHeaders(connData);
+		httpdSend(connData, "Bad format.", -1);
+		return HTTPD_CGI_DONE;
 	}
 
-	ini_parse_begin(iniCb, NULL);
-	ini_parse(start, (size_t) connData->post->buffLen - (start - connData->post->buff));
+	cgi_info("Starting INI parser for uploaded file...");
+
+	state = malloc(sizeof(struct IniUpload));
+	if (!state) {
+		error("state struct alloc fail");
+		return HTTPD_CGI_DONE;
+	}
+	state->sys_backup = NULL;
+	state->wifi_backup = NULL;
+	state->term_backup = NULL;
+	connData->cgiData = state;
+
+	cgi_dbg("Allocating backup buffers");
+	state->sys_backup = malloc(sizeof(SystemConfigBundle));
+	state->wifi_backup = malloc(sizeof(WiFiConfigBundle));
+	state->term_backup = malloc(sizeof(TerminalConfigBundle));
+
+	cgi_dbg("Copying orig data");
+	memcpy(state->sys_backup, sysconf, sizeof(SystemConfigBundle));
+	memcpy(state->wifi_backup, wificonf, sizeof(WiFiConfigBundle));
+	memcpy(state->term_backup, termconf, sizeof(TerminalConfigBundle));
+
+	state->sys_ok = true;
+	state->wifi_ok = true;
+	state->term_ok = true;
+
+	cgi_dbg("Parser starts!");
+	ini_parse_begin(iniCb, connData);
+
+	size_t datalen = (size_t) connData->post->buffLen - (start - connData->post->buff);
+	ini_parse(start, datalen);
 
 	connData->recvHdl = postRecvHdl;
 
-end:
-	// TODO redirect
-	return HTTPD_CGI_DONE;
+	// continues in recvHdl
+	return HTTPD_CGI_MORE;
 }

@@ -292,6 +292,21 @@ configure_ap(void)
 	}
 }
 
+static ETSTimer tim;
+
+static void ICACHE_FLASH_ATTR
+wifimgr_apply_settings_later_Cb(void *unused)
+{
+	wifimgr_apply_settings();
+}
+
+void ICACHE_FLASH_ATTR
+wifimgr_apply_settings_later(uint32_t delay_ms)
+{
+	wifi_info("[WiFi] Scheduling settings apply in %d ms", delay_ms);
+	TIMER_START(&tim, wifimgr_apply_settings_later_Cb, delay_ms, 0);
+}
+
 /**
  * Register the WiFi event listener, cycle WiFi, apply settings
  */

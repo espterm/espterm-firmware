@@ -82,6 +82,7 @@ extern WiFiConfigBundle * const wificonf;
 void wifimgr_restore_defaults(void);
 
 void wifimgr_apply_settings(void);
+void wifimgr_apply_settings_later(uint32_t delay_ms);
 
 int getStaIpAsString(char *buffer);
 

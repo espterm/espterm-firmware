@@ -250,11 +250,11 @@ xset_term_bm(const char *name, char *field, const char *buff, const void *arg)
 			}
 
 			if (char_i >= TERM_BTN_MSG_LEN-1) {
-				cgi_warn("Too long! %d", acu);
+				cgi_warn("Too long! %d", char_i);
 				return XSET_FAIL;
 			}
 
-			cgi_dbg("acu %d", acu);
+//			cgi_dbg("acu %d", acu);
 			buff_bm[char_i++] = (char)acu;
 
 			// prepare for next char
@@ -277,7 +277,7 @@ xset_term_bm(const char *name, char *field, const char *buff, const void *arg)
 		buff_bm[char_i++] = (char)acu;
 	}
 	buff_bm[char_i] = 0;
-	cgi_dbg("%s, chari = %d", buff_bm, char_i);
+//	cgi_dbg("%s, chari = %d", buff_bm, char_i);
 
 	if (!streq(field, buff_bm)) {
 		strncpy(field, buff_bm, TERM_BTN_MSG_LEN);
