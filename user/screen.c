@@ -217,6 +217,7 @@ xget_term_bm(char *buff, char *value)
 	char c;
 	char *bp = buff;
 	char *cp = value;
+	buff[0] = 0;
 	int n = 0;
 	while((c = *cp++) != 0) {
 		if(n>0) {
@@ -254,7 +255,7 @@ xset_term_bm(const char *name, char *field, const char *buff, const void *arg)
 				return XSET_FAIL;
 			}
 
-//			cgi_dbg("acu %d", acu);
+			dbg("+ %c", acu);
 			buff_bm[char_i++] = (char)acu;
 
 			// prepare for next char
@@ -273,11 +274,16 @@ xset_term_bm(const char *name, char *field, const char *buff, const void *arg)
 		cgi_warn("Required!");
 		return XSET_FAIL;
 	}
-	if (!lastsp) {
+	if (!lastsp&&acu>0) {
+		dbg("+ %c", acu);
 		buff_bm[char_i++] = (char)acu;
 	}
 	buff_bm[char_i] = 0;
-//	cgi_dbg("%s, chari = %d", buff_bm, char_i);
+
+	if (char_i == 0) {
+		cgi_warn("Required!");
+		return XSET_FAIL;
+	}
 
 	if (!streq(field, buff_bm)) {
 		strncpy(field, buff_bm, TERM_BTN_MSG_LEN);
