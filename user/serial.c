@@ -42,7 +42,7 @@ buf_pop(void *unused)
 
 LOCAL void my_putc(char c)
 {
-	UART_WriteCharCRLF(UART1, (u8) c, 10);
+	UART_WriteCharCRLF(UART1, (u8) c, 200);
 }
 
 /**

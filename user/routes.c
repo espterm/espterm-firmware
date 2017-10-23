@@ -23,8 +23,8 @@
 static int ICACHE_FLASH_ATTR wifiPassFn(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen)
 {
 	if (no == 0) {
-		os_strcpy(user, sysconf->access_name);
-		os_strcpy(pass, sysconf->access_pw);
+		os_strcpy(user, (const char *) sysconf->access_name);
+		os_strcpy(pass, (const char *) sysconf->access_pw);
 		return 1;
 	}
 	if (no == 1) {
@@ -131,6 +131,8 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 
 	ROUTE_TPL_FILE("/cfg/system/?", tplSystemCfg, "/cfg_system.tpl"),
 	ROUTE_CGI("/cfg/system/set", cgiSystemCfgSetParams),
+	ROUTE_CGI("/cfg/system/export", cgiPersistExport),
+	ROUTE_CGI("/cfg/system/import", cgiPersistImport),
 	ROUTE_CGI("/cfg/system/write_defaults", cgiPersistWriteDefaults),
 	ROUTE_CGI("/cfg/system/restore_defaults", cgiPersistRestoreDefaults),
 	ROUTE_CGI("/cfg/system/restore_hard", cgiPersistRestoreHard),

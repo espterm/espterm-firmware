@@ -95,108 +95,84 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 	memcpy(admin_backup, &persist.admin, sizeof(AdminConfigBlock));
 	memcpy(sysconf_backup, sysconf, sizeof(SystemConfigBundle));
 
+	// flags for the template builder
+	bool uart_changed = false; //!< this is set in uart notify, for use in terminal settings (dummy here)
+	bool admin = false;
+	const bool tpl = false; // this optionally disables some fields
 	do {
-		if (!GET_ARG("pw")) {
-			break; // if no PW in GET, not trying to configure anything protected
-		}
-
-		if (!streq(buff, persist.admin.pw)) {
-			warn("Bad admin pw!");
-			redir_url += sprintf(redir_url, "pw,");
-			break;
-		}
-
-		// authenticated OK
-		if (GET_ARG("pwlock")) {
-			cgi_dbg("pwlock: %s", buff);
-			int pwlock = atoi(buff);
-			if (pwlock < 0 || pwlock >= PWLOCK_MAX) {
-				cgi_warn("Bad pwlock %s", buff);
-				redir_url += sprintf(redir_url, "pwlock,");
-				break;
+		// Check admin PW
+		if (GET_ARG("pw")) {
+			if (!streq(buff, persist.admin.pw)) {
+				warn("Bad admin pw!");
+				redir_url += sprintf(redir_url, "pw,");
+				break; // Abort
+			} else {
+				admin = true;
 			}
-
-			sysconf->pwlock = (enum pwlock) pwlock;
 		}
 
-		if (GET_ARG("access_pw")) {
-			cgi_dbg("access_pw: %s", buff);
-
+		// Changing admin PW
+		if (admin && GET_ARG("admin_pw")) {
 			if (strlen(buff)) {
-				strcpy(buff2, buff);
-				if (!GET_ARG("access_pw2")) {
-					cgi_warn("Missing repeated access_pw %s", buff);
-					redir_url += sprintf(redir_url, "access_pw2,");
-					break;
-				}
+				cgi_dbg("admin_pw: %s", buff);
 
-				if (!streq(buff, buff2)) {
-					cgi_warn("Bad repeated access_pw %s", buff);
-					redir_url += sprintf(redir_url, "access_pw2,");
-					break;
-				}
-
-				if (strlen(buff) >= 64) {
-					cgi_warn("Too long access_pw %s", buff);
-					redir_url += sprintf(redir_url, "access_pw,");
-					break;
-				}
-
-				cgi_dbg("Changing access PW!");
-				strncpy(sysconf->access_pw, buff, 64);
-			}
-		}
-
-		if (GET_ARG("access_name")) {
-			cgi_dbg("access_name: %s", buff);
-
-			if (!strlen(buff) || strlen(buff) >= 32) {
-				cgi_warn("Too long access_name %s", buff);
-				redir_url += sprintf(redir_url, "access_name,");
-				break;
-			}
-
-			strncpy(sysconf->access_name, buff, 32);
-		}
-
-		if (GET_ARG("admin_pw")) {
-			cgi_dbg("admin_pw: %s", buff);
-
-			if (strlen(buff)) {
 				strcpy(buff2, buff);
 				if (!GET_ARG("admin_pw2")) {
 					cgi_warn("Missing repeated admin_pw %s", buff);
 					redir_url += sprintf(redir_url, "admin_pw2,");
-					break;
+					break; // Abort
 				}
 
 				if (!streq(buff, buff2)) {
 					cgi_warn("Bad repeated admin_pw %s", buff);
 					redir_url += sprintf(redir_url, "admin_pw2,");
-					break;
+					break; // Abort
 				}
 
 				if (strlen(buff) >= 64) {
 					cgi_warn("Too long admin_pw %s", buff);
 					redir_url += sprintf(redir_url, "admin_pw,");
-					break;
+					break; // Abort
 				}
 
 				cgi_dbg("Changing admin PW!");
 				strncpy(persist.admin.pw, buff, 64);
+
+				break; // this is the only field in this form
 			}
 		}
+
+		// Reject filled but unconfirmed access PW
+		if (admin && GET_ARG("access_pw")) {
+			if (strlen(buff)) {
+				cgi_dbg("access_pw: %s", buff);
+
+				strcpy(buff2, buff);
+				if (!GET_ARG("access_pw2")) {
+					cgi_warn("Missing repeated access_pw %s", buff);
+					redir_url += sprintf(redir_url, "access_pw2,");
+					break; // Abort
+				}
+
+				if (!streq(buff, buff2)) {
+					cgi_warn("Bad repeated access_pw %s", buff);
+					redir_url += sprintf(redir_url, "access_pw2,");
+					break; // Abort
+				}
+			}
+		}
+
+		// Settings in the system config block
+#define XSTRUCT sysconf
+#define X XSET_CGI_FUNC
+		XTABLE_SYSCONF
+#undef X
+#undef XSTRUCT
+
 	} while (0);
 
-	if (GET_ARG("overclock")) {
-		cgi_dbg("overclock = %s", buff);
-		int enable = atoi(buff);
-		if (sysconf->overclock != enable) {
-			sysconf->overclock = (bool)enable;
-		}
-	}
-
 	(void)redir_url;
+	(void)uart_changed; // unused
 
 	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
 		// All was OK
@@ -236,13 +212,16 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 
 	strcpy(buff, ""); // fallback
 
-	if (streq(token, "pwlock")) {
-		sprintf(buff, "%d", sysconf->pwlock);
-	}
-	else if (streq(token, "access_name")) {
-		sprintf(buff, "%s", sysconf->access_name);
-	}
-	else if (streq(token, "def_access_name")) {
+	const bool admin = false;
+	const bool tpl=true;
+
+#define XSTRUCT sysconf
+#define X XGET_CGI_FUNC
+	XTABLE_SYSCONF
+#undef X
+#undef XSTRUCT
+
+	if (streq(token, "def_access_name")) {
 		sprintf(buff, "%s", DEF_ACCESS_NAME);
 	}
 	else if (streq(token, "def_access_pw")) {
@@ -250,9 +229,6 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 	}
 	else if (streq(token, "def_admin_pw")) {
 		sprintf(buff, "%s", DEFAULT_ADMIN_PW);
-	}
-	else if (streq(token, "overclock")) {
-		sprintf(buff, "%d", sysconf->overclock);
 	}
 
 	tplSend(connData, buff, -1);
