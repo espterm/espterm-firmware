@@ -227,7 +227,11 @@ struct IniUpload {
 	bool term_ok;
 	bool wifi_ok;
 	bool sys_ok;
+	bool term_any;
+	bool wifi_any;
+	bool sys_any;
 };
+
 
 static void ICACHE_FLASH_ATTR iniCb(const char *section, const char *key, const char *value, void *userData)
 {
@@ -241,31 +245,59 @@ static void ICACHE_FLASH_ATTR iniCb(const char *section, const char *key, const 
 
 //	cgi_dbg("%s.%s = %s", section, key, value);
 
-#define X XSET_ASSIGN
-
-	bool suc = true;
-	bool found = false;
+/** used for INI */
+#define X(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
+	if (streq(#name, key)) { \
+		found = true; \
+		type *_p = (type *) &XSTRUCT->name; \
+		enum xset_result res = xset(#name, _p, value, (const void*) (xsarg)); \
+		if (res == XSET_SET) { changed = true; xnotify; } \
+		else if (res == XSET_FAIL) { ok = false; } \
+		break; \
+	}
 
 	// notify flag, unused here
 	bool uart_changed = false;
 
+	bool found = false;
+	bool ok = true;
+	bool changed = false;
+
 	if (streq(section, "terminal")) {
+		do {
 #define XSTRUCT termconf
-		XTABLE_TERMCONF
+			XTABLE_TERMCONF
 #undef XSTRUCT
-		if (!suc) state->term_ok = false;
+		} while (0);
+
+		if (found) {
+			if (!ok) state->term_ok = false;
+			state->term_any |= changed;
+		}
 	}
 	else if (streq(section, "wifi")) {
+		do {
 #define XSTRUCT wificonf
-		XTABLE_WIFICONF
+			XTABLE_WIFICONF
 #undef XSTRUCT
-		if (!suc) state->wifi_ok = false;
+		} while (0);
+
+		if (found) {
+			if (!ok) state->wifi_ok = false;
+			state->wifi_any |= changed;
+		}
 	}
 	else if (streq(section, "system")) {
+		do {
 #define XSTRUCT sysconf
-		XTABLE_SYSCONF
+			XTABLE_SYSCONF
 #undef XSTRUCT
-		if (!suc) state->sys_ok = false;
+		} while (0);
+
+		if (found) {
+			if (!ok) state->sys_ok = false;
+			state->sys_any |= changed;
+		}
 	}
 
 	if (!found) cgi_warn("Unknown key %s.%s!", section, key);
@@ -294,16 +326,18 @@ postRecvHdl(HttpdConnData *connData, char *data, int len)
 	struct IniUpload *state = connData->cgiData;
 	if (!state) return HTTPD_CGI_DONE;
 
-	// Discard the boundary marker (there is only one)
-	char *bdr = connData->post->multipartBoundary;
-	char *foundat = strstr(data, bdr);
-	if (foundat != NULL) {
-		*foundat = '#'; // make it a comment
-	}
-
 	cgi_dbg("INI parse - postRecvHdl");
 
-	ini_parse(data, (size_t) len);
+	if (len>0) {
+		// Discard the boundary marker (there is only one)
+		char *bdr = connData->post->multipartBoundary;
+		char *foundat = strstr(data, bdr);
+		if (foundat != NULL) {
+			*foundat = '#'; // make it a comment
+		}
+
+		ini_parse(data, (size_t) len);
+	}
 
 	cgi_dbg("Closing parser");
 	ini_parse_end();
@@ -316,6 +350,7 @@ postRecvHdl(HttpdConnData *connData, char *data, int len)
 	if (tooLarge) cgi_warn("Bad term screen size!");
 
 	bool suc = state->term_ok && state->wifi_ok && state->sys_ok;
+	bool any = state->term_any || state->wifi_any || state->sys_any;
 
 	cgi_dbg("Evaluating results...");
 
@@ -330,22 +365,38 @@ postRecvHdl(HttpdConnData *connData, char *data, int len)
 		memcpy(sysconf, state->sys_backup, sizeof(SystemConfigBundle));
 	}
 	else {
-		cgi_dbg("Applying terminal settings");
-		terminal_apply_settings();
-		cgi_dbg("Applying system  settings");
-		sysconf_apply_settings();
-		cgi_dbg("Applying WiFi settings (scheduling...)");
-		wifimgr_apply_settings_later(1000);
+		if (state->term_any) {
+			cgi_dbg("Applying terminal settings");
+			terminal_apply_settings();
+		}
 
-		cgi_dbg("Persisting results");
-		persist_store();
+		if (state->sys_any) {
+			cgi_dbg("Applying system  settings");
+			sysconf_apply_settings();
+		}
+
+		if (state->wifi_any) {
+			cgi_dbg("Applying WiFi settings (scheduling...)");
+			wifimgr_apply_settings_later(2000);
+		}
+
+		if (any) {
+			cgi_dbg("Persisting results");
+			persist_store();
+		} else {
+			cgi_warn("Nothing written.");
+		}
 	}
 
 	cgi_dbg("Redirect");
 	char buff[100];
 	char *b = buff;
 	if (suc) {
-		httpdRedirect(connData, SET_REDIR_SUC"?msg=Settings%20loaded%20and%20applied.");
+		if (any) {
+			httpdRedirect(connData, SET_REDIR_SUC"?msg=Settings%20loaded%20and%20applied.");
+		} else {
+			httpdRedirect(connData, SET_REDIR_SUC"?msg=No%20settings%20changed.");
+		}
 	} else {
 		b += sprintf(b, SET_REDIR_SUC"?errmsg=Errors%%20in:%%20");
 		bool comma = false;
@@ -423,6 +474,10 @@ cgiPersistImport(HttpdConnData *connData)
 	state->wifi_ok = true;
 	state->term_ok = true;
 
+	state->sys_any = false;
+	state->wifi_any = false;
+	state->term_any = false;
+
 	cgi_dbg("Parser starts!");
 	ini_parse_begin(iniCb, connData);
 
@@ -430,6 +485,14 @@ cgiPersistImport(HttpdConnData *connData)
 	ini_parse(start, datalen);
 
 	connData->recvHdl = postRecvHdl;
+
+	// special case for too short ini
+	int bytes_remain = connData->post->len;
+	bytes_remain -= connData->post->buffLen;
+
+	if (bytes_remain <= 0) {
+		return connData->recvHdl(connData, NULL, 0);
+	}
 
 	// continues in recvHdl
 	return HTTPD_CGI_MORE;

@@ -50,7 +50,8 @@ void xget_dhcp(char *buff, const struct dhcps_lease *value);
 enum xset_result {
 	XSET_FAIL = 0,
 	XSET_SET = 1,
-	XSET_UNCHANGED = 2
+	XSET_UNCHANGED = 2,
+	XSET_NONE = 3,
 };
 
 // Dummy for unimplemented setters
@@ -82,16 +83,6 @@ enum xset_result xset_ustring(const char *name, u8 *field, const char *buff, con
 		enum xset_result res = xset(#name, _p, buff, (const void*) (xsarg)); \
 		if (res == XSET_SET) { xnotify; } \
 		else if (res == XSET_FAIL) { redir_url += sprintf(redir_url, #name","); } \
-	}
-
-/** used for INI */
-#define XSET_ASSIGN(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
-	if (streq(#name, key)) { \
-		found = true; \
-		type *_p = (type *) &XSTRUCT->name; \
-		enum xset_result res = xset(#name, _p, value, (const void*) (xsarg)); \
-		if (res == XSET_SET) { xnotify; } \
-		else if (res == XSET_FAIL) { suc = false; } \
 	}
 
 #define XGET_CGI_FUNC(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
