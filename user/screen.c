@@ -416,23 +416,28 @@ terminal_apply_settings_noclear(void)
 
 	// Migrate
 	if (termconf->config_version < 1) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 1");
 		termconf->debugbar = SCR_DEF_DEBUGBAR;
 		changed = 1;
 	}
 	if (termconf->config_version < 2) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 2");
 		termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 		changed = 1;
 	}
 	if (termconf->config_version < 3) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 3");
 		termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
 		changed = 1;
 	}
 	if (termconf->config_version < 4) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 4");
 		termconf->backdrop[0] = 0;
+		changed = 1;
+	}
+	if (termconf->config_version < 5) {
+		persist_dbg("termconf: Updating to version 5");
+		termconf->button_count = SCR_DEF_BUTTON_COUNT;
 		changed = 1;
 	}
 
@@ -1206,6 +1211,7 @@ screen_set_button_text(int num, const char *text)
 	else if (num == 3) strncpy(termconf_live.btn3, text, TERM_BTN_LEN);
 	else if (num == 4) strncpy(termconf_live.btn4, text, TERM_BTN_LEN);
 	else if (num == 5) strncpy(termconf_live.btn5, text, TERM_BTN_LEN);
+	else ansi_warn("Bad button num: %d", num);
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
 }
 
@@ -1223,6 +1229,23 @@ screen_set_button_message(int num, const char *msg)
 	else if (num == 3) strncpy(termconf_live.bm3, msg, TERM_BTN_MSG_LEN);
 	else if (num == 4) strncpy(termconf_live.bm4, msg, TERM_BTN_MSG_LEN);
 	else if (num == 5) strncpy(termconf_live.bm5, msg, TERM_BTN_MSG_LEN);
+	else ansi_warn("Bad button num: %d", num);
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Set button count
+ * @param count - count 1-5
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_count(int count)
+{
+	NOTIFY_LOCK();
+	if (count >= 0 && count <= 5) {
+		dbg("%d ", count);
+		termconf_live.button_count = (u8) count;
+	}
+	else ansi_warn("Bad button count: %d", count);
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
 }
 
@@ -2263,12 +2286,12 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_c('\x01');
 		END_TOPIC
 
-		BEGIN_TOPIC(TOPIC_CHANGE_BUTTONS, (TERM_BTN_LEN+4)*TERM_BTN_COUNT+1+4)
+		BEGIN_TOPIC(TOPIC_CHANGE_BUTTONS, (TERM_BTN_LEN+4)*termconf_live.button_count+1+4)
 			bufput_c(TOPICMARK_BUTTONS);
 
-			bufput_utf8(TERM_BTN_COUNT);
+			bufput_utf8(termconf_live.button_count);
 
-			for (int i = 0; i < TERM_BTN_COUNT; i++) {
+			for (int i = 0; i < termconf_live.button_count; i++) {
 				size_t len = strlen(TERM_BTN_N(&termconf_live, i));
 				if (len > 0) {
 					memcpy(bb, TERM_BTN_N(&termconf_live, i), len);

@@ -70,6 +70,7 @@ enum CursorShape {
 #define SCR_DEF_DEBUGBAR 0
 #define SCR_DEF_DECOPT12 0
 #define SCR_DEF_ASCIIDEBUG 0
+#define SCR_DEF_BUTTON_COUNT 5
 
 // --- Persistent Settings ---
 #define CURSOR_BLINKS(shape) ((shape)==CURSOR_BLOCK_BL||(shape)==CURSOR_UNDERLINE_BL||(shape)==CURSOR_BAR_BL)
@@ -77,9 +78,9 @@ enum CursorShape {
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define TERMCONF_SIZE 400
-#define TERMCONF_VERSION 4
+#define TERMCONF_VERSION 5
 
-//....Type................Name..Suffix...............Deref..XGET.........Cast..XSET.........................NOTIFY................Allow
+//....Type................Name..Suffix...............Deref..XGET.........Cast..XSET...........NOTIFY..Allow
 // Deref is used to pass the field to xget. Cast is used to convert the &'d field to what xset wants (needed for static arrays)
 #define XTABLE_TERMCONF \
 	X(u32,            width, /**/,                  /**/, xget_dec,      xset_u32, NULL,      /**/, 1) \
@@ -112,7 +113,8 @@ enum CursorShape {
 	X(bool,           debugbar, /**/,               /**/, xget_bool,     xset_bool, NULL,     /**/, 1) \
 	X(bool,           allow_decopt_12, /**/,        /**/, xget_bool,     xset_bool, NULL,     /**/, 1) \
 	X(bool,           ascii_debug, /**/,            /**/, xget_bool,     xset_bool, NULL,     /**/, 1) \
-	X(char,           backdrop, [TERM_BACKDROP_LEN], /**/, xget_string,  xset_string, TERM_BACKDROP_LEN,  /**/, 1)
+	X(char,           backdrop, [TERM_BACKDROP_LEN], /**/, xget_string,  xset_string, TERM_BACKDROP_LEN,  /**/, 1) \
+	X(u8,             button_count, /**/,            /**/, xget_dec,     xset_u8, NULL,       /**/, 1)
 
 #define TERM_BM_N(tc, n) ((tc)->bm1+(TERM_BTN_MSG_LEN*n))
 #define TERM_BTN_N(tc, n) ((tc)->btn1+(TERM_BTN_LEN*n))
@@ -181,6 +183,7 @@ void screen_set_title(const char *title);
 /** Set a button text */
 void screen_set_button_text(int num, const char *text);
 void screen_set_button_message(int num, const char *msg);
+void screen_set_button_count(int count);
 /** Change backdrop */
 void screen_set_backdrop(const char *url);
 
