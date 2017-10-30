@@ -40,6 +40,7 @@
 #define TERM_TITLE_LEN 64
 #define TERM_BTN_COUNT 5
 #define TERM_BACKDROP_LEN 100
+#define TERM_FONTSTACK_LEN 100
 
 #define SCR_DEF_DISPLAY_TOUT_MS 12
 #define SCR_DEF_DISPLAY_COOLDOWN_MS 35
@@ -77,8 +78,8 @@ enum CursorShape {
 
 // Size designed for the terminal config structure
 // Must be constant to avoid corrupting user config after upgrade
-#define TERMCONF_SIZE 400
-#define TERMCONF_VERSION 5
+#define TERMCONF_SIZE 500
+#define TERMCONF_VERSION 6
 
 //....Type................Name..Suffix...............Deref..XGET.........Cast..XSET...........NOTIFY..Allow
 // Deref is used to pass the field to xget. Cast is used to convert the &'d field to what xset wants (needed for static arrays)
@@ -114,7 +115,14 @@ enum CursorShape {
 	X(bool,           allow_decopt_12, /**/,        /**/, xget_bool,     xset_bool, NULL,     /**/, 1) \
 	X(bool,           ascii_debug, /**/,            /**/, xget_bool,     xset_bool, NULL,     /**/, 1) \
 	X(char,           backdrop, [TERM_BACKDROP_LEN], /**/, xget_string,  xset_string, TERM_BACKDROP_LEN,  /**/, 1) \
-	X(u8,             button_count, /**/,            /**/, xget_dec,     xset_u8, NULL,       /**/, 1)
+	X(u8,             button_count, /**/,            /**/, xget_dec,     xset_u8, NULL,       /**/, 1) \
+	X(u32,            bc1, /**/,      /**/, xget_term_color,  xset_term_color, NULL,  /**/, 1) \
+	X(u32,            bc2, /**/,      /**/, xget_term_color,  xset_term_color, NULL,  /**/, 1) \
+	X(u32,            bc3, /**/,      /**/, xget_term_color,  xset_term_color, NULL,  /**/, 1) \
+	X(u32,            bc4, /**/,      /**/, xget_term_color,  xset_term_color, NULL,  /**/, 1) \
+	X(u32,            bc5, /**/,      /**/, xget_term_color,  xset_term_color, NULL,  /**/, 1) \
+	X(char,           font_stack, [TERM_FONTSTACK_LEN], /**/, xget_string,  xset_string, TERM_FONTSTACK_LEN,  /**/, 1) \
+	X(u8,             font_size, /**/,              /**/, xget_dec,      xset_u8, NULL,       /**/, 1)
 
 #define TERM_BM_N(tc, n) ((tc)->bm1+(TERM_BTN_MSG_LEN*n))
 #define TERM_BTN_N(tc, n) ((tc)->btn1+(TERM_BTN_LEN*n))
@@ -208,11 +216,13 @@ enum ScreenSerializeTopic {
 	TOPIC_INTERNAL            = (1<<6), // debugging internal state
 	TOPIC_BELL                = (1<<7), // beep
 	TOPIC_CHANGE_BACKDROP     = (1<<8),
+	TOPIC_CHANGE_STATIC_OPTS  = (1<<9),
 	TOPIC_FLAG_NOCLEAN        = (1<<15), // do not clean dirty extents
 
 	// combos
 	TOPIC_INITIAL =
 		TOPIC_CHANGE_SCREEN_OPTS |
+		TOPIC_CHANGE_STATIC_OPTS |
 		TOPIC_CHANGE_CONTENT_ALL |
 		TOPIC_CHANGE_CURSOR |
 		TOPIC_CHANGE_TITLE |

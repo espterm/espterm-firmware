@@ -373,6 +373,8 @@ terminal_restore_defaults(void)
 	strcpy((char*)termconf->bm4, "\x04");
 	strcpy((char*)termconf->bm5, "\x05");
 
+	termconf->bc1 = termconf->bc2 = termconf->bc3 = termconf->bc4 = termconf->bc5 = 0;
+
 	termconf->theme = 0;
 	termconf->parser_tout_ms = SCR_DEF_PARSER_TOUT_MS;
 	termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
@@ -389,6 +391,8 @@ terminal_restore_defaults(void)
 	termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 	termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
 	termconf->backdrop[0] = 0;
+	termconf->font_stack[0] = 0;
+	termconf->font_size = 20;
 }
 
 /**
@@ -438,6 +442,14 @@ terminal_apply_settings_noclear(void)
 	if (termconf->config_version < 5) {
 		persist_dbg("termconf: Updating to version 5");
 		termconf->button_count = SCR_DEF_BUTTON_COUNT;
+		changed = 1;
+	}
+	if (termconf->config_version < 6) {
+		persist_dbg("termconf: Updating to version 6");
+		termconf->backdrop[0] = 0;
+		termconf->font_stack[0] = 0;
+		termconf->font_size = 20;
+		termconf->bc1 = termconf->bc2 = termconf->bc3 = termconf->bc4 = termconf->bc5 = 0;
 		changed = 1;
 	}
 
@@ -2143,6 +2155,15 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		bufput_utf8((num)); \
 	} while(0)
 
+#define bufput_color_utf8(c) do { \
+		if ((c) < 256) { \
+			bufput_utf8(c); \
+		} else { \
+			bufput_utf8((((c)-256)&0xFFF) | 0x10000); \
+			bufput_utf8((((c)-256)>>12)&0xFFF); \
+		} \
+	} while(0)
+
 	// tags for screen serialization
 #define SEQ_TAG_SKIP '\x01'
 #define SEQ_TAG_REPEAT '\x02'
@@ -2153,6 +2174,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define SEQ_TAG_ATTRS_0 '\x07'
 
 #define TOPICMARK_SCREEN_OPTS 'O'
+#define TOPICMARK_STATIC_OPTS 'P'
 #define TOPICMARK_TITLE   'T'
 #define TOPICMARK_BUTTONS 'B'
 #define TOPICMARK_DEBUG   'D'
@@ -2250,12 +2272,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(H);
 			bufput_utf8(W);
 			bufput_utf8(termconf_live.theme);
-
-			bufput_utf8(termconf_live.default_fg & 0xFFFF);
-			bufput_utf8((termconf_live.default_fg >> 16) & 0xFFFF);
-
-			bufput_utf8(termconf_live.default_bg & 0xFFFF);
-			bufput_utf8((termconf_live.default_bg >> 16) & 0xFFFF);
+			bufput_color_utf8(termconf_live.default_fg);
+			bufput_color_utf8(termconf_live.default_bg);
 
 			bufput_utf8(
 				(scr.cursor_visible << 0) |
@@ -2272,6 +2290,20 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 				(scr.bracketed_paste << 13) |
 				(scr.reverse_video << 14)
 			);
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_CHANGE_STATIC_OPTS, 110)
+			bufput_c(TOPICMARK_STATIC_OPTS);
+
+			size_t len = strlen(termconf_live.font_stack);
+			if (len > 0) {
+				memcpy(bb, termconf_live.font_stack, len);
+				bb += len;
+				remain -= len;
+			}
+			bufput_c('\x01');
+
+			bufput_utf8(termconf_live.font_size);
 		END_TOPIC
 
 		BEGIN_TOPIC(TOPIC_CHANGE_TITLE, TERM_TITLE_LEN+4+1)
@@ -2291,7 +2323,11 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 
 			bufput_utf8(termconf_live.button_count);
 
+			u32 *cp = &termconf_live.bc1;
 			for (int i = 0; i < termconf_live.button_count; i++) {
+				uint32_t c = *cp++;
+				bufput_color_utf8(c);
+
 				size_t len = strlen(TERM_BTN_N(&termconf_live, i));
 				if (len > 0) {
 					memcpy(bb, TERM_BTN_N(&termconf_live, i), len);
@@ -2333,6 +2369,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(cursor.charsetN);
 			bufput_c(cursor.charset0);
 			bufput_c(cursor.charset1);
+			bufput_color_utf8(cursor.fg);
+			bufput_color_utf8(cursor.bg);
 			bufput_utf8(system_get_free_heap_size());
 			bufput_utf8(term_active_clients);
 		END_TOPIC
