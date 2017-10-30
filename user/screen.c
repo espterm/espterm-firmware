@@ -1218,12 +1218,13 @@ void ICACHE_FLASH_ATTR
 screen_set_button_text(int num, const char *text)
 {
 	NOTIFY_LOCK();
-	if (num == 1) strncpy(termconf_live.btn1, text, TERM_BTN_LEN);
-	else if (num == 2) strncpy(termconf_live.btn2, text, TERM_BTN_LEN);
-	else if (num == 3) strncpy(termconf_live.btn3, text, TERM_BTN_LEN);
-	else if (num == 4) strncpy(termconf_live.btn4, text, TERM_BTN_LEN);
-	else if (num == 5) strncpy(termconf_live.btn5, text, TERM_BTN_LEN);
+
+	if (num >= 1 && num <= TERM_BTN_COUNT) {
+		char *buf = TERM_BTN_N(&termconf_live, num - 1);
+		strncpy(buf, text, TERM_BTN_MSG_LEN);
+	}
 	else ansi_warn("Bad button num: %d", num);
+
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
 }
 
@@ -1236,12 +1237,32 @@ void ICACHE_FLASH_ATTR
 screen_set_button_message(int num, const char *msg)
 {
 	NOTIFY_LOCK();
-	if (num == 1) strncpy(termconf_live.bm1, msg, TERM_BTN_MSG_LEN);
-	else if (num == 2) strncpy(termconf_live.bm2, msg, TERM_BTN_MSG_LEN);
-	else if (num == 3) strncpy(termconf_live.bm3, msg, TERM_BTN_MSG_LEN);
-	else if (num == 4) strncpy(termconf_live.bm4, msg, TERM_BTN_MSG_LEN);
-	else if (num == 5) strncpy(termconf_live.bm5, msg, TERM_BTN_MSG_LEN);
+
+	if (num >= 1 && num <= TERM_BTN_COUNT) {
+		char *buf = TERM_BM_N(&termconf_live, num - 1);
+		strncpy(buf, msg, TERM_BTN_MSG_LEN);
+	}
 	else ansi_warn("Bad button num: %d", num);
+
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Helper function to set terminal button label
+ * @param num - button number 1-5
+ * @param str - button text
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_color(int num, const char *buf)
+{
+	NOTIFY_LOCK();
+
+	if (num >= 1 && num <= TERM_BTN_COUNT)  {
+		u32 *fieldptr = &termconf_live.bc1 + (num-1);
+		xset_term_color("", fieldptr, buf, NULL);
+	}
+	else ansi_warn("Bad button num: %d", num);
+
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
 }
 

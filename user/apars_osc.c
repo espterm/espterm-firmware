@@ -44,6 +44,10 @@ handle_espterm_osc(int n0, int n1, char *buffer)
 		// Button message
 		screen_set_button_message(n1, buffer);
 	}
+	else if (n0 == 30) {
+		// Button color
+		screen_set_button_color(n1, buffer);
+	}
 	else goto bad;
 	return;
 

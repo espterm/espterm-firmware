@@ -191,6 +191,7 @@ void screen_set_title(const char *title);
 /** Set a button text */
 void screen_set_button_text(int num, const char *text);
 void screen_set_button_message(int num, const char *msg);
+void screen_set_button_color(int num, const char *buf);
 void screen_set_button_count(int count);
 /** Change backdrop */
 void screen_set_backdrop(const char *url);
