@@ -218,6 +218,7 @@ enum ScreenSerializeTopic {
 	TOPIC_BELL                = (1<<7), // beep
 	TOPIC_CHANGE_BACKDROP     = (1<<8),
 	TOPIC_CHANGE_STATIC_OPTS  = (1<<9),
+	TOPIC_DOUBLE_LINES        = (1<<10),
 	TOPIC_FLAG_NOCLEAN        = (1<<15), // do not clean dirty extents
 
 	// combos
@@ -228,7 +229,8 @@ enum ScreenSerializeTopic {
 		TOPIC_CHANGE_CURSOR |
 		TOPIC_CHANGE_TITLE |
 		TOPIC_CHANGE_BACKDROP |
-		TOPIC_CHANGE_BUTTONS,
+		TOPIC_CHANGE_BUTTONS |
+		TOPIC_DOUBLE_LINES,
 };
 
 typedef u16 ScreenNotifyTopics;
@@ -379,6 +381,9 @@ void screen_tab_forward(int count);
 void screen_tab_reverse(int count);
 /** Move left, shift right if at the boundary */
 void screen_back_index(int count);
+
+/** Set line attribs; 0-no change, 1,2 - single,double */
+void screen_set_line_attr(uint8_t double_w, uint8_t double_h_top, uint8_t double_h_bot);
 
 // --- Printing characters ---
 

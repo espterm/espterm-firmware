@@ -39,6 +39,7 @@ static Cell screen[MAX_SCREEN_SIZE];
 
 
 #define TABSTOP_WORDS 5
+#define LINE_ATTRS_COUNT 64
 /**
  * Screen state structure
  */
@@ -57,8 +58,11 @@ static struct {
 	int vm1;
 
 	u32 tab_stops[TABSTOP_WORDS]; // tab stops bitmap
+	u8 line_attribs[LINE_ATTRS_COUNT]; // assume that's quite enough...
 	char last_char[4];
 } scr;
+
+#define IS_DOUBLE_WIDTH() (scr.line_attribs[cursor.y]&0b001)
 
 #define TOP scr.vm0
 #define BTM scr.vm1
@@ -551,7 +555,12 @@ screen_reset_sgr(void)
 static void ICACHE_FLASH_ATTR
 screen_reset_do(bool size, bool labels)
 {
-	ScreenNotifyTopics topics = TOPIC_CHANGE_SCREEN_OPTS | TOPIC_CHANGE_CURSOR | TOPIC_CHANGE_CONTENT_ALL;
+	ScreenNotifyTopics topics =
+		TOPIC_CHANGE_SCREEN_OPTS
+		| TOPIC_CHANGE_CURSOR
+		| TOPIC_CHANGE_CONTENT_ALL
+		| TOPIC_DOUBLE_LINES;
+
 	NOTIFY_LOCK();
 
 	// DECopts
@@ -587,6 +596,9 @@ screen_reset_do(bool size, bool labels)
 	for (int i = 0; i < TABSTOP_WORDS; i++) {
 		scr.tab_stops[i] = 0x80808080;
 	}
+
+	// clear line attribs
+	memset(scr.line_attribs, 0, LINE_ATTRS_COUNT);
 
 	if (labels) {
 		strcpy(termconf_live.title, termconf->title);
@@ -687,6 +699,32 @@ screen_swap_state(bool alternate)
 
 //endregion
 
+//region --- Double lines ---
+
+void ICACHE_FLASH_ATTR
+screen_set_line_attr(uint8_t double_w, uint8_t double_h_top, uint8_t double_h_bot)
+{
+	NOTIFY_LOCK();
+	u8 attr = scr.line_attribs[cursor.y];
+	if (double_w==2) attr |= 0b001;
+	else if (double_w==1) attr &= ~0b001;
+	if (double_h_top==2) attr |= 0b010;
+	else if (double_h_top==1) attr &= ~0b010;
+	if (double_h_bot==2) attr |= 0b100;
+	else if (double_h_bot==1) attr &= ~0b100;
+	scr.line_attribs[cursor.y] = attr;
+
+	if (attr & 0b001) {
+		// if we're using double width - clamp cursor X position
+		// TODO this should happen in all cursor ops - now it can sometimes go offscreen
+		if (cursor.x >= W/2) cursor.x = W/2;
+	}
+
+	NOTIFY_DONE(TOPIC_DOUBLE_LINES);
+}
+
+//endregion
+
 //region --- Tab stops ---
 
 void ICACHE_FLASH_ATTR
@@ -722,6 +760,7 @@ next_tab_stop(void)
 {
 	// cursor must never go past EOL
 	if (cursor.x >= W-1) return -1;
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2-1) return -1;
 
 	// find first word to inspect
 	int idx = (cursor.x+1)/32;
@@ -733,6 +772,7 @@ next_tab_stop(void)
 		for(;offs<32;offs++) {
 			cp++;
 			if (cp >= W) return -1;
+			if (IS_DOUBLE_WIDTH() && cp >= W/2) return -1;
 			if (w & 1) return cp;
 			w >>= 1;
 		}
@@ -790,6 +830,7 @@ screen_tab_forward(int count)
 		}
 		else {
 			cursor.x = W - 1;
+			if (IS_DOUBLE_WIDTH()) cursor.x = W/2 - 1;
 		}
 	}
 	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
@@ -991,19 +1032,23 @@ screen_clear(ClearMode mode)
 			unicode_cache_clear();
 			clear_range_noutf(0, W * H - 1);
 			scr.last_char[0]  = 0;
+			for (int i = 0; i < LINE_ATTRS_COUNT; i++) scr.line_attribs[i] = 0;
 			break;
 
 		case CLEAR_FROM_CURSOR:
 			clear_range_utf((cursor.y * W) + cursor.x, W * H - 1);
 			expand_dirty(cursor.y, H-1, 0, W-1);
+			for (int i = cursor.y; i < LINE_ATTRS_COUNT; i++) scr.line_attribs[i] = 0;
 			break;
 
 		case CLEAR_TO_CURSOR:
 			clear_range_utf(0, (cursor.y * W) + cursor.x);
 			expand_dirty(0, cursor.y, 0, W-1);
+			for (int i = 0; i <= cursor.y; i++) scr.line_attribs[i] = 0;
 			break;
 	}
-	NOTIFY_DONE(mode == CLEAR_ALL ? TOPIC_CHANGE_CONTENT_ALL : TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE((mode == CLEAR_ALL ? TOPIC_CHANGE_CONTENT_ALL : TOPIC_CHANGE_CONTENT_PART)
+				| TOPIC_DOUBLE_LINES);
 }
 
 /**
@@ -1055,11 +1100,15 @@ screen_insert_lines(unsigned int lines)
 	int targetStart = cursor.y + lines;
 	if (targetStart > BTM) {
 		clear_range_utf(cursor.y*W, (BTM+1)*W-1);
+		for (int i = cursor.y; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 	} else {
 		// do the moving
 		for (int i = BTM; i >= targetStart; i--) {
 			utf_free_row(i); // release old characters
 			copy_row(i, i - lines);
+			scr.line_attribs[i] = scr.line_attribs[i-lines];
 			if (i != targetStart) utf_backup_row(i);
 		}
 
@@ -1071,7 +1120,7 @@ screen_insert_lines(unsigned int lines)
 		}
 	}
 	expand_dirty(cursor.y, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1086,18 +1135,26 @@ screen_delete_lines(unsigned int lines)
 		// clear the entire rest of the screen
 		movedBlockEnd = cursor.y;
 		clear_range_utf(movedBlockEnd*W, (BTM+1)*W-1);
+		for (int i = movedBlockEnd; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 	} else {
 		// move some lines up, clear the rest
 		for (int i = cursor.y; i <= movedBlockEnd; i++) {
 			utf_free_row(i);
 			copy_row(i, i+lines);
+			scr.line_attribs[i] = scr.line_attribs[i+lines];
 			if (i != movedBlockEnd) utf_backup_row(i);
 		}
 		clear_range_noutf((movedBlockEnd+1)*W, (BTM+1)*W-1);
+
+		for (int i = movedBlockEnd+1; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 	}
 
 	expand_dirty(cursor.y, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 void ICACHE_FLASH_ATTR
@@ -1304,6 +1361,9 @@ screen_scroll_up(unsigned int lines)
 	if (lines >= RH) {
 		// clear entire region
 		clear_range_utf(TOP * W, (BTM + 1) * W - 1);
+		for (int i = TOP; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 		goto done;
 	}
 
@@ -1316,14 +1376,18 @@ screen_scroll_up(unsigned int lines)
 	for (y = TOP; y <= BTM - lines; y++) {
 		utf_free_row(y);
 		copy_row(y, y+lines);
+		scr.line_attribs[y] = scr.line_attribs[y+lines];
 		if (y < BTM - lines) utf_backup_row(y);
 	}
 
 	clear_range_noutf(y * W, (BTM + 1) * W - 1);
+	for (int i = y; i <= BTM; i++) {
+		scr.line_attribs[i] = 0;
+	}
 
 done:
 	expand_dirty(TOP, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 /**
@@ -1336,6 +1400,9 @@ screen_scroll_down(unsigned int lines)
 	if (lines >= RH) {
 		// clear entire region
 		clear_range_utf(TOP * W, (BTM + 1) * W - 1);
+		for (int i = TOP; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 		goto done;
 	}
 
@@ -1348,13 +1415,17 @@ screen_scroll_down(unsigned int lines)
 	for (y = BTM; y >= TOP+lines; y--) {
 		utf_free_row(y);
 		copy_row(y, y-lines);
+		scr.line_attribs[y] = scr.line_attribs[y-lines];
 		if (y > TOP + lines) utf_backup_row(y);
 	}
 
-	clear_range_noutf(TOP * W, TOP * W + lines * W - 1);
+	clear_range_noutf(TOP * W, (TOP + lines) * W - 1);
+	for (int i = TOP; i < TOP + lines; i++) {
+		scr.line_attribs[i] = 0;
+	}
 done:
 	expand_dirty(TOP, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 /** Set scrolling region */
@@ -1459,6 +1530,9 @@ screen_cursor_set_x(int x)
 	// hanging happens when the cursor is virtually at col=81, which
 	// cannot be set using the cursor-set commands.
 	cursor.hanging = false;
+
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) cursor.x = W/2-1;
+
 	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
@@ -1503,6 +1577,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 	cursor.x += dx;
 	cursor.y += dy;
 	if (cursor.x >= (int)W) cursor.x = W - 1;
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) cursor.x = W/2-1;
 	if (cursor.x < (int)0) {
 		if (cursor.auto_wrap && cursor.reverse_wrap) {
 			// this is mimicking a behavior from xterm that allows any number of steps backwards with reverse wraparound enabled
@@ -1608,6 +1683,8 @@ screen_cursor_restore(bool withAttrs)
 			cursor.hanging = cursor_sav.hanging;
 		}
 	}
+
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) cursor.x = W/2-1;
 
 	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
@@ -1977,6 +2054,10 @@ putchar_graphic(const char *ch)
 		cursor.hanging = true; // hanging - next typed char wraps around, but backspace and arrows still stay on the same line.
 		cursor.x = W - 1;
 	}
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) {
+		cursor.hanging = true; // hanging
+		cursor.x = W/2 - 1;
+	}
 
 	NOTIFY_DONE(topics);
 	return ch;
@@ -2203,6 +2284,7 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define TOPICMARK_CURSOR  'C'
 #define TOPICMARK_SCREEN   'S'
 #define TOPICMARK_BACKDROP 'W'
+#define TOPICMARK_DBL_LINE 'H'
 
 	if (ss == NULL) {
 		// START!
@@ -2325,6 +2407,22 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_c('\x01');
 
 			bufput_utf8(termconf_live.font_size);
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_DOUBLE_LINES, 70)
+			bufput_c(TOPICMARK_DBL_LINE);
+
+			int cnt = 0;
+			for (int i = 0; i < LINE_ATTRS_COUNT; i++) {
+				if (scr.line_attribs[i] != 0) cnt++;
+			}
+			bufput_utf8(cnt);
+
+			for (int i = 0; i < LINE_ATTRS_COUNT; i++) {
+				if (scr.line_attribs[i] != 0) {
+					bufput_utf8((i << 3) | (scr.line_attribs[i]&0b111));
+				}
+			}
 		END_TOPIC
 
 		BEGIN_TOPIC(TOPIC_CHANGE_TITLE, TERM_TITLE_LEN+4+1)
