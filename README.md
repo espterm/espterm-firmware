@@ -5,21 +5,24 @@
 ![Photo][photo-hw]<br>
 *Fig 1: Breadboard adapter developed for ESPTerm*
 
-As of release 1.0, ESPTerm **passes most of VTTEST test cases** (from the main menu and some Xterm specific), making it 
-functionally comparable to eg. gnome-terminal, terminator, konsole, GtkTerm or PuTTY. 
+ESPTerm **passes most of VTTEST test cases**, making it functionally comparable to eg. 
+gnome-terminal, terminator, konsole, GtkTerm or PuTTY. 
 ESPTerm is **capable of running Midnight Commander** through agetty, **including full
-mouse support**, provided agetty is made to believe it's Xterm, which shows ESPTerm is sufficiently well
-implemented to work with ncurses.
+mouse support**, provided agetty is made to believe it's Xterm, which shows ESPTerm 
+is compatible with ncurses.
+
+In addition to control sequences that manipulate the terminal or user input, there 
+is a set of simple **networking commands** for device-to-device message exchange and 
+interacting with remote servers.
 
 To see what escape sequences are supported, check out this [annotated Xterm manual page][xterm-compare]
 which was used for reference, or the built-in help page ([online demo][demo-help])
 
 The terminal screen can be accessed using any web browser, even on a phone or tablet. 
-It works with ESP-01, ESP-01S, ESP-12 and likely many other modules (I use an ESP-12
-on a LoLin NodeMCU board from eBay for development).
+It works with ESP-01, ESP-01S, ESP-12 and likely many other modules.
 
 With ESPTerm, you can add remote access via WiFi to any embeded project, all you need is 
-a serial port and some imagination!
+UART and some imagination!
 
 ## Try it online
 
@@ -48,6 +51,8 @@ It **does not work with**:
 - Internet Explorer (any version) - crashes, missing JS features
 - Opera Mini - crashes, missing JS and CSS features
 - Blackberry browser - not tested, but unlikely
+- Safari on old iOS versions - missing features
+- WebOS browser
 - Old Android Browser (before 4.4?) - not tested, likely missing JS features
 
 ## Main features
@@ -58,6 +63,10 @@ It **does not work with**:
   - Full UTF-8 support, alternate character sets
   - Standard mouse tracking modes
   - You can dynamically set screen title, button labels...
+- **Networking commands**
+  - Command for sending a message to another ESPTerm
+  - API endpoint (`/api/v1/msg`) for receiving messages sent e.g. from a script on PC, web browser or CURL
+  - Command for requesting remote servers and getting back response headers and/or body
 - **Web Terminal Interface**
   - Real-time screen update via WebSocket
   - Mouse and keyboard input, works also on mobile
@@ -67,6 +76,15 @@ It **does not work with**:
 - **User-friendly comprehensive WiFi configuration** (Demo: [WiFi][demo-wifi], [network][demo-network] config)
   - Static IP, DHCP, channel selection, power
   - SSID search utility for finding your existing network
+- **Basic security features**
+  - Possibility to password-lock parts of the web interface
+  - Admin password for some sensitive operations (can be changed!)
+  - Configurable AP password & Hidden attribute
+- **Advanced settings storage**  
+  - Stored in Flash
+  - Seamlesly updated and usually backwards compatible in minor releases
+  - Settings can be saved as defaults and later easily restored (ideal e.g. for classroom use, saving  
+    good tested settings before giving the module to students)
   
 ## Bugs? Ideas?
 
@@ -108,36 +126,31 @@ It can happen that some changes to the WiFi or network config make the module in
 - To reset all settings to defaults, hold the button a couple seconds until the LED flashes rapidly, then release it.
 - You can cancel this wipe/reset operation (when triggered by accident) by pressing Reset or disconnecting the power supply.
 
-### Config files
+### Config banks
 
 ESPTerm has two config "files", one for defaults and one for the currently used settings. In the case of the terminal 
 config, there is also a third, temporary file for changes done via ESC commands.
 
 When you get your settings *just right*, you can store them as defaults, which can then be at any time restored 
 by holding the BOOT (GPIO0) button. You can do this on the System Settings page. This asks for an "admin password", 
-which you can define when building the firmware in the `esphttpdconfig.mk` file. 
-
-The default password is `19738426`. This password can't presently be changed without re-flashing the firmware.
+which can (and should!) be changed. This password can't be easily recovered when forgotten.
 
 You can also restore everything (except the saved defaults) to "factory defaults", there is a button for this 
-on the System Settings page. Those are the initial values in the config files.
+on the System Settings page. Those are the initial values you would get after a clean install.
 
 ## Research resources
 
-Developing ESPTerm wasn't an easy task, because the information is scattered across many places and the existing 
-terminal emulators I originally used for reference (terminator, Konsole) are not implemented correctly in some details.
+Developing the terminal emulator was complicated by the information being scattered across many places and the existing 
+implementations I used for reference often got some details wrong or didn't implement certain features at all. Xterm proved to be by far the most complete implementation.
 
-A great tool for checking my implementation has proven to be [VTTTEST][vttest] and Xterm as a reference
-implementation that is probably the most complete emulator available, although it's cumbersome to use and its age
-really shows in the looks.
+A great tool for checking my code has proven to be [VTTTEST][vttest]. ESPTerm passes most of the tests on the main page and some additional Xterm specific ones, like Mouse Tracking.
 
-I've comnpiled a list of those I found most helpful here: [VT100 emulation resources][resources]
+Here is a list of useful [VT100 emulation resources][resources] I've collected for reference.
 
 ## Development
 
 ESPTerm's firmware is written in C and is based on SpriteTM's `libesphttpd` http server library forked to
-[MightyPork/libesphttpd][httpdlib]. This fork includes various improvements
-and changes required by the project.
+[MightyPork/libesphttpd][httpdlib]. This fork includes various improvements and changes required by the project.
 
 ### Installation for development
 

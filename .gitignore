@@ -20,4 +20,5 @@ cmake-build-debug/
 .sass-cache
 
 *.map
-.gitignore
+!.gitignore
+

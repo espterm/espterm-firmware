@@ -94,21 +94,33 @@ apars_handle_space_cmd(char c)
 void ICACHE_FLASH_ATTR apars_handle_hash_cmd(char c)
 {
 	switch(c) {
+		case '1': // Double height, single width, top half (CUSTOM!)
+			screen_set_line_attr(1, 2, 1);
+			break;
+		case '2': // Double height, single width, bottom half (CUSTOM!)
+			screen_set_line_attr(1, 1, 2);
+			break;
 		case '3': // Double size, top half
-		case '4': // Single size, bottom half
+			screen_set_line_attr(2, 2, 1);
+			break;
+		case '4': // Double size, bottom half
+			screen_set_line_attr(2, 1, 2);
+			break;
 		case '5': // Single width, single height
+			screen_set_line_attr(1, 1, 1);
+			break;
 		case '6': // Double width
-			ansi_noimpl("Double Size Line");
+			screen_set_line_attr(2, 1, 1);
 			break;
 
 		case '8':
 			screen_fill_with_E();
 			break;
 
-		// development codes - do not use!
-		case '7':
-			http_get("http://wtfismyip.com/text", NULL, http_callback_example);
-			break;
+//		// development codes - do not use!
+//		case '7':
+//			http_get("http://wtfismyip.com/text", NULL, http_callback_example);
+//			break;
 
 		default:
 			ansi_noimpl("ESC # %c", c);

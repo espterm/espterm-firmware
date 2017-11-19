@@ -4,9 +4,126 @@
 
 #include "wifimgr.h"
 #include "persist.h"
+#include "cgi_logging.h"
+#include "config_xmacros.h"
 
 WiFiConfigBundle * const wificonf = &persist.current.wificonf;
 WiFiConfChangeFlags wifi_change_flags;
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_wifi_lease_time(const char *name, u16 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s min", name, buff);
+	int min = atoi(buff);
+	if (min >= 1 && min <= 2880) {
+		if (*field != min) {
+			*field = (u16) min;
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("Lease time %s out of allowed range 1-2880.", buff);
+		return XSET_FAIL;
+	}
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_wifi_opmode(const char *name, u8 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	int mode = atoi(buff);
+	if (mode > NULL_MODE && mode < MAX_MODE) {
+		if (*field != mode) {
+			*field = (WIFI_MODE) mode;
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED; // opmode does not use flags
+	} else {
+		cgi_warn("Bad opmode value \"%s\"", buff);
+		return XSET_FAIL;
+	}
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_wifi_tpw(const char *name, u8 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	int tpw = atoi(buff);
+	if (tpw >= 0 && tpw <= 82) { // 0 actually isn't 0 but quite low. 82 is very strong
+		if (*field != tpw) {
+			*field = (u8) tpw;
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("tpw %s out of allowed range 0-82.", buff);
+		return XSET_FAIL;
+	}
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_wifi_ap_channel(const char *name, u8 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	int channel = atoi(buff);
+	if (channel > 0 && channel < 15) {
+		if (*field != channel) {
+			*field = (u8) channel;
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("Bad channel value \"%s\", allowed 1-14", buff);
+		return XSET_FAIL;
+	}
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_wifi_ssid(const char *name, uchar *field, const char *buff, const void *arg)
+{
+	u8 buff2[SSID_LEN];
+
+	bool want_subs = arg!=0;
+
+	int i;
+	for (i = 0; i < SSID_LEN; i++) {
+		char c = buff[i];
+		if (c == 0) break;
+		if (want_subs && (c < 32 || c >= 127)) c = '_';
+		buff2[i] = (u8) c;
+	}
+	buff2[i] = 0;
+
+	cgi_dbg("Setting %s = %s", name, buff);
+	if (strlen((char *)buff2) > 0) {
+		if (!streq(field, buff2)) {
+			strncpy_safe(field, buff2, SSID_LEN);
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("Bad SSID len.");
+		return XSET_FAIL;
+	}
+}
+
+/** Set PW - allow len 0 or 8-64 */
+enum xset_result ICACHE_FLASH_ATTR
+xset_wifi_pwd(const char *name, uchar *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	if (strlen(buff) == 0 || (strlen(buff) >= 8 && strlen(buff) < PASSWORD_LEN-1)) {
+		if (!streq(field, buff)) {
+			strncpy_safe(field, buff, PASSWORD_LEN);
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("Bad password len.");
+		return XSET_FAIL;
+	}
+}
+
 
 int ICACHE_FLASH_ATTR getStaIpAsString(char *buffer)
 {
@@ -42,13 +159,11 @@ wifimgr_restore_defaults(void)
 	wificonf->ap_password[0] = 0; // PSK2 always if password is not null.
 	wificonf->ap_hidden = false;
 
-	IP4_ADDR(&wificonf->ap_addr.ip, 192, 168, 4, 1);
-	IP4_ADDR(&wificonf->ap_addr.netmask, 255, 255, 255, 0);
-	wificonf->ap_addr.gw.addr = wificonf->ap_addr.gw.addr;
+	IP4_ADDR(&wificonf->ap_addr_ip, 192, 168, 4, 1);
+	IP4_ADDR(&wificonf->ap_addr_mask, 255, 255, 255, 0);
 
-	IP4_ADDR(&wificonf->ap_dhcp_range.start_ip, 192, 168, 4, 100);
-	IP4_ADDR(&wificonf->ap_dhcp_range.end_ip, 192, 168, 4, 200);
-	wificonf->ap_dhcp_range.enable = 1; // this will never get changed, idk why it's even there
+	IP4_ADDR(&wificonf->ap_dhcp_start, 192, 168, 4, 100);
+	IP4_ADDR(&wificonf->ap_dhcp_end, 192, 168, 4, 200);
 	wificonf->ap_dhcp_time = 120;
 
 	// --- Client config ---
@@ -56,9 +171,9 @@ wifimgr_restore_defaults(void)
 	wificonf->sta_password[0] = 0;
 	wificonf->sta_dhcp_enable = true;
 
-	IP4_ADDR(&wificonf->sta_addr.ip, 192, 168, 0, (mac[5] == 1 ? 2 : mac[5])); // avoid being the same as "default gw"
-	IP4_ADDR(&wificonf->sta_addr.netmask, 255, 255, 255, 0);
-	IP4_ADDR(&wificonf->sta_addr.gw, 192, 168, 0, 1);
+	IP4_ADDR(&wificonf->sta_addr_ip, 192, 168, 0, (mac[5] == 1 ? 2 : mac[5])); // avoid being the same as "default gw"
+	IP4_ADDR(&wificonf->sta_addr_mask, 255, 255, 255, 0);
+	IP4_ADDR(&wificonf->sta_addr_gw, 192, 168, 0, 1); // a common default...
 }
 
 static void ICACHE_FLASH_ATTR
@@ -83,13 +198,18 @@ configure_station(void)
 	}
 	else {
 		wifi_info("[WiFi] Setting up static IP...");
-		wifi_dbg("[WiFi] Client.ip   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.ip.addr));
-		wifi_dbg("[WiFi] Client.mask = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.netmask.addr));
-		wifi_dbg("[WiFi] Client.gw   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr.gw.addr));
+		wifi_dbg("[WiFi] Client.ip   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr_ip.addr));
+		wifi_dbg("[WiFi] Client.mask = "IPSTR, GOOD_IP2STR(wificonf->sta_addr_mask.addr));
+		wifi_dbg("[WiFi] Client.gw   = "IPSTR, GOOD_IP2STR(wificonf->sta_addr_gw.addr));
 
 		wifi_station_dhcpc_stop();
 		// Load static IP config
-		if (!wifi_set_ip_info(STATION_IF, &wificonf->sta_addr)) {
+		struct ip_info ipstruct;
+		ipstruct.ip.addr = wificonf->sta_addr_ip.addr;
+		ipstruct.netmask.addr = wificonf->sta_addr_mask.addr;
+		ipstruct.gw.addr = wificonf->sta_addr_gw.addr;
+
+		if (!wifi_set_ip_info(STATION_IF, &ipstruct)) {
 			error("[WiFi] Error setting static IP!");
 			return;
 		}
@@ -112,7 +232,7 @@ configure_ap(void)
 	strcpy((char *) conf.password, (char *) wificonf->ap_password);
 	conf.authmode = (wificonf->ap_password[0] == 0 ? AUTH_OPEN : AUTH_WPA2_PSK);
 	conf.ssid_len = (uint8_t) strlen((char *) conf.ssid);
-	conf.ssid_hidden = wificonf->ap_hidden;
+	conf.ssid_hidden = (uint8) wificonf->ap_hidden;
 	conf.max_connection = 4; // default 4 (max possible)
 	conf.beacon_interval = 100; // default 100 ms
 
@@ -127,24 +247,32 @@ configure_ap(void)
 
 	// Set IP
 	wifi_info("[WiFi] Configuring SoftAP local IP...");
-	wifi_dbg("[WiFi] SoftAP.ip   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.ip.addr));
-	wifi_dbg("[WiFi] SoftAP.mask = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.netmask.addr));
-	wifi_dbg("[WiFi] SoftAP.gw   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr.gw.addr));
+	wifi_dbg("[WiFi] SoftAP.ip   = "IPSTR, GOOD_IP2STR(wificonf->ap_addr_ip.addr));
+	wifi_dbg("[WiFi] SoftAP.mask = "IPSTR, GOOD_IP2STR(wificonf->ap_addr_mask.addr));
 
 	wifi_softap_dhcps_stop();
 
 	// Configure DHCP
-	if (!wifi_set_ip_info(SOFTAP_IF, &wificonf->ap_addr)) {
+	struct ip_info ipstruct;
+	ipstruct.ip.addr = wificonf->ap_addr_ip.addr;
+	ipstruct.netmask.addr = wificonf->ap_addr_mask.addr;
+	ipstruct.gw.addr = wificonf->ap_addr_ip.addr;
+
+	if (!wifi_set_ip_info(SOFTAP_IF, &ipstruct)) {
 		error("[WiFi] IP set fail!");
 		return;
 	}
 
 	wifi_info("[WiFi] Configuring SoftAP DHCP server...");
-	wifi_dbg("[WiFi] DHCP.start = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.start_ip.addr));
-	wifi_dbg("[WiFi] DHCP.end   = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_range.end_ip.addr));
+	wifi_dbg("[WiFi] DHCP.start = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_start.addr));
+	wifi_dbg("[WiFi] DHCP.end   = "IPSTR, GOOD_IP2STR(wificonf->ap_dhcp_end.addr));
 	wifi_dbg("[WiFi] DHCP.lease = %d minutes", wificonf->ap_dhcp_time);
 
-	if (!wifi_softap_set_dhcps_lease(&wificonf->ap_dhcp_range)) {
+	struct dhcps_lease dhcpstruct;
+	dhcpstruct.start_ip = wificonf->ap_dhcp_start;
+	dhcpstruct.end_ip = wificonf->ap_dhcp_end;
+	dhcpstruct.enable = 1; // ???
+	if (!wifi_softap_set_dhcps_lease(&dhcpstruct)) {
 		error("[WiFi] DHCP address range set fail!");
 		return;
 	}
@@ -164,6 +292,21 @@ configure_ap(void)
 	}
 }
 
+static ETSTimer tim;
+
+static void ICACHE_FLASH_ATTR
+wifimgr_apply_settings_later_Cb(void *unused)
+{
+	wifimgr_apply_settings();
+}
+
+void ICACHE_FLASH_ATTR
+wifimgr_apply_settings_later(uint32_t delay_ms)
+{
+	wifi_info("[WiFi] Scheduling settings apply in %d ms", delay_ms);
+	TIMER_START(&tim, wifimgr_apply_settings_later_Cb, delay_ms, 0);
+}
+
 /**
  * Register the WiFi event listener, cycle WiFi, apply settings
  */
@@ -171,6 +314,12 @@ void ICACHE_FLASH_ATTR
 wifimgr_apply_settings(void)
 {
 	wifi_info("[WiFi] Initializing...");
+
+//	char buff[64];
+//#define XSTRUCT wificonf
+//#define X XDUMP_FIELD
+//	XTABLE_WIFICONF
+//#undef X
 
 	// !!! Update to current version !!!
 
@@ -190,7 +339,7 @@ wifimgr_apply_settings(void)
 	}
 
 	if (opmode != wificonf->opmode) {
-		wifi_set_opmode_current(wificonf->opmode);
+		wifi_set_opmode_current((WIFI_MODE) wificonf->opmode);
 	}
 
 	// Configure the client

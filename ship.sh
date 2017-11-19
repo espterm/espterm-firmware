@@ -64,6 +64,7 @@ if [ -z "$ESP_LANG" ]; then
     buildlang cs
     buildlang en
     buildlang de
+    buildlang hu
 else
     buildlang ${ESP_LANG}
 fi

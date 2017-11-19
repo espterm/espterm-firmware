@@ -150,6 +150,8 @@ static void ICACHE_FLASH_ATTR user_start(void *unused)
 	// Critically important for client application if any kind of screen persistence / content re-use is needed
 	UART_WriteChar(UART0, CAN, UART_TIMEOUT_US); // 0x18 - 24 - CAN
 
+	dbg("tsize=%d", sizeof(TerminalConfigBundle));
+
 #if DEBUG_HEAP
 	// Heap use timer & blink
 	TIMER_START(&prHeapTimer, prHeapTimerCb, HEAP_TIMER_MS, 1);

@@ -8,6 +8,7 @@
 #include "character_sets.h"
 #include "utf8.h"
 #include "cgi_sockets.h"
+#include "cgi_logging.h"
 
 TerminalConfigBundle * const termconf = &persist.current.termconf;
 TerminalConfigBundle termconf_live;
@@ -38,6 +39,7 @@ static Cell screen[MAX_SCREEN_SIZE];
 
 
 #define TABSTOP_WORDS 5
+#define LINE_ATTRS_COUNT 64
 /**
  * Screen state structure
  */
@@ -56,8 +58,11 @@ static struct {
 	int vm1;
 
 	u32 tab_stops[TABSTOP_WORDS]; // tab stops bitmap
+	u8 line_attribs[LINE_ATTRS_COUNT]; // assume that's quite enough...
 	char last_char[4];
 } scr;
+
+#define IS_DOUBLE_WIDTH() (scr.line_attribs[cursor.y]&0b001)
 
 #define TOP scr.vm0
 #define BTM scr.vm1
@@ -106,8 +111,19 @@ bool cursor_saved = false;
 static struct {
 	bool alternate_active;
 	char title[TERM_TITLE_LEN];
-	char btn[TERM_BTN_COUNT][TERM_BTN_LEN];
-	char btn_msg[TERM_BTN_COUNT][TERM_BTN_MSG_LEN];
+
+	char btn1[TERM_BTN_LEN];
+	char btn2[TERM_BTN_LEN];
+	char btn3[TERM_BTN_LEN];
+	char btn4[TERM_BTN_LEN];
+	char btn5[TERM_BTN_LEN];
+
+	char btn1_msg[TERM_BTN_MSG_LEN];
+	char btn2_msg[TERM_BTN_MSG_LEN];
+	char btn3_msg[TERM_BTN_MSG_LEN];
+	char btn4_msg[TERM_BTN_MSG_LEN];
+	char btn5_msg[TERM_BTN_MSG_LEN];
+
 	u32 width;
 	u32 height;
 	int vm0;
@@ -143,45 +159,199 @@ static struct {
 	int x_min, y_min, x_max, y_max;
 } scr_dirty;
 
-#define reset_screen_dirty() do { \
-		scr_dirty.x_min = W; \
-		scr_dirty.x_max = -1; \
-		scr_dirty.y_min = H; \
-		scr_dirty.y_max = -1; \
-	} while(0)
+static void ICACHE_FLASH_ATTR reset_screen_dirty(void)
+{
+	scr_dirty.x_min = W;
+	scr_dirty.x_max = -1;
+	scr_dirty.y_min = H;
+	scr_dirty.y_max = -1;
+}
 
-#define expand_dirty(y0, y1, x0, x1)  do { \
-		seri_dbg("Expand: X: (%d..%d) -> %d..%d, Y: (%d..%d) -> %d..%d", scr_dirty.x_min, scr_dirty.x_max, x0, x1, scr_dirty.y_min, scr_dirty.y_max, y0, y1); \
-		if ((int)(y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0); \
-		if ((int)(x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0); \
-		if ((int)(y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1); \
-		if ((int)(x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1); \
-	} while(0)
+static void ICACHE_FLASH_ATTR expand_dirty(int y0, int y1, int x0, int x1)
+{
+	seri_dbg("Expand: X: (%d..%d) -> %d..%d, Y: (%d..%d) -> %d..%d",
+			 scr_dirty.x_min, scr_dirty.x_max, x0, x1, scr_dirty.y_min, scr_dirty.y_max, y0, y1);
 
-#define NOTIFY_LOCK() do { \
-							notifyLock++; \
-						} while(0)
-            
-#define NOTIFY_DONE(updateTopics) do { \
-							lockTopics |= (updateTopics); \
-							if (notifyLock > 0) notifyLock--; \
-							if (notifyLock == 0) { \
-								screen_notifyChange(lockTopics); \
-								lockTopics = 0;\
-							} \
-						} while(0)
+	if ((y0) < scr_dirty.y_min) scr_dirty.y_min  = (y0);
+	if ((x0) < scr_dirty.x_min) scr_dirty.x_min  = (x0);
+	if ((y1) > scr_dirty.y_max) scr_dirty.y_max  = (y1);
+	if ((x1) > scr_dirty.x_max) scr_dirty.x_max  = (x1);
+}
+
+#define NOTIFY_LOCK() { notifyLock++; }
+
+static void ICACHE_FLASH_ATTR NOTIFY_DONE(u32 updateTopics)
+{
+	lockTopics |= (updateTopics);
+	if (notifyLock > 0) notifyLock--;
+	if (notifyLock == 0) {
+		screen_notifyChange(lockTopics);
+		lockTopics = 0;
+	}
+}
 
 /** Clear the hanging attribute if the cursor is no longer >= W */
-#define clear_invalid_hanging() do { \
-									if (cursor.hanging && cursor.x != W-1) { \
-										cursor.hanging = false; \
-										screen_notifyChange(TOPIC_CHANGE_CURSOR); \
-									} \
-								} while(false)
+static void ICACHE_FLASH_ATTR clear_invalid_hanging(void)
+{
+	if (cursor.hanging && cursor.x != W-1) {
+		cursor.hanging = false;
+		screen_notifyChange(TOPIC_CHANGE_CURSOR);
+	}
+}
 
 #define cursor_inside_region() (cursor.y >= TOP && cursor.y <= BTM)
 
 //region --- Settings ---
+
+/** Export color for config */
+void ICACHE_FLASH_ATTR
+xget_term_color(char *buff, u32 value)
+{
+	if (value < 256) {
+		sprintf(buff, "%d", value);
+	} else {
+		sprintf(buff, "#%06X", value - 256);
+	}
+}
+
+/** Export button message as stirng for config */
+void ICACHE_FLASH_ATTR
+xget_term_bm(char *buff, char *value)
+{
+	char c;
+	char *bp = buff;
+	char *cp = value;
+	buff[0] = 0;
+	int n = 0;
+	while((c = *cp++) != 0) {
+		if(n>0) {
+			*bp = ',';
+			bp++;
+		}
+		bp += sprintf(bp, "%d", (u8)c);
+		n++;
+	}
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_term_bm(const char *name, char *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+
+	// parse: comma,space or semicolon separated decimal values of ASCII codes
+	char c;
+	const char *cp = buff;
+	int char_i = 0;
+	int acu = 0;
+	bool lastsp = 1;
+	char buff_bm[TERM_BTN_MSG_LEN];
+	while ((c = *cp++) != 0) {
+		if (c == ' ' || c == ',' || c == ';') {
+			if(lastsp) continue;
+
+			if (acu==0 || acu>255) {
+				cgi_warn("Bad value! %d", acu);
+				return XSET_FAIL;
+			}
+
+			if (char_i >= TERM_BTN_MSG_LEN-1) {
+				cgi_warn("Too long! %d", char_i);
+				return XSET_FAIL;
+			}
+
+			dbg("+ %c", acu);
+			buff_bm[char_i++] = (char)acu;
+
+			// prepare for next char
+			acu = 0;
+			lastsp = 1;
+		} else if (c>='0'&&c<='9') {
+			lastsp = 0;
+			acu *= 10;
+			acu += c - '0';
+		} else {
+			cgi_warn("Bad syntax!");
+			return XSET_FAIL;
+		}
+	}
+	if (lastsp && char_i == 0) {
+		cgi_warn("Required!");
+		return XSET_FAIL;
+	}
+	if (!lastsp&&acu>0) {
+		dbg("+ %c", acu);
+		buff_bm[char_i++] = (char)acu;
+	}
+	buff_bm[char_i] = 0;
+
+	if (char_i == 0) {
+		cgi_warn("Required!");
+		return XSET_FAIL;
+	}
+
+	if (!streq(field, buff_bm)) {
+		strncpy(field, buff_bm, TERM_BTN_MSG_LEN);
+		return XSET_SET;
+	}
+	return XSET_UNCHANGED;
+}
+
+/** convert hex number to int */
+static ICACHE_FLASH_ATTR u32
+decodehex(const char *buf) {
+	u32 n = 0;
+	char c;
+	while ((c = *buf++) != 0) {
+		if (c >= '0' && c <= '9') c -= '0';
+		else if (c >= 'a' && c <= 'f') c -= 'a'-10;
+		else if (c >= 'A' && c <= 'F') c -= 'A'-10;
+		else c = 0;
+		n *= 16;
+		n += c;
+	}
+	return n;
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_term_color(const char *name, u32 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u32 n;
+
+	if (buff[0] == '#') {
+		// decode hex
+		n = decodehex(buff+1);
+		n += 256;
+	} else {
+		n = atoi(buff);
+	}
+
+	if (*field != n) {
+		*field = n;
+		return XSET_SET;
+	}
+
+	return XSET_UNCHANGED;
+}
+
+enum xset_result ICACHE_FLASH_ATTR
+xset_term_cursorshape(const char *name, u32 *field, const char *buff, const void *arg)
+{
+	cgi_dbg("Setting %s = %s", name, buff);
+	u32 n = atoi(buff);
+
+	if (n >= 0 && n <= 6 && n != 1) {
+		if (*field != n) {
+			*field = n;
+			return XSET_SET;
+		}
+		return XSET_UNCHANGED;
+	} else {
+		cgi_warn("Bad cursor_shape num: %s", buff);
+		return XSET_FAIL;
+	}
+}
+
 
 /**
  * Restore hard defaults
@@ -194,10 +364,21 @@ terminal_restore_defaults(void)
 	termconf->default_bg = 0;
 	termconf->default_fg = 7;
 	sprintf(termconf->title, SCR_DEF_TITLE);
-	for(int i=1; i <= TERM_BTN_COUNT; i++) {
-		sprintf(termconf->btn[i-1], "%d", i);
-		sprintf(termconf->btn_msg[i-1], "%c", i);
-	}
+
+	strcpy(termconf->btn1, "1");
+	strcpy(termconf->btn2, "2");
+	strcpy(termconf->btn3, "3");
+	strcpy(termconf->btn4, "4");
+	strcpy(termconf->btn5, "5");
+
+	strcpy((char*)termconf->bm1, "\x01");
+	strcpy((char*)termconf->bm2, "\x02");
+	strcpy((char*)termconf->bm3, "\x03");
+	strcpy((char*)termconf->bm4, "\x04");
+	strcpy((char*)termconf->bm5, "\x05");
+
+	termconf->bc1 = termconf->bc2 = termconf->bc3 = termconf->bc4 = termconf->bc5 = 0;
+
 	termconf->theme = 0;
 	termconf->parser_tout_ms = SCR_DEF_PARSER_TOUT_MS;
 	termconf->display_tout_ms = SCR_DEF_DISPLAY_TOUT_MS;
@@ -213,6 +394,9 @@ terminal_restore_defaults(void)
 	termconf->debugbar = SCR_DEF_DEBUGBAR;
 	termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 	termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
+	termconf->backdrop[0] = 0;
+	termconf->font_stack[0] = 0;
+	termconf->font_size = 20;
 }
 
 /**
@@ -231,20 +415,45 @@ terminal_apply_settings_noclear(void)
 {
 	bool changed = false;
 
+//		char buff[64];
+//#define XSTRUCT termconf
+//#define X XDUMP_FIELD
+//	XTABLE_TERMCONF
+//#undef X
+//	return;
+
 	// Migrate
 	if (termconf->config_version < 1) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 1");
 		termconf->debugbar = SCR_DEF_DEBUGBAR;
 		changed = 1;
 	}
 	if (termconf->config_version < 2) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 2");
 		termconf->allow_decopt_12 = SCR_DEF_DECOPT12;
 		changed = 1;
 	}
 	if (termconf->config_version < 3) {
-		persist_dbg("termconf: Updating to version %d", 1);
+		persist_dbg("termconf: Updating to version 3");
 		termconf->ascii_debug = SCR_DEF_ASCIIDEBUG;
+		changed = 1;
+	}
+	if (termconf->config_version < 4) {
+		persist_dbg("termconf: Updating to version 4");
+		termconf->backdrop[0] = 0;
+		changed = 1;
+	}
+	if (termconf->config_version < 5) {
+		persist_dbg("termconf: Updating to version 5");
+		termconf->button_count = SCR_DEF_BUTTON_COUNT;
+		changed = 1;
+	}
+	if (termconf->config_version < 6) {
+		persist_dbg("termconf: Updating to version 6");
+		termconf->backdrop[0] = 0;
+		termconf->font_stack[0] = 0;
+		termconf->font_size = 20;
+		termconf->bc1 = termconf->bc2 = termconf->bc3 = termconf->bc4 = termconf->bc5 = 0;
 		changed = 1;
 	}
 
@@ -346,7 +555,12 @@ screen_reset_sgr(void)
 static void ICACHE_FLASH_ATTR
 screen_reset_do(bool size, bool labels)
 {
-	ScreenNotifyTopics topics = TOPIC_CHANGE_SCREEN_OPTS | TOPIC_CHANGE_CURSOR | TOPIC_CHANGE_CONTENT_ALL;
+	ScreenNotifyTopics topics =
+		TOPIC_CHANGE_SCREEN_OPTS
+		| TOPIC_CHANGE_CURSOR
+		| TOPIC_CHANGE_CONTENT_ALL
+		| TOPIC_DOUBLE_LINES;
+
 	NOTIFY_LOCK();
 
 	// DECopts
@@ -383,18 +597,23 @@ screen_reset_do(bool size, bool labels)
 		scr.tab_stops[i] = 0x80808080;
 	}
 
+	// clear line attribs
+	memset(scr.line_attribs, 0, LINE_ATTRS_COUNT);
+
 	if (labels) {
 		strcpy(termconf_live.title, termconf->title);
+		strcpy(termconf_live.backdrop, termconf->backdrop);
 
-		for (int i = 1; i <= TERM_BTN_COUNT; i++) {
-			strcpy(termconf_live.btn[i], termconf->btn[i]);
-			strcpy(termconf_live.btn_msg[i], termconf->btn_msg[i]);
-		}
+		strcpy(termconf_live.btn1, termconf->btn1);
+		strcpy(termconf_live.btn2, termconf->btn2);
+		strcpy(termconf_live.btn3, termconf->btn3);
+		strcpy(termconf_live.btn4, termconf->btn4);
+		strcpy(termconf_live.btn5, termconf->btn5);
 
 		termconf_live.show_buttons = termconf->show_buttons;
 		termconf_live.show_config_links = termconf->show_config_links;
 
-		topics |= TOPIC_CHANGE_TITLE | TOPIC_CHANGE_BUTTONS;
+		topics |= TOPIC_CHANGE_TITLE | TOPIC_CHANGE_BUTTONS | TOPIC_CHANGE_BACKDROP;
 	}
 
 	// initial values in the save buffer in case of receiving restore without storing first
@@ -445,8 +664,11 @@ screen_swap_state(bool alternate)
 		ansi_dbg("Swap to alternate");
 		// store old state
 		memcpy(state_backup.title, termconf_live.title, TERM_TITLE_LEN);
-		memcpy(state_backup.btn, termconf_live.btn, sizeof(termconf_live.btn));
-		memcpy(state_backup.btn_msg, termconf_live.btn_msg, sizeof(termconf_live.btn_msg));
+
+		// copy multiple fields at once
+		memcpy(state_backup.btn1, termconf_live.btn1, sizeof(termconf_live.btn1)*TERM_BTN_COUNT);
+		memcpy(state_backup.btn1_msg, termconf_live.bm1, sizeof(termconf_live.bm1)*TERM_BTN_COUNT);
+
 		memcpy(state_backup.tab_stops, scr.tab_stops, sizeof(scr.tab_stops));
 		state_backup.vm0 = scr.vm0;
 		state_backup.vm1 = scr.vm1;
@@ -458,8 +680,11 @@ screen_swap_state(bool alternate)
 	else {
 		ansi_dbg("Unswap from alternate");
 		memcpy(termconf_live.title, state_backup.title, TERM_TITLE_LEN);
-		memcpy(termconf_live.btn, state_backup.btn, sizeof(termconf_live.btn));
-		memcpy(termconf_live.btn_msg, state_backup.btn_msg, sizeof(termconf_live.btn_msg));
+
+		// copy multiple fields at once
+		memcpy(termconf_live.btn1, state_backup.btn1, sizeof(termconf_live.btn1)*TERM_BTN_COUNT);
+		memcpy(termconf_live.bm1, state_backup.btn1_msg, sizeof(termconf_live.bm1)*TERM_BTN_COUNT);
+
 		memcpy(scr.tab_stops, state_backup.tab_stops, sizeof(scr.tab_stops));
 		scr.vm0 = state_backup.vm0;
 		scr.vm1 = state_backup.vm1;
@@ -470,6 +695,32 @@ screen_swap_state(bool alternate)
 
 	state_backup.alternate_active = alternate;
 	NOTIFY_DONE(TOPIC_INITIAL);
+}
+
+//endregion
+
+//region --- Double lines ---
+
+void ICACHE_FLASH_ATTR
+screen_set_line_attr(uint8_t double_w, uint8_t double_h_top, uint8_t double_h_bot)
+{
+	NOTIFY_LOCK();
+	u8 attr = scr.line_attribs[cursor.y];
+	if (double_w==2) attr |= 0b001;
+	else if (double_w==1) attr &= ~0b001;
+	if (double_h_top==2) attr |= 0b010;
+	else if (double_h_top==1) attr &= ~0b010;
+	if (double_h_bot==2) attr |= 0b100;
+	else if (double_h_bot==1) attr &= ~0b100;
+	scr.line_attribs[cursor.y] = attr;
+
+	if (attr & 0b001) {
+		// if we're using double width - clamp cursor X position
+		// TODO this should happen in all cursor ops - now it can sometimes go offscreen
+		if (cursor.x >= W/2) cursor.x = W/2;
+	}
+
+	NOTIFY_DONE(TOPIC_DOUBLE_LINES);
 }
 
 //endregion
@@ -509,6 +760,7 @@ next_tab_stop(void)
 {
 	// cursor must never go past EOL
 	if (cursor.x >= W-1) return -1;
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2-1) return -1;
 
 	// find first word to inspect
 	int idx = (cursor.x+1)/32;
@@ -520,6 +772,7 @@ next_tab_stop(void)
 		for(;offs<32;offs++) {
 			cp++;
 			if (cp >= W) return -1;
+			if (IS_DOUBLE_WIDTH() && cp >= W/2) return -1;
 			if (w & 1) return cp;
 			w >>= 1;
 		}
@@ -577,6 +830,7 @@ screen_tab_forward(int count)
 		}
 		else {
 			cursor.x = W - 1;
+			if (IS_DOUBLE_WIDTH()) cursor.x = W/2 - 1;
 		}
 	}
 	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
@@ -778,19 +1032,23 @@ screen_clear(ClearMode mode)
 			unicode_cache_clear();
 			clear_range_noutf(0, W * H - 1);
 			scr.last_char[0]  = 0;
+			for (int i = 0; i < LINE_ATTRS_COUNT; i++) scr.line_attribs[i] = 0;
 			break;
 
 		case CLEAR_FROM_CURSOR:
 			clear_range_utf((cursor.y * W) + cursor.x, W * H - 1);
 			expand_dirty(cursor.y, H-1, 0, W-1);
+			for (int i = cursor.y; i < LINE_ATTRS_COUNT; i++) scr.line_attribs[i] = 0;
 			break;
 
 		case CLEAR_TO_CURSOR:
 			clear_range_utf(0, (cursor.y * W) + cursor.x);
 			expand_dirty(0, cursor.y, 0, W-1);
+			for (int i = 0; i <= cursor.y; i++) scr.line_attribs[i] = 0;
 			break;
 	}
-	NOTIFY_DONE(mode == CLEAR_ALL ? TOPIC_CHANGE_CONTENT_ALL : TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE((mode == CLEAR_ALL ? TOPIC_CHANGE_CONTENT_ALL : TOPIC_CHANGE_CONTENT_PART)
+				| TOPIC_DOUBLE_LINES);
 }
 
 /**
@@ -842,11 +1100,15 @@ screen_insert_lines(unsigned int lines)
 	int targetStart = cursor.y + lines;
 	if (targetStart > BTM) {
 		clear_range_utf(cursor.y*W, (BTM+1)*W-1);
+		for (int i = cursor.y; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 	} else {
 		// do the moving
 		for (int i = BTM; i >= targetStart; i--) {
 			utf_free_row(i); // release old characters
 			copy_row(i, i - lines);
+			scr.line_attribs[i] = scr.line_attribs[i-lines];
 			if (i != targetStart) utf_backup_row(i);
 		}
 
@@ -858,7 +1120,7 @@ screen_insert_lines(unsigned int lines)
 		}
 	}
 	expand_dirty(cursor.y, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 void ICACHE_FLASH_ATTR
@@ -873,18 +1135,26 @@ screen_delete_lines(unsigned int lines)
 		// clear the entire rest of the screen
 		movedBlockEnd = cursor.y;
 		clear_range_utf(movedBlockEnd*W, (BTM+1)*W-1);
+		for (int i = movedBlockEnd; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 	} else {
 		// move some lines up, clear the rest
 		for (int i = cursor.y; i <= movedBlockEnd; i++) {
 			utf_free_row(i);
 			copy_row(i, i+lines);
+			scr.line_attribs[i] = scr.line_attribs[i+lines];
 			if (i != movedBlockEnd) utf_backup_row(i);
 		}
 		clear_range_noutf((movedBlockEnd+1)*W, (BTM+1)*W-1);
+
+		for (int i = movedBlockEnd+1; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 	}
 
 	expand_dirty(cursor.y, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 void ICACHE_FLASH_ATTR
@@ -982,8 +1252,8 @@ screen_resize(int rows, int cols)
 	if (W == cols && H == rows) return; // Do nothing
 
 	NOTIFY_LOCK();
-	W = cols;
-	H = rows;
+	W = (u32) cols;
+	H = (u32) rows;
 	screen_reset_on_resize();
 	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS|TOPIC_CHANGE_CONTENT_ALL|TOPIC_CHANGE_CURSOR);
 }
@@ -1005,8 +1275,80 @@ void ICACHE_FLASH_ATTR
 screen_set_button_text(int num, const char *text)
 {
 	NOTIFY_LOCK();
-	strncpy(termconf_live.btn[num-1], text, TERM_BTN_LEN);
+
+	if (num >= 1 && num <= TERM_BTN_COUNT) {
+		char *buf = TERM_BTN_N(&termconf_live, num - 1);
+		strncpy(buf, text, TERM_BTN_MSG_LEN);
+	}
+	else ansi_warn("Bad button num: %d", num);
+
 	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Helper function to set terminal button label
+ * @param num - button number 1-5
+ * @param str - button text
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_message(int num, const char *msg)
+{
+	NOTIFY_LOCK();
+
+	if (num >= 1 && num <= TERM_BTN_COUNT) {
+		char *buf = TERM_BM_N(&termconf_live, num - 1);
+		strncpy(buf, msg, TERM_BTN_MSG_LEN);
+	}
+	else ansi_warn("Bad button num: %d", num);
+
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Helper function to set terminal button label
+ * @param num - button number 1-5
+ * @param str - button text
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_color(int num, const char *buf)
+{
+	NOTIFY_LOCK();
+
+	if (num >= 1 && num <= TERM_BTN_COUNT)  {
+		u32 *fieldptr = &termconf_live.bc1 + (num-1);
+		xset_term_color("", fieldptr, buf, NULL);
+	}
+	else ansi_warn("Bad button num: %d", num);
+
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Set button count
+ * @param count - count 1-5
+ */
+void ICACHE_FLASH_ATTR
+screen_set_button_count(int count)
+{
+	NOTIFY_LOCK();
+	if (count >= 0 && count <= 5) {
+		dbg("%d ", count);
+		termconf_live.button_count = (u8) count;
+	}
+	else ansi_warn("Bad button count: %d", count);
+	NOTIFY_DONE(TOPIC_CHANGE_BUTTONS);
+}
+
+/**
+ * Helper function to set terminalbackdrop
+ * @param url - url
+ */
+void ICACHE_FLASH_ATTR
+screen_set_backdrop(const char *url)
+{
+	NOTIFY_LOCK();
+	strncpy(termconf_live.backdrop, url, TERM_BACKDROP_LEN);
+	NOTIFY_DONE(TOPIC_CHANGE_BACKDROP);
 }
 
 /**
@@ -1019,6 +1361,9 @@ screen_scroll_up(unsigned int lines)
 	if (lines >= RH) {
 		// clear entire region
 		clear_range_utf(TOP * W, (BTM + 1) * W - 1);
+		for (int i = TOP; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 		goto done;
 	}
 
@@ -1031,14 +1376,18 @@ screen_scroll_up(unsigned int lines)
 	for (y = TOP; y <= BTM - lines; y++) {
 		utf_free_row(y);
 		copy_row(y, y+lines);
+		scr.line_attribs[y] = scr.line_attribs[y+lines];
 		if (y < BTM - lines) utf_backup_row(y);
 	}
 
 	clear_range_noutf(y * W, (BTM + 1) * W - 1);
+	for (int i = y; i <= BTM; i++) {
+		scr.line_attribs[i] = 0;
+	}
 
 done:
 	expand_dirty(TOP, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 /**
@@ -1051,6 +1400,9 @@ screen_scroll_down(unsigned int lines)
 	if (lines >= RH) {
 		// clear entire region
 		clear_range_utf(TOP * W, (BTM + 1) * W - 1);
+		for (int i = TOP; i <= BTM; i++) {
+			scr.line_attribs[i] = 0;
+		}
 		goto done;
 	}
 
@@ -1063,13 +1415,17 @@ screen_scroll_down(unsigned int lines)
 	for (y = BTM; y >= TOP+lines; y--) {
 		utf_free_row(y);
 		copy_row(y, y-lines);
+		scr.line_attribs[y] = scr.line_attribs[y-lines];
 		if (y > TOP + lines) utf_backup_row(y);
 	}
 
-	clear_range_noutf(TOP * W, TOP * W + lines * W - 1);
+	clear_range_noutf(TOP * W, (TOP + lines) * W - 1);
+	for (int i = TOP; i < TOP + lines; i++) {
+		scr.line_attribs[i] = 0;
+	}
 done:
 	expand_dirty(TOP, BTM, 0, W - 1);
-	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART);
+	NOTIFY_DONE(TOPIC_CHANGE_CONTENT_PART|TOPIC_DOUBLE_LINES);
 }
 
 /** Set scrolling region */
@@ -1102,7 +1458,7 @@ void ICACHE_FLASH_ATTR
 screen_cursor_shape(enum CursorShape shape)
 {
 	NOTIFY_LOCK();
-	if (shape == CURSOR_DEFAULT) shape = termconf->cursor_shape;
+	if (shape == CURSOR_DEFAULT) shape = (enum CursorShape) termconf->cursor_shape;
 	termconf_live.cursor_shape = shape;
 	NOTIFY_DONE(TOPIC_CHANGE_SCREEN_OPTS);
 }
@@ -1174,6 +1530,9 @@ screen_cursor_set_x(int x)
 	// hanging happens when the cursor is virtually at col=81, which
 	// cannot be set using the cursor-set commands.
 	cursor.hanging = false;
+
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) cursor.x = W/2-1;
+
 	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
@@ -1218,6 +1577,7 @@ screen_cursor_move(int dy, int dx, bool scroll)
 	cursor.x += dx;
 	cursor.y += dy;
 	if (cursor.x >= (int)W) cursor.x = W - 1;
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) cursor.x = W/2-1;
 	if (cursor.x < (int)0) {
 		if (cursor.auto_wrap && cursor.reverse_wrap) {
 			// this is mimicking a behavior from xterm that allows any number of steps backwards with reverse wraparound enabled
@@ -1324,6 +1684,8 @@ screen_cursor_restore(bool withAttrs)
 		}
 	}
 
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) cursor.x = W/2-1;
+
 	NOTIFY_DONE(TOPIC_CHANGE_CURSOR);
 }
 
@@ -1337,7 +1699,7 @@ screen_back_index(int count)
 		cursor.x = new_x;
 	} else {
 		cursor.x = 0;
-		screen_insert_characters(-new_x);
+		screen_insert_characters((unsigned int) -new_x);
 		topics |= TOPIC_CHANGE_CONTENT_PART;
 	}
 	NOTIFY_DONE(topics);
@@ -1529,7 +1891,7 @@ do_save_private_opt(int n, bool save)
 {
 	ScreenNotifyTopics topics = TOPIC_INTERNAL;
 	if (!save) NOTIFY_LOCK();
-#define SAVE_RESTORE(sf, of) do { if (save) sf=(of); else of=(sf); } while(0)
+#define SAVE_RESTORE(sf, of) do { if (save) (sf)=(of); else (of)=(sf); } while(0)
 	switch (n) {
 		case 1:
 			SAVE_RESTORE(opt_backup.cursors_alt_mode, scr.cursors_alt_mode);
@@ -1692,6 +2054,10 @@ putchar_graphic(const char *ch)
 		cursor.hanging = true; // hanging - next typed char wraps around, but backspace and arrows still stay on the same line.
 		cursor.x = W - 1;
 	}
+	if (IS_DOUBLE_WIDTH() && cursor.x >= W/2) {
+		cursor.hanging = true; // hanging
+		cursor.x = W/2 - 1;
+	}
 
 	NOTIFY_DONE(topics);
 	return ch;
@@ -1794,6 +2160,20 @@ utf8_remap(char *out, char g, char charset)
 			}
 			break;
 
+		case CS_2_BLOCKS_LINES: /* ESPTerm Character Rom 2 */
+			if ((g >= CODEPAGE_2_BEGIN) && (g <= CODEPAGE_2_END)) {
+				n = codepage_2[g - CODEPAGE_2_BEGIN];
+				if (n) utf = n;
+			}
+			break;
+
+		case CS_3_LINES_EXTRA: /* ESPTerm Character Rom 3 */
+			if ((g >= CODEPAGE_3_BEGIN) && (g <= CODEPAGE_3_END)) {
+				n = codepage_3[g - CODEPAGE_3_BEGIN];
+				if (n) utf = n;
+			}
+			break;
+
 		case CS_A_UKASCII: /* UK, replaces # with GBP */
 			if (g == '#') utf = 0x20a4; // £
 			break;
@@ -1877,6 +2257,15 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 		bufput_utf8((num)); \
 	} while(0)
 
+#define bufput_color_utf8(c) do { \
+		if ((c) < 256) { \
+			bufput_utf8(c); \
+		} else { \
+			bufput_utf8((((c)-256)&0xFFF) | 0x10000); \
+			bufput_utf8((((c)-256)>>12)&0xFFF); \
+		} \
+	} while(0)
+
 	// tags for screen serialization
 #define SEQ_TAG_SKIP '\x01'
 #define SEQ_TAG_REPEAT '\x02'
@@ -1887,12 +2276,15 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 #define SEQ_TAG_ATTRS_0 '\x07'
 
 #define TOPICMARK_SCREEN_OPTS 'O'
+#define TOPICMARK_STATIC_OPTS 'P'
 #define TOPICMARK_TITLE   'T'
 #define TOPICMARK_BUTTONS 'B'
 #define TOPICMARK_DEBUG   'D'
 #define TOPICMARK_BELL    '!'
 #define TOPICMARK_CURSOR  'C'
 #define TOPICMARK_SCREEN   'S'
+#define TOPICMARK_BACKDROP 'W'
+#define TOPICMARK_DBL_LINE 'H'
 
 	if (ss == NULL) {
 		// START!
@@ -1983,12 +2375,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(H);
 			bufput_utf8(W);
 			bufput_utf8(termconf_live.theme);
-
-			bufput_utf8(termconf_live.default_fg & 0xFFFF);
-			bufput_utf8((termconf_live.default_fg >> 16) & 0xFFFF);
-
-			bufput_utf8(termconf_live.default_bg & 0xFFFF);
-			bufput_utf8((termconf_live.default_bg >> 16) & 0xFFFF);
+			bufput_color_utf8(termconf_live.default_fg);
+			bufput_color_utf8(termconf_live.default_bg);
 
 			bufput_utf8(
 				(scr.cursor_visible << 0) |
@@ -2007,28 +2395,79 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			);
 		END_TOPIC
 
+		BEGIN_TOPIC(TOPIC_CHANGE_STATIC_OPTS, 110)
+			bufput_c(TOPICMARK_STATIC_OPTS);
+
+			size_t len = strlen(termconf_live.font_stack);
+			if (len > 0) {
+				memcpy(bb, termconf_live.font_stack, len);
+				bb += len;
+				remain -= len;
+			}
+			bufput_c('\x01');
+
+			bufput_utf8(termconf_live.font_size);
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_DOUBLE_LINES, 70)
+			bufput_c(TOPICMARK_DBL_LINE);
+
+			int cnt = 0;
+			for (int i = 0; i < LINE_ATTRS_COUNT; i++) {
+				if (scr.line_attribs[i] != 0) cnt++;
+			}
+			bufput_utf8(cnt);
+
+			for (int i = 0; i < LINE_ATTRS_COUNT; i++) {
+				if (scr.line_attribs[i] != 0) {
+					bufput_utf8((i << 3) | (scr.line_attribs[i]&0b111));
+				}
+			}
+		END_TOPIC
+
 		BEGIN_TOPIC(TOPIC_CHANGE_TITLE, TERM_TITLE_LEN+4+1)
 			bufput_c(TOPICMARK_TITLE);
 
-			int len = (int) strlen(termconf_live.title);
-			memcpy(bb, termconf_live.title, len);
-			bb += len;
-			remain -= len;
+			size_t len = strlen(termconf_live.title);
+			if (len > 0) {
+				memcpy(bb, termconf_live.title, len);
+				bb += len;
+				remain -= len;
+			}
 			bufput_c('\x01');
 		END_TOPIC
 
-		BEGIN_TOPIC(TOPIC_CHANGE_BUTTONS, (TERM_BTN_LEN+4)*TERM_BTN_COUNT+1+4)
+		BEGIN_TOPIC(TOPIC_CHANGE_BUTTONS, (TERM_BTN_LEN+4)*termconf_live.button_count+1+4)
 			bufput_c(TOPICMARK_BUTTONS);
 
-			bufput_utf8(TERM_BTN_COUNT);
+			bufput_utf8(termconf_live.button_count);
 
-			for (int i = 0; i < TERM_BTN_COUNT; i++) {
-				int len = (int) strlen(termconf_live.btn[i]);
-				memcpy(bb, termconf_live.btn[i], len);
-				bb += len;
-				remain -= len;
+			u32 *cp = &termconf_live.bc1;
+			for (int i = 0; i < termconf_live.button_count; i++) {
+				uint32_t c = *cp++;
+				bufput_color_utf8(c);
+
+				size_t len = strlen(TERM_BTN_N(&termconf_live, i));
+				if (len > 0) {
+					memcpy(bb, TERM_BTN_N(&termconf_live, i), len);
+					bb += len;
+					remain -= len;
+				}
 				bufput_c('\x01');
 			}
+
+		END_TOPIC
+
+		BEGIN_TOPIC(TOPIC_CHANGE_BACKDROP, TERM_BACKDROP_LEN+1+1)
+			bufput_c(TOPICMARK_BACKDROP);
+
+			size_t len = strlen(termconf_live.backdrop);
+			if (len > 0) {
+				memcpy(bb, termconf_live.backdrop, len);
+				bb += len;
+				remain -= len;
+			}
+			bufput_c('\x01');
 		END_TOPIC
 
 		BEGIN_TOPIC(TOPIC_INTERNAL, 45)
@@ -2049,6 +2488,8 @@ screenSerializeToBuffer(char *buffer, size_t buf_len, ScreenNotifyTopics topics,
 			bufput_utf8(cursor.charsetN);
 			bufput_c(cursor.charset0);
 			bufput_c(cursor.charset1);
+			bufput_color_utf8(cursor.fg);
+			bufput_color_utf8(cursor.bg);
 			bufput_utf8(system_get_free_heap_size());
 			bufput_utf8(term_active_clients);
 		END_TOPIC
