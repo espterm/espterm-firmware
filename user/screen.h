@@ -124,8 +124,10 @@ enum CursorShape {
 	X(char,           font_stack, [TERM_FONTSTACK_LEN], /**/, xget_string,  xset_string, TERM_FONTSTACK_LEN,  /**/, 1) \
 	X(u8,             font_size, /**/,              /**/, xget_dec,      xset_u8, NULL,       /**/, 1)
 
-#define TERM_BM_N(tc, n) ((tc)->bm1+(TERM_BTN_MSG_LEN*n))
-#define TERM_BTN_N(tc, n) ((tc)->btn1+(TERM_BTN_LEN*n))
+/** Get button N message from the passed config structure pointer */
+#define TERM_BM_N(tc, n) ((tc)->bm1+(TERM_BTN_MSG_LEN*(n)))
+/** Get button N text from the passed config structure pointer */
+#define TERM_BTN_N(tc, n) ((tc)->btn1+(TERM_BTN_LEN*(n)))
 
 /** Export color for config */
 void xget_term_color(char *buff, u32 value);
