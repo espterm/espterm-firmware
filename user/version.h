@@ -10,7 +10,7 @@
 
 #define FW_V_MAJOR 2
 #define FW_V_MINOR 3
-#define FW_V_PATCH 0
+#define FW_V_PATCH 1
 #define FW_V_SUFFIX ""
 #define FW_CODENAME "Cricket" // 2.3
 #define FW_CODENAME_QUOTED "\""FW_CODENAME"\""

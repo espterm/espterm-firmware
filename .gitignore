@@ -16,7 +16,7 @@ esphttpdconfig.mk
 
 # Garbage added by CLion
 .idea/
-cmake-build-debug/
+cmake-build-debug*/
 .sass-cache
 
 *.map
