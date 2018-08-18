@@ -11,5 +11,6 @@
 #define API_REBOOT  "/api/v1/reboot"
 #define API_PING    "/api/v1/ping"
 #define API_CLEAR   "/api/v1/clear"
+#define API_GPIO    "/api/v1/gpio"
 
 #endif //ESPTERM_API_H

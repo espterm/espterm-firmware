@@ -178,7 +178,7 @@ d2d_parse_command(char *msg)
 	else if (strstarts(msg, "H;")) {
 		if (request_pending) return false;
 
-		// Send a esp-esp message
+		// Send a HTTP request
 		msg += 2;
 		const char *method = NULL;
 		const char *params = NULL;

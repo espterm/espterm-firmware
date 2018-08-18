@@ -7,6 +7,7 @@
 #include "uart_driver.h"
 #include "serial.h"
 #include "cgi_logging.h"
+#include "io.h"
 
 SystemConfigBundle * const sysconf = &persist.current.sysconf;
 
@@ -119,6 +120,14 @@ sysconf_apply_settings(void)
 		changed = true;
 	}
 
+	if (sysconf->config_version < 2) {
+		dbg("Upgrading syscfg to v 2");
+		sysconf->gpio2_conf = GPIOCONF_OFF;
+        sysconf->gpio4_conf = GPIOCONF_OUT_START_0;
+        sysconf->gpio5_conf = GPIOCONF_OUT_START_0;
+		changed = true;
+	}
+
 	sysconf->config_version = SYSCONF_VERSION;
 
 	if (changed) {
@@ -127,6 +136,9 @@ sysconf_apply_settings(void)
 
 	// uart settings live here, but the CGI handler + form has been moved to the Terminal config page
 	serialInit();
+
+	// initialize user GPIOs
+	userGpioInit();
 
 	system_update_cpu_freq((uint8) (sysconf->overclock ? 160 : 80));
 }
@@ -143,4 +155,7 @@ sysconf_restore_defaults(void)
 	strcpy((char *)sysconf->access_pw, DEF_ACCESS_PW);
 	strcpy((char *)sysconf->access_name, DEF_ACCESS_NAME);
 	sysconf->overclock = false;
+	sysconf->gpio2_conf = GPIOCONF_OFF; // means 'use debug uart'
+	sysconf->gpio4_conf = GPIOCONF_OUT_START_0;
+	sysconf->gpio5_conf = GPIOCONF_OUT_START_0;
 }

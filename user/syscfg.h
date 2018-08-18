@@ -11,7 +11,7 @@
 // Size designed for the wifi config structure
 // Must be constant to avoid corrupting user config after upgrade
 #define SYSCONF_SIZE 300
-#define SYSCONF_VERSION 1
+#define SYSCONF_VERSION 2
 
 #define DEF_ACCESS_PW "1234"
 #define DEF_ACCESS_NAME "espterm"
@@ -23,6 +23,14 @@ enum pwlock {
 	PWLOCK_MENUS = 3,
 	PWLOCK_ALL = 4,
 	PWLOCK_MAX = 5,
+};
+
+enum gpioconf {
+	GPIOCONF_OFF = 0,
+	GPIOCONF_OUT_START_0 = 1,
+	GPIOCONF_OUT_START_1 = 2,
+	GPIOCONF_IN_PULL = 3,
+	GPIOCONF_IN_NOPULL = 4,
 };
 
 //....Type................Name..Suffix...............Deref..XGET............XSET.........................NOTIFY....Allow
@@ -39,7 +47,9 @@ enum pwlock {
 	X(uchar,           access_name, [32],             /**/, xget_ustring,  xset_ustring, NULL,        /**/, admin|tpl) \
 	\
 	X(bool,            overclock, /**/,               /**/, xget_bool,     xset_bool, NULL,           /**/, 1) \
-
+	X(u8,              gpio2_conf, /**/,              /**/, xget_dec,      xset_u8, NULL,             /**/, 1) \
+	X(u8,              gpio4_conf, /**/,              /**/, xget_dec,      xset_u8, NULL,             /**/, 1) \
+	X(u8,              gpio5_conf, /**/,              /**/, xget_dec,      xset_u8, NULL,             /**/, 1)
 
 typedef struct {
 #define X XSTRUCT_FIELD
@@ -54,6 +64,7 @@ typedef struct {
 //	char access_pw[64]; // access password
 //	char access_name[32]; // access name
 //	bool overclock;
+//	bool debug_uart;
 } SystemConfigBundle;
 
 extern SystemConfigBundle * const sysconf;

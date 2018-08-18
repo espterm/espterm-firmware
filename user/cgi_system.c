@@ -234,3 +234,129 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
 }
+
+
+static ETSTimer tmrPulse;
+
+static void ICACHE_FLASH_ATTR tmrPulseCb(void *arg)
+{
+	u32 mask = sysconf->gpio2_conf==GPIOCONF_OFF ? 0x30 : 0x34;
+	u32 argu = (u32) arg;
+	u32 set_on = argu & mask;
+	u32 set_off = (argu >> 16) & mask;
+	gpio_output_set(set_off, set_on, 0, 0); // the args are swapped here to achieve the opposite
+}
+
+/**
+ * API to set GPIOs
+ *
+ * @param connData
+ * @return
+ */
+httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
+{
+#define BUFLEN 100
+	char buff[BUFLEN];
+
+	if (connData->conn==NULL) {
+		//Connection aborted. Clean up.
+		return HTTPD_CGI_DONE;
+	}
+
+	bool set = 0;
+	u32 inputs = gpio_input_get();
+
+	// TODO pulse option
+
+	// args are do2, do4, do5. Values: 0 - off, 1 - on, -1 - toggle
+
+	s8 set_d2 = -1, set_d4 = -1, set_d5 = -1;
+
+	if (sysconf->gpio2_conf == GPIOCONF_OUT_START_0 || sysconf->gpio2_conf == GPIOCONF_OUT_START_1) {
+		if (GET_ARG("do2")) {
+			if (buff[0] == 't') {
+				set = ((inputs&(1<<2)) == 0);
+			} else {
+				set = buff[0] == '1';
+			}
+			set_d2 = set;
+			gpio_output_set((uint32) (set << 2), (uint32) ((!set) << 2), 0, 0);
+		}
+	}
+
+	if (sysconf->gpio4_conf == GPIOCONF_OUT_START_0 || sysconf->gpio4_conf == GPIOCONF_OUT_START_1) {
+		if (GET_ARG("do4")) {
+			if (buff[0] == 't') {
+				set = ((inputs&(1<<4)) == 0);
+			} else {
+				set = buff[0] == '1';
+			}
+			set_d4 = set;
+			gpio_output_set((uint32) (set << 4), (uint32) ((!set) << 4), 0, 0);
+		}
+	}
+
+	if (sysconf->gpio5_conf == GPIOCONF_OUT_START_0 || sysconf->gpio5_conf == GPIOCONF_OUT_START_1) {
+		if (GET_ARG("do5")) {
+			if (buff[0] == 't') {
+				set = ((inputs&(1<<5)) == 0);
+			} else {
+				set = buff[0] == '1';
+			}
+			set_d5 = set;
+			gpio_output_set((uint32) (set << 5), (uint32) ((!set) << 5), 0, 0);
+		}
+	}
+
+	if (GET_ARG("pulse")) {
+		int duration = atoi(buff);
+
+		if (duration > 0) {
+			u32 cmd = 0;
+			if (set_d2 != -1) {
+				if (set_d2) {
+					cmd |= 1<<2;
+				} else {
+					cmd |= 1<<(16+2);
+				}
+			}
+
+			if (set_d4 != -1) {
+				if (set_d4) {
+					cmd |= 1<<4;
+				} else {
+					cmd |= 1<<(16+4);
+				}
+			}
+
+			if (set_d5 != -1) {
+				if (set_d5) {
+					cmd |= 1<<5;
+				} else {
+					cmd |= 1<<(16+5);
+				}
+			}
+
+			os_timer_disarm(&tmrPulse);
+			os_timer_setfn(&tmrPulse, tmrPulseCb, (void*) cmd);
+			os_timer_arm(&tmrPulse, duration, false);
+		}
+	}
+
+	httpdStartResponse(connData, 200);
+	httpdHeader(connData, "Content-Type", "application/json");
+	httpdEndHeaders(connData);
+
+	// refresh inputs
+	inputs = gpio_input_get();
+
+	sprintf(buff, "{\"io2\":%d,\"io4\":%d,\"io5\":%d}",
+			((inputs&(1<<2)) != 0),
+			((inputs&(1<<4)) != 0),
+			((inputs&(1<<5)) != 0)
+		);
+
+	httpdSend(connData, buff, -1);
+
+	return HTTPD_CGI_DONE;
+}

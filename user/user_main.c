@@ -96,6 +96,8 @@ static ETSTimer prHeapTimer;
 //Main routine. Initialize stdout, the I/O, filesystem and the webserver and we're done.
 void ICACHE_FLASH_ATTR user_init(void)
 {
+	sysconf->gpio2_conf = GPIOCONF_OFF; // enable debug UART for the start-up (sysconf is not loaded yet)
+
 	ansi_parser_inhibit = true;
 	serialInitBase();
 
@@ -110,7 +112,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	banner_gap();
 	banner("================ ESPTerm ================");
 	banner_info();
-	banner_info("Project by Ondrej Hruska, 2017");
+	banner_info("Project by Ondrej Hruska, 2017-2018");
 	banner_info();
 	banner_info(TERMINAL_GITHUB_REPO_NOPROTO);
 	banner_info();

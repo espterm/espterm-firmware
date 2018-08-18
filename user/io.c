@@ -98,7 +98,10 @@ static void ICACHE_FLASH_ATTR resetBtnTimerCb(void *arg) {
 	} else {
 		// Switch LED pins back to UART mode
 		PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD);
-		PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
+        if (sysconf->gpio2_conf == GPIOCONF_OFF) {
+            // only if uart is enabled
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
+        }
 
 		if (resetCnt>=12) { //6 secs pressed - FR (timer is at 500 ms)
 			info("Restoring to default settings via BOOT button!");
@@ -140,3 +143,61 @@ void ICACHE_FLASH_ATTR ioInit() {
 	}
 }
 
+struct pinmapping {
+	bool set;
+	bool reset;
+	bool enable;
+	bool disable;
+	bool input;
+	bool pullup;
+};
+
+void ICACHE_FLASH_ATTR userGpioInit(void)
+{
+	const struct pinmapping pin_mappings[5] = {
+	//   S  R  E  D  I  P
+		{0, 1, 0, 1, 0, 0}, // OFF
+		{0, 1, 1, 0, 0, 0}, // OUT 0
+		{1, 0, 1, 0, 0, 0}, // OUT 1
+		{0, 0, 0, 1, 1, 1}, // IN PULL
+		{0, 0, 0, 1, 1, 0}, // IN NOPULL
+	};
+
+	u8 num;
+	const struct pinmapping *pm;
+
+	// GPIO2
+	num = 2;
+	pm = &pin_mappings[sysconf->gpio2_conf];
+	gpio_output_set((uint32) (pm->set << num), (uint32) (pm->reset << num), (uint32) (pm->enable << num), (uint32) (pm->disable << num));
+	if (pm->pullup) {
+		PIN_PULLUP_EN(PERIPHS_IO_MUX_GPIO2_U);
+	} else {
+		PIN_PULLUP_DIS(PERIPHS_IO_MUX_GPIO2_U);
+	}
+	if (sysconf->gpio2_conf == GPIOCONF_OFF) {
+        PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_U1TXD_BK);
+    } else {
+        PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+    }
+
+	// GPIO4
+	num = 4;
+	pm = &pin_mappings[sysconf->gpio4_conf];
+	gpio_output_set((uint32) (pm->set << num), (uint32) (pm->reset << num), (uint32) (pm->enable << num), (uint32) (pm->disable << num));
+	if (pm->pullup) {
+		PIN_PULLUP_EN(PERIPHS_IO_MUX_GPIO4_U);
+	} else {
+		PIN_PULLUP_DIS(PERIPHS_IO_MUX_GPIO4_U);
+	}
+
+	// GPIO5
+	num = 5;
+	pm = &pin_mappings[sysconf->gpio5_conf];
+	gpio_output_set((uint32) (pm->set << num), (uint32) (pm->reset << num), (uint32) (pm->enable << num), (uint32) (pm->disable << num));
+	if (pm->pullup) {
+		PIN_PULLUP_EN(PERIPHS_IO_MUX_GPIO5_U);
+	} else {
+		PIN_PULLUP_DIS(PERIPHS_IO_MUX_GPIO5_U);
+	}
+}

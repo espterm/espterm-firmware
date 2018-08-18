@@ -114,6 +114,7 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_CGI(API_PING"/?", cgiPing),
 	ROUTE_CGI(API_CLEAR"/?", cgiResetScreen),
 	ROUTE_CGI(API_D2D_MSG"/?", cgiD2DMessage),
+	ROUTE_CGI(API_GPIO"/?", cgiGPIO),
 
 	ROUTE_REDIRECT("/cfg/?", "/cfg/wifi"),
 
