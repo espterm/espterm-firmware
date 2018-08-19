@@ -10,5 +10,6 @@ httpd_cgi_state cgiSystemCfgSetParams(HttpdConnData *connData);
 httpd_cgi_state tplSystemCfg(HttpdConnData *connData, char *token, void **arg);
 httpd_cgi_state cgiResetScreen(HttpdConnData *connData);
 httpd_cgi_state cgiGPIO(HttpdConnData *connData);
+httpd_cgi_state tplGpio(HttpdConnData *connData, char *token, void **arg);
 
 #endif // CGI_PING_H

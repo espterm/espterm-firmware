@@ -103,6 +103,7 @@ const HttpdBuiltInUrl routes[] ESP_CONST_DATA = {
 	ROUTE_TPL_FILE("/", tplScreen, "/term.tpl"),
 	ROUTE_TPL_FILE("/about/?", tplAbout, "/about.tpl"),
 	ROUTE_FILE("/help/?", "/help.html"),
+	ROUTE_TPL_FILE("/cfg/gpio/?", tplGpio, "/cfg_gpio.tpl"),
 
 	// --- Sockets ---
 	ROUTE_WS(URL_WS_UPDATE, updateSockConnect),

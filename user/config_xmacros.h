@@ -88,6 +88,9 @@ enum xset_result xset_ustring(const char *name, u8 *field, const char *buff, con
 #define XGET_CGI_FUNC(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
 	if ((allow) && streq(token, #name)) xget(buff, deref XSTRUCT->name);
 
+#define XGET_CGI_FUNC_RETURN(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
+	if ((allow) && streq(token, #name)) { xget(buff, deref XSTRUCT->name); return; }
+
 #define XSTRUCT_FIELD(type, name, suffix, deref, xget, xset, xsarg, xnotify, allow) \
 	type name suffix;
 

@@ -11,7 +11,7 @@
 #define FW_V_MAJOR 2
 #define FW_V_MINOR 4
 #define FW_V_PATCH 0
-#define FW_V_SUFFIX "-pre1"
+#define FW_V_SUFFIX "-pre2"
 #define FW_CODENAME "Damselfly"
 #define FW_CODENAME_QUOTED "\""FW_CODENAME"\""
 

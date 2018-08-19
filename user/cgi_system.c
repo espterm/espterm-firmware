@@ -10,7 +10,8 @@
 #include "cgi_logging.h"
 
 #define SET_REDIR_SUC "/cfg/system"
-#define SET_REDIR_ERR SET_REDIR_SUC"?err="
+
+void buildInputsJson(char *buff);
 
 static ETSTimer tmr;
 
@@ -82,7 +83,18 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 	char redir_url_buf[100];
 
 	char *redir_url = redir_url_buf;
-	redir_url += sprintf(redir_url, SET_REDIR_ERR);
+
+	if (GET_ARG("redir")) {
+		strncpy(redir_url, buff, 40);
+		u32 len = strlen(buff);
+		if (len > 40) len = 40;
+		redir_url += len;
+	} else {
+		redir_url += sprintf(redir_url, SET_REDIR_SUC);
+	}
+	char *end_of_redir_url = redir_url;
+	redir_url += sprintf(redir_url, "?err=");
+	char *end_of_failed_redir_url = redir_url;
 	// we'll test if anything was printed by looking for \0 in failed_keys_buf
 
 	if (connData->conn == NULL) {
@@ -174,14 +186,16 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 	(void)redir_url;
 	(void)uart_changed; // unused
 
-	if (redir_url_buf[strlen(SET_REDIR_ERR)] == 0) {
+	if (*end_of_failed_redir_url == '\0') {
 		// All was OK
 		cgi_info("Set system params - success, saving...");
 
 		sysconf_apply_settings();
 		persist_store();
 
-		httpdRedirect(connData, SET_REDIR_SUC "?msg=Settings%20saved%20and%20applied.");
+		strcpy(end_of_redir_url, "?msg=Settings%20saved%20and%20applied.");
+
+		httpdRedirect(connData, redir_url_buf);
 	} else {
 		cgi_warn("Some settings did not validate, asking for correction");
 
@@ -198,6 +212,40 @@ cgiSystemCfgSetParams(HttpdConnData *connData)
 	return HTTPD_CGI_DONE;
 }
 
+static void tplSystemCfgFill(char *token, char *buff)
+{
+    buff[0] = '\0';
+
+    const bool admin = false;
+    const bool tpl=true;
+
+#define XSTRUCT sysconf
+#define X XGET_CGI_FUNC_RETURN
+    XTABLE_SYSCONF
+#undef X
+#undef XSTRUCT
+
+    if (streq(token, "def_access_name")) {
+        sprintf(buff, "%s", DEF_ACCESS_NAME);
+        return;
+    }
+
+    if (streq(token, "def_access_pw")) {
+        sprintf(buff, "%s", DEF_ACCESS_PW);
+        return;
+    }
+
+    if (streq(token, "def_admin_pw")) {
+        sprintf(buff, "%s", DEFAULT_ADMIN_PW);
+        return;
+    }
+
+    if (streq(token, "gpio_initial")) {
+        buildInputsJson(buff);
+        return;
+    }
+}
+
 
 httpd_cgi_state ICACHE_FLASH_ATTR
 tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
@@ -210,26 +258,7 @@ tplSystemCfg(HttpdConnData *connData, char *token, void **arg)
 		return HTTPD_CGI_DONE;
 	}
 
-	strcpy(buff, ""); // fallback
-
-	const bool admin = false;
-	const bool tpl=true;
-
-#define XSTRUCT sysconf
-#define X XGET_CGI_FUNC
-	XTABLE_SYSCONF
-#undef X
-#undef XSTRUCT
-
-	if (streq(token, "def_access_name")) {
-		sprintf(buff, "%s", DEF_ACCESS_NAME);
-	}
-	else if (streq(token, "def_access_pw")) {
-		sprintf(buff, "%s", DEF_ACCESS_PW);
-	}
-	else if (streq(token, "def_admin_pw")) {
-		sprintf(buff, "%s", DEFAULT_ADMIN_PW);
-	}
+    tplSystemCfgFill(token, buff);
 
 	tplSend(connData, buff, -1);
 	return HTTPD_CGI_DONE;
@@ -247,6 +276,19 @@ static void ICACHE_FLASH_ATTR tmrPulseCb(void *arg)
 	gpio_output_set(set_off, set_on, 0, 0); // the args are swapped here to achieve the opposite
 }
 
+
+void ICACHE_FLASH_ATTR
+buildInputsJson(char *buff)
+{
+    u32 inputs = gpio_input_get();
+
+    sprintf(buff, "{\"io2\":%d,\"io4\":%d,\"io5\":%d}",
+            ((inputs&(1<<2)) != 0),
+            ((inputs&(1<<4)) != 0),
+            ((inputs&(1<<5)) != 0)
+    );
+}
+
 /**
  * API to set GPIOs
  *
@@ -255,8 +297,7 @@ static void ICACHE_FLASH_ATTR tmrPulseCb(void *arg)
  */
 httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
 {
-#define BUFLEN 100
-	char buff[BUFLEN];
+	char buff[32];
 
 	if (connData->conn==NULL) {
 		//Connection aborted. Clean up.
@@ -266,16 +307,14 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
 	bool set = 0;
 	u32 inputs = gpio_input_get();
 
-	// TODO pulse option
-
-	// args are do2, do4, do5. Values: 0 - off, 1 - on, -1 - toggle
+	// args are do2, do4, do5, pulse. Values: 0 - off, 1 - on, t - toggle. pulse is in ms
 
 	s8 set_d2 = -1, set_d4 = -1, set_d5 = -1;
 
 	if (sysconf->gpio2_conf == GPIOCONF_OUT_START_0 || sysconf->gpio2_conf == GPIOCONF_OUT_START_1) {
 		if (GET_ARG("do2")) {
 			if (buff[0] == 't') {
-				set = ((inputs&(1<<2)) == 0);
+				set = ((inputs & (1<<2)) == 0);
 			} else {
 				set = buff[0] == '1';
 			}
@@ -287,7 +326,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
 	if (sysconf->gpio4_conf == GPIOCONF_OUT_START_0 || sysconf->gpio4_conf == GPIOCONF_OUT_START_1) {
 		if (GET_ARG("do4")) {
 			if (buff[0] == 't') {
-				set = ((inputs&(1<<4)) == 0);
+				set = ((inputs & (1<<4)) == 0);
 			} else {
 				set = buff[0] == '1';
 			}
@@ -299,7 +338,7 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
 	if (sysconf->gpio5_conf == GPIOCONF_OUT_START_0 || sysconf->gpio5_conf == GPIOCONF_OUT_START_1) {
 		if (GET_ARG("do5")) {
 			if (buff[0] == 't') {
-				set = ((inputs&(1<<5)) == 0);
+				set = ((inputs & (1<<5)) == 0);
 			} else {
 				set = buff[0] == '1';
 			}
@@ -314,27 +353,15 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
 		if (duration > 0) {
 			u32 cmd = 0;
 			if (set_d2 != -1) {
-				if (set_d2) {
-					cmd |= 1<<2;
-				} else {
-					cmd |= 1<<(16+2);
-				}
+				if (set_d2) { cmd |= 1<<2; } else { cmd |= 1<<(16+2); }
 			}
 
 			if (set_d4 != -1) {
-				if (set_d4) {
-					cmd |= 1<<4;
-				} else {
-					cmd |= 1<<(16+4);
-				}
+				if (set_d4) { cmd |= 1<<4; } else { cmd |= 1<<(16+4); }
 			}
 
 			if (set_d5 != -1) {
-				if (set_d5) {
-					cmd |= 1<<5;
-				} else {
-					cmd |= 1<<(16+5);
-				}
+				if (set_d5) { cmd |= 1<<5; } else { cmd |= 1<<(16+5); }
 			}
 
 			os_timer_disarm(&tmrPulse);
@@ -348,15 +375,15 @@ httpd_cgi_state ICACHE_FLASH_ATTR cgiGPIO(HttpdConnData *connData)
 	httpdEndHeaders(connData);
 
 	// refresh inputs
-	inputs = gpio_input_get();
-
-	sprintf(buff, "{\"io2\":%d,\"io4\":%d,\"io5\":%d}",
-			((inputs&(1<<2)) != 0),
-			((inputs&(1<<4)) != 0),
-			((inputs&(1<<5)) != 0)
-		);
-
+	buildInputsJson(buff);
 	httpdSend(connData, buff, -1);
 
 	return HTTPD_CGI_DONE;
+}
+
+/** "GPIO" page */
+httpd_cgi_state ICACHE_FLASH_ATTR
+tplGpio(HttpdConnData *connData, char *token, void **arg)
+{
+	return tplSystemCfg(connData, token, arg);
 }
