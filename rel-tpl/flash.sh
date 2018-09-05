@@ -18,8 +18,8 @@ if [ -z ${ESPTOOL} ]; then
 	fi
 fi
 
-[ -z ESPPORT ] && ESPPORT=/dev/ttyUSB0
-[ -z ESPBAUD ] && ESPBAUD=460800
+[ -z ${ESPPORT} ] && ESPPORT=/dev/ttyUSB0
+[ -z ${ESPBAUD} ] && ESPBAUD=460800
 
 set -x
 ${ESPTOOL} --port ${ESPPORT} --baud ${ESPBAUD} \
